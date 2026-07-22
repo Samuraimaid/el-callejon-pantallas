@@ -55,22 +55,27 @@ docker compose up --build -d
 
 | Uso | URL |
 |-----|-----|
-| Hub | http://localhost:5173 |
-| Centro de Control | http://localhost:5173/admin |
-| API / docs | http://localhost:8000/docs |
-| Health | http://localhost:8000/health |
+| Hub (este PC) | http://localhost:5173 |
+| Hub (red / TVs) | http://IP_DEL_SERVIDOR:5173 |
+| Centro de Control | http://IP_DEL_SERVIDOR:5173/admin |
+| API / docs | http://IP_DEL_SERVIDOR:8000/docs |
+| Health / red | http://IP_DEL_SERVIDOR:8000/health · `/red` |
+
+**Smart TVs en la misma Wi‑Fi:** en el televisor abra `http://IP:5173` (IPv4 del PC servidor, ej. `192.168.1.129`), elija el botón de esa TV y guarde en favoritos. No use `localhost` en las TVs — eso apunta al propio televisor.
 
 **Login dev:** `admin` / `1234` (cambiar en producción).
 
 ### Smart TVs en la red local
 
-En el `.env` del servidor (no uses solo `localhost` si las TVs son otros dispositivos):
+En el `.env` del servidor (recomendado para LAN):
 
 ```env
-VITE_API_URL=http://192.168.x.x:8000
-VITE_WS_URL=ws://192.168.x.x:8000/ws
-CORS_ORIGINS=http://192.168.x.x:5173,http://localhost:5173
+VITE_API_URL=auto
+VITE_WS_URL=auto
+CORS_ORIGINS=*
 ```
+
+Con `auto`, el navegador de cada TV usa la **misma IP** con la que abrió el hub; Vite hace proxy de `/api` y `/ws` al backend (solo hace falta el puerto **5173** en las TVs).
 
 Luego `docker compose up --build -d`.
 
@@ -102,7 +107,20 @@ Migraciones incrementales: carpeta `db/migrations/` (`001` … `007`).
 ## Centro de Control (`/admin`)
 
 1. **Gestionar Menú del Día** — CRUD, ♾️ ilimitado, ⭐ destacado, Nº combo 1–12, foto 1:1 + rembg, WS a TVs.
-2. **Gestionar Campañas Publicitarias** — Barra / VIP, 10 efectos, mensajes Chef / ¿Sabías qué?
+2. **Gestionar Campañas Publicitarias** — TV #3–#6 independientes, 10 efectos, mensajes Chef / ¿Sabías qué?
+
+### Favoritos Smart TV (URL corta)
+
+En la home (`/`) hay un botón por televisor. Abra el enlace en cada TV y guárdelo en favoritos o como página de inicio:
+
+| TV | Ruta | Contenido |
+|----|------|-----------|
+| #1 | `/tv/1` | Menú comidas |
+| #2 | `/tv/2` | Complementos |
+| #3 | `/tv/3` | Publicidad Barra (bebidas/picada) |
+| #4 | `/tv/4` | Publicidad Parrilla (asados) |
+| #5 | `/tv/5` | Publicidad VIP ambiente |
+| #6 | `/tv/6` | Publicidad VIP platillos |
 
 ---
 
@@ -113,7 +131,8 @@ Migraciones incrementales: carpeta `db/migrations/` (`001` … `007`).
 - `GET /api/productos/menu`
 - `GET|PUT /api/publicidad/{zona}` · `POST .../subir-slide`
 
-Zonas: `BARRA_BEBIDAS` | `SALON_VIP`
+Zonas activas: `TV3` | `TV4` | `TV5` | `TV6`  
+Aliases: `barra` → TV3, `vip` → TV5
 
 WebSocket: `ws://host:8000/ws?ch=pantallas`  
 Eventos: `p`, `z`, `img`, `+`, `-`, `pub`, `h`

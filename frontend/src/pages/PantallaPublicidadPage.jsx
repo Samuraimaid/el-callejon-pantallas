@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import MensajesDinamicosBanner from "../components/MensajesDinamicosBanner";
+import FicoshaBanner from "../components/tv/FicoshaBanner";
+import TvFullscreenChrome from "../components/tv/TvFullscreenChrome";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { API_URL } from "../lib/api";
 import { LOGO_URL } from "../lib/constants";
@@ -18,8 +20,8 @@ const ALL_EFFECTS = [
 ];
 
 /**
- * TV publicidad dinámica por zona (Barra 50″ / VIP 60″).
- * @param {{ zona: 'BARRA_BEBIDAS' | 'SALON_VIP', tituloZona?: string }} props
+ * TV publicidad dinámica por zona independiente (TV3–TV6).
+ * @param {{ zona: string, tituloZona?: string }} props
  */
 export default function PantallaPublicidadPage({
   zona,
@@ -129,7 +131,14 @@ export default function PantallaPublicidadPage({
   const imgFx = imageEffectClass(activeEffect, visible && true);
 
   return (
-    <div className="bg-oak-wood relative h-screen max-h-screen overflow-hidden text-ivory">
+    <div
+      className="bg-oak-wood relative overflow-hidden text-ivory"
+      style={{
+        height: "var(--app-height, 100vh)",
+        maxHeight: "var(--app-height, 100vh)",
+      }}
+    >
+      <TvFullscreenChrome label="TV de publicidad" />
       {slides.map((s, i) => (
         <div
           key={`${s.id || i}-${s.imagen_url}`}
@@ -193,7 +202,10 @@ export default function PantallaPublicidadPage({
         </div>
       </div>
 
-      <div className="absolute bottom-12 left-0 right-0 z-20 flex justify-center gap-3">
+      {/* Alianza Ficosha siempre visible en publicidad */}
+      <FicoshaBanner />
+
+      <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-3">
         {slides.map((s, i) => (
           <button
             key={s.id || i}

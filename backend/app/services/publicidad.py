@@ -21,7 +21,9 @@ from app.ws_manager import (
     ws_manager,
 )
 
-ZONAS = frozenset({"BARRA_BEBIDAS", "SALON_VIP"})
+# TVs #3–#6: campañas independientes. Aliases legacy → TV3 / TV5.
+ZONAS = frozenset({"TV3", "TV4", "TV5", "TV6", "BARRA_BEBIDAS", "SALON_VIP"})
+ZONAS_ACTIVAS = frozenset({"TV3", "TV4", "TV5", "TV6"})
 
 EFECTOS = frozenset(
     {
@@ -45,16 +47,34 @@ CATEGORIAS_MSG = frozenset({"chef", "sabias"})
 def normalize_zona(zona: str) -> str:
     z = (zona or "").strip().upper().replace("-", "_").replace(" ", "_")
     aliases = {
-        "BARRA": "BARRA_BEBIDAS",
-        "BEBIDAS": "BARRA_BEBIDAS",
-        "BARRA_BEBIDAS": "BARRA_BEBIDAS",
-        "VIP": "SALON_VIP",
-        "SALON": "SALON_VIP",
-        "SALON_VIP": "SALON_VIP",
+        # Nuevas pantallas independientes
+        "TV3": "TV3",
+        "TV4": "TV4",
+        "TV5": "TV5",
+        "TV6": "TV6",
+        "3": "TV3",
+        "4": "TV4",
+        "5": "TV5",
+        "6": "TV6",
+        "PANTALLA_3": "TV3",
+        "PANTALLA_4": "TV4",
+        "PANTALLA_5": "TV5",
+        "PANTALLA_6": "TV6",
+        # Legacy: Barra → TV3, VIP → TV5 (siguen existiendo filas legacy)
+        "BARRA": "TV3",
+        "BEBIDAS": "TV3",
+        "BARRA_BEBIDAS": "TV3",
+        "VIP": "TV5",
+        "SALON": "TV5",
+        "SALON_VIP": "TV5",
     }
     z = aliases.get(z, z)
-    if z not in ZONAS:
-        raise HTTPException(400, f"Zona inválida. Use: {', '.join(sorted(ZONAS))}")
+    if z not in ZONAS_ACTIVAS:
+        raise HTTPException(
+            400,
+            f"Zona inválida. Use: {', '.join(sorted(ZONAS_ACTIVAS))} "
+            f"(aliases: barra→TV3, vip→TV5)",
+        )
     return z
 
 

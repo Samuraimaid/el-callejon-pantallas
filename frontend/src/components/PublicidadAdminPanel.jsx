@@ -5,16 +5,28 @@ import ImageCropUploadModal from "./ImageCropUploadModal";
 
 const ZONAS = [
   {
-    id: "BARRA_BEBIDAS",
-    label: "Barra de Bebidas",
-    desc: "TVs #3 y #4 · 50″ · licores y ambiente barra",
+    id: "TV3",
+    label: "TV #3 · Barra",
+    desc: "50″ · bebidas, picada y barra · /tv/3",
     icon: "🍹",
   },
   {
-    id: "SALON_VIP",
-    label: "Área VIP",
-    desc: "TVs #5 y #6 · 60″ · ambiente privado climatizado",
+    id: "TV4",
+    label: "TV #4 · Parrilla",
+    desc: "50″ · asados y costilla · /tv/4",
+    icon: "🔥",
+  },
+  {
+    id: "TV5",
+    label: "TV #5 · VIP Ambiente",
+    desc: "60″ · salón y ambiente · /tv/5",
     icon: "✨",
+  },
+  {
+    id: "TV6",
+    label: "TV #6 · VIP Platillos",
+    desc: "60″ · platillos y especiales · /tv/6",
+    icon: "🍽️",
   },
 ];
 
@@ -64,7 +76,7 @@ function normalizeCampana(data) {
  * Administración de campañas publicitarias + mensajes dinámicos por zona.
  */
 export default function PublicidadAdminPanel({ onSaved }) {
-  const [zona, setZona] = useState("BARRA_BEBIDAS");
+  const [zona, setZona] = useState("TV3");
   const [campana, setCampana] = useState(null);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

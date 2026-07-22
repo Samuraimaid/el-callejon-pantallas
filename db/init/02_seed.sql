@@ -163,7 +163,7 @@ INSERT INTO campanas_publicidad (
       {"id":"v4","categoria":"chef","texto":"Combina tu buffet favorito con un jugo natural en el rincón más fresco del restaurante"}
     ]'::jsonb,
     '[
-      {"id":"v1","imagen_url":"/images/slides/slide3-salon.jpg","texto_principal":"Disfrutá tu almuerzo","texto_secundario":"en nuestro ambiente climatizado VIP"},
+      {"id":"v1","imagen_url":"/images/slides/slide3-salon.jpg","texto_principal":"Disfruta tu almuerzo","texto_secundario":"en nuestro ambiente climatizado VIP"},
       {"id":"v2","imagen_url":"/images/slides/slide7-familia.jpg","texto_principal":"Donde cada plato se siente","texto_secundario":"como en casa"},
       {"id":"v3","imagen_url":"/images/slides/slide2-ambiente.jpg","texto_principal":"Un espacio pensado","texto_secundario":"para disfrutar cada momento"},
       {"id":"v4","imagen_url":"/images/slides/slide9-patio.jpg","texto_principal":"Tu próximo lugar favorito","texto_secundario":"te está esperando"},

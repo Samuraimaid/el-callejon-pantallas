@@ -45,3 +45,7 @@ spotify_tokens_temp.json
 *.pem
 *.key
 
+
+# Temp image conversion
+frontend/public/images/_raw_convert/
+

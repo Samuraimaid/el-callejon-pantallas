@@ -23,7 +23,10 @@ CREATE TYPE tipo_producto_menu AS ENUM (
     'cafe'
 );
 
-CREATE TYPE zona_publicidad AS ENUM ('BARRA_BEBIDAS', 'SALON_VIP');
+CREATE TYPE zona_publicidad AS ENUM (
+    'BARRA_BEBIDAS', 'SALON_VIP',  -- legacy
+    'TV3', 'TV4', 'TV5', 'TV6'     -- pantallas independientes
+);
 
 -- -----------------------------------------------------------------------------
 -- Usuarios (auth del Centro de Control)
@@ -125,4 +128,4 @@ CREATE TRIGGER trg_campanas_upd
 
 COMMENT ON TABLE usuarios IS 'Auth del Centro de Control de Pantallas';
 COMMENT ON TABLE productos_menu IS 'Menú del día: precios, stock y activos para TVs 50" #1 y #2';
-COMMENT ON TABLE campanas_publicidad IS 'Campañas independientes BARRA_BEBIDAS y SALON_VIP';
+COMMENT ON TABLE campanas_publicidad IS 'Campañas independientes TV3–TV6 (favoritos /tv/3…/tv/6); legacy BARRA/VIP';

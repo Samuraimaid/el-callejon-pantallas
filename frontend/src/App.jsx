@@ -7,6 +7,10 @@ import PantallaComidasPage from "./pages/PantallaComidasPage";
 import PantallaComplementosPage from "./pages/PantallaComplementosPage";
 import PantallaPublicidadPage from "./pages/PantallaPublicidadPage";
 
+/**
+ * Rutas cortas /tv/1 … /tv/6 pensadas para favoritos de Smart TV.
+ * Cada publicidad (3–6) es una campaña independiente en el backend.
+ */
 export default function App() {
   return (
     <BrowserRouter>
@@ -21,90 +25,110 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        {/* Alias legacy */}
         <Route path="/cajero" element={<Navigate to="/admin" replace />} />
 
-        {/* TV #1 y #2 — Menú 50" */}
+        {/* ——— Favoritos Smart TV (URL corta estable) ——— */}
+        <Route path="/tv/1" element={<PantallaComidasPage />} />
+        <Route path="/tv/2" element={<PantallaComplementosPage />} />
+        <Route
+          path="/tv/3"
+          element={
+            <PantallaPublicidadPage
+              zona="TV3"
+              tituloZona="TV #3 · Barra"
+            />
+          }
+        />
+        <Route
+          path="/tv/4"
+          element={
+            <PantallaPublicidadPage
+              zona="TV4"
+              tituloZona="TV #4 · Parrilla"
+            />
+          }
+        />
+        <Route
+          path="/tv/5"
+          element={
+            <PantallaPublicidadPage
+              zona="TV5"
+              tituloZona="TV #5 · VIP Ambiente"
+            />
+          }
+        />
+        <Route
+          path="/tv/6"
+          element={
+            <PantallaPublicidadPage
+              zona="TV6"
+              tituloZona="TV #6 · VIP Platillos"
+            />
+          }
+        />
+
+        {/* Rutas largas (compatibles) */}
         <Route path="/pantalla/comidas" element={<PantallaComidasPage />} />
         <Route
           path="/pantalla/complementos"
           element={<PantallaComplementosPage />}
         />
+        <Route
+          path="/pantalla/publicidad/tv3"
+          element={
+            <PantallaPublicidadPage zona="TV3" tituloZona="TV #3 · Barra" />
+          }
+        />
+        <Route
+          path="/pantalla/publicidad/tv4"
+          element={
+            <PantallaPublicidadPage zona="TV4" tituloZona="TV #4 · Parrilla" />
+          }
+        />
+        <Route
+          path="/pantalla/publicidad/tv5"
+          element={
+            <PantallaPublicidadPage
+              zona="TV5"
+              tituloZona="TV #5 · VIP Ambiente"
+            />
+          }
+        />
+        <Route
+          path="/pantalla/publicidad/tv6"
+          element={
+            <PantallaPublicidadPage
+              zona="TV6"
+              tituloZona="TV #6 · VIP Platillos"
+            />
+          }
+        />
 
-        {/* TV #3 y #4 — Publicidad Barra 50" */}
+        {/* Legacy aliases → nuevas rutas independientes */}
         <Route
           path="/pantalla/publicidad/barra"
-          element={
-            <PantallaPublicidadPage
-              zona="BARRA_BEBIDAS"
-              tituloZona="Barra de bebidas y licores"
-            />
-          }
+          element={<Navigate to="/tv/3" replace />}
         />
-        {/* TV #5 y #6 — Publicidad VIP 60" */}
         <Route
           path="/pantalla/publicidad/vip"
-          element={
-            <PantallaPublicidadPage
-              zona="SALON_VIP"
-              tituloZona="Área VIP climatizada"
-            />
-          }
+          element={<Navigate to="/tv/5" replace />}
         />
-
-        {/* Aliases Smart TV / bookmarks */}
         <Route
           path="/pantalla/barra"
-          element={<Navigate to="/pantalla/comidas" replace />}
+          element={<Navigate to="/tv/1" replace />}
         />
         <Route
           path="/pantalla/bebidas"
-          element={<Navigate to="/pantalla/publicidad/barra" replace />}
+          element={<Navigate to="/tv/3" replace />}
         />
-        <Route
-          path="/tv/comida"
-          element={<Navigate to="/pantalla/comidas" replace />}
-        />
-        <Route
-          path="/tv/comidas"
-          element={<Navigate to="/pantalla/comidas" replace />}
-        />
+        <Route path="/tv/comida" element={<Navigate to="/tv/1" replace />} />
+        <Route path="/tv/comidas" element={<Navigate to="/tv/1" replace />} />
         <Route
           path="/tv/complementos"
-          element={<Navigate to="/pantalla/complementos" replace />}
+          element={<Navigate to="/tv/2" replace />}
         />
-        <Route
-          path="/tv/bebidas"
-          element={<Navigate to="/pantalla/publicidad/barra" replace />}
-        />
-        <Route
-          path="/tv/vip"
-          element={<Navigate to="/pantalla/publicidad/vip" replace />}
-        />
-        <Route
-          path="/tv/1"
-          element={<Navigate to="/pantalla/comidas" replace />}
-        />
-        <Route
-          path="/tv/2"
-          element={<Navigate to="/pantalla/complementos" replace />}
-        />
-        <Route
-          path="/tv/3"
-          element={<Navigate to="/pantalla/publicidad/barra" replace />}
-        />
-        <Route
-          path="/tv/4"
-          element={<Navigate to="/pantalla/publicidad/barra" replace />}
-        />
-        <Route
-          path="/tv/5"
-          element={<Navigate to="/pantalla/publicidad/vip" replace />}
-        />
-        <Route
-          path="/tv/6"
-          element={<Navigate to="/pantalla/publicidad/vip" replace />}
-        />
+        <Route path="/tv/bebidas" element={<Navigate to="/tv/3" replace />} />
+        <Route path="/tv/vip" element={<Navigate to="/tv/5" replace />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,7 +13,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db import get_db
 from app.deps import CurrentUser, require_caja, require_operacion
 from app.services import inventory
-from app.services.product_images import absolute_path, process_to_white_background, public_url
 from app.ws_manager import CHANNEL_ADMIN, CHANNEL_PANTALLAS, evt_image, ws_manager
 
 router = APIRouter(prefix="/api/productos", tags=["productos"])
@@ -191,17 +190,23 @@ async def eliminar(
 @router.post("/{producto_id}/imagen")
 async def subir_imagen(
     producto_id: UUID,
-    file: UploadFile = File(..., description="Imagen recortada 1:1"),
+    file: UploadFile = File(..., description="Imagen hero 1:1"),
+    file_card: UploadFile | None = File(
+        default=None, description="Imagen ancha para tarjeta lateral"
+    ),
+    remove_bg: str = Form(default="false"),
     db: AsyncSession = Depends(get_db),
     _user: Annotated[CurrentUser, Depends(require_caja)] = ...,
 ):
     """
-    Sube foto de producto:
-      1) rembg quita fondo
-      2) se pega sobre lienzo blanco
-      3) JPEG en public/images/platillos|bebidas/{CODIGO}.jpg
-      4) WebSocket t=img a pantallas
+    Sube foto de producto (doble plantilla):
+      - file → {CODIGO}.jpg (hero 1:1, columna central)
+      - file_card → {CODIGO}-card.jpg (fondo de tarjeta lateral)
+      - remove_bg=true|false (rembg opcional, sobre todo en hero)
+      - WebSocket t=img a pantallas
     """
+    from app.services.product_images import process_image, absolute_path, public_url
+
     if file.content_type and not file.content_type.startswith("image/"):
         raise HTTPException(400, "El archivo debe ser una imagen")
 
@@ -212,16 +217,31 @@ async def subir_imagen(
     if len(raw) > 12 * 1024 * 1024:
         raise HTTPException(400, "Imagen demasiado grande (máx. 12 MB)")
 
+    do_rembg = str(remove_bg).lower() in ("1", "true", "yes", "si", "sí")
+    card_raw: bytes | None = None
+    if file_card is not None:
+        card_raw = await file_card.read()
+        if card_raw and len(card_raw) > 12 * 1024 * 1024:
+            raise HTTPException(400, "Imagen tarjeta demasiado grande (máx. 12 MB)")
+
     def _pipeline() -> dict:
         import time
 
-        jpeg = process_to_white_background(raw)
-        dest = absolute_path(prod["tipo"], prod["codigo"])
+        jpeg = process_image(raw, remove_bg=do_rembg, max_side=1000)
+        dest = absolute_path(prod["tipo"], prod["codigo"], role="hero")
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(jpeg)
         ver = int(time.time())
+        card_url = None
+        if card_raw:
+            # Tarjeta: sin rembg por defecto (foto completa de fondo)
+            jpeg_c = process_image(card_raw, remove_bg=False, max_side=1200)
+            dest_c = absolute_path(prod["tipo"], prod["codigo"], role="card")
+            dest_c.write_bytes(jpeg_c)
+            card_url = public_url(prod["tipo"], prod["codigo"], ver, role="card")
         return {
-            "url": public_url(prod["tipo"], prod["codigo"], ver),
+            "url": public_url(prod["tipo"], prod["codigo"], ver, role="hero"),
+            "url_card": card_url,
             "version": ver,
             "path": str(dest),
         }
@@ -245,5 +265,6 @@ async def subir_imagen(
         "producto_id": prod["id"],
         "codigo": prod["codigo"],
         "imagen_url": meta["url"],
+        "imagen_url_card": meta.get("url_card"),
         "version": meta["version"],
     }

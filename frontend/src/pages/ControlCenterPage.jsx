@@ -2,19 +2,22 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import GestionarMenuPanel from "../components/GestionarMenuPanel";
 import Logo from "../components/Logo";
+import MenuBoardConfigPanel from "../components/MenuBoardConfigPanel";
 import PublicidadAdminPanel from "../components/PublicidadAdminPanel";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { clearSession, getUser } from "../lib/auth";
 
 const TABS = [
-  { id: "menu", label: "Gestionar Menú del Día", icon: "🍽️" },
-  { id: "publicidad", label: "Gestionar Campañas Publicitarias", icon: "📺" },
+  { id: "menu", label: "Menú del Día", icon: "🍽️" },
+  { id: "board", label: "Diseño TV #1–#2", icon: "🖼️" },
+  { id: "publicidad", label: "Campañas TV #3–#6", icon: "📺" },
 ];
 
 /**
  * Centro de Control de Pantallas — único panel administrador.
  * Pestaña 1: existencias/precios/nombres → WS a TVs 50" menú
- * Pestaña 2: campañas Barra/VIP → slides, efectos, mensajes dinámicos
+ * Pestaña 2: tarjetas visibles / títulos del menú board
+ * Pestaña 3: campañas TV3–TV6 independientes
  */
 export default function ControlCenterPage() {
   const nav = useNavigate();
@@ -40,6 +43,10 @@ export default function ControlCenterPage() {
     }
     if (ev.t === "pub") {
       setFlash(`Campaña ${ev.zona} publicada en TVs`);
+      window.setTimeout(() => setFlash(""), 2500);
+    }
+    if (ev.t === "cfg") {
+      setFlash("Diseño de menú TV actualizado");
       window.setTimeout(() => setFlash(""), 2500);
     }
   });
@@ -112,11 +119,9 @@ export default function ControlCenterPage() {
 
       {/* Área flexible: scroll interno + flechas del teclado */}
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {tab === "menu" ? (
-          <GestionarMenuPanel embedded />
-        ) : (
-          <PublicidadAdminPanel />
-        )}
+        {tab === "menu" && <GestionarMenuPanel embedded />}
+        {tab === "board" && <MenuBoardConfigPanel />}
+        {tab === "publicidad" && <PublicidadAdminPanel />}
       </main>
     </div>
   );

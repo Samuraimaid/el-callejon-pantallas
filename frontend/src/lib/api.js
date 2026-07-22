@@ -58,10 +58,20 @@ export const api = {
     }),
   deleteProducto: (id) =>
     request(`/api/productos/${id}`, { method: "DELETE" }),
-  uploadProductoImagen: async (id, blob, filename = "crop.jpg") => {
+  uploadProductoImagen: async (
+    id,
+    blob,
+    filename = "crop.jpg",
+    { cardBlob = null, removeBg = false } = {}
+  ) => {
     const token = getToken();
     const fd = new FormData();
     fd.append("file", blob, filename);
+    if (cardBlob) {
+      const cardName = String(filename).replace(/\.jpe?g$/i, "") + "-card.jpg";
+      fd.append("file_card", cardBlob, cardName);
+    }
+    fd.append("remove_bg", removeBg ? "true" : "false");
     const res = await fetch(`${API_URL}/api/productos/${id}/imagen`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -80,6 +90,14 @@ export const api = {
     }
     return res.json();
   },
+
+  // —— Config menú board (TV #1 / #2) ——
+  getMenuBoardConfig: () => request("/api/config/menu-board"),
+  putMenuBoardConfig: (body) =>
+    request("/api/config/menu-board", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 
   // —— Publicidad por zona (Barra / VIP) ——
   getPublicidad: (zona) => request(`/api/publicidad/${zona}`),

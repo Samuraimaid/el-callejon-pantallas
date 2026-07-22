@@ -22,9 +22,8 @@ export function useAutoScroll(ref, opts = {}) {
     let startId = 0;
     let paused = false;
     let running = true;
-    let lastLog = 0;
 
-    const tick = (ts) => {
+    const tick = () => {
       if (!running) return;
 
       const el = ref.current;
@@ -42,15 +41,6 @@ export function useAutoScroll(ref, opts = {}) {
       const clientHeight = el.clientHeight;
       const max = scrollHeight - clientHeight;
 
-      // Log de diagnóstico (cada 2s) para validar desborde
-      if (!lastLog || ts - lastLog > 2000) {
-        console.log("Scroll Dimensions:", scrollHeight, clientHeight, {
-          max,
-          scrollTop: el.scrollTop,
-        });
-        lastLog = ts;
-      }
-
       // Sin desborde físico: no mover
       if (max <= 2) {
         rafId = requestAnimationFrame(tick);
@@ -61,12 +51,10 @@ export function useAutoScroll(ref, opts = {}) {
       if (el.scrollTop >= max - 1) {
         el.scrollTop = max;
         paused = true;
-        console.log("Scroll: fin de menú — pausa", pauseMs, "ms");
         timeoutId = window.setTimeout(() => {
           if (!running || !ref.current) return;
           ref.current.scrollTop = 0;
           paused = false;
-          console.log("Scroll: reinicio al tope");
           rafId = requestAnimationFrame(tick);
         }, pauseMs);
         return;
@@ -78,14 +66,6 @@ export function useAutoScroll(ref, opts = {}) {
     };
 
     startId = window.setTimeout(() => {
-      const el = ref.current;
-      if (el) {
-        console.log(
-          "Scroll Dimensions (start):",
-          el.scrollHeight,
-          el.clientHeight
-        );
-      }
       rafId = requestAnimationFrame(tick);
     }, startDelayMs);
 

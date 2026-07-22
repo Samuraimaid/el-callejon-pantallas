@@ -3,6 +3,7 @@ import {
   fallbackImageForProduct,
   formatC,
   imageForProduct,
+  imageForProductCard,
 } from "../../lib/constants";
 import { isAgotado } from "../../hooks/useMenuTv";
 
@@ -35,86 +36,137 @@ export function displayNumber(p, fallbackIndex) {
   return fallbackIndex + 1;
 }
 
+/** Contorno de texto legible sobre fotos claras/oscuras */
+function textStrokeStyle(px = 1.5, color = "rgba(0,0,0,0.85)") {
+  const n = Math.max(0, Math.min(8, Number(px) || 0));
+  if (n <= 0) return undefined;
+  const shadows = [];
+  const steps = Math.max(8, Math.round(n * 4));
+  for (let i = 0; i < steps; i++) {
+    const a = (i / steps) * Math.PI * 2;
+    const x = (Math.cos(a) * n).toFixed(2);
+    const y = (Math.sin(a) * n).toFixed(2);
+    shadows.push(`${x}px ${y}px 0 ${color}`);
+  }
+  shadows.push("0 1px 3px rgba(0,0,0,0.45)");
+  return { textShadow: shadows.join(", ") };
+}
+
 /**
- * Fila estilo menú board McD: número grande + foto + nombre + precio.
+ * Tarjeta menú: foto de fondo a todo el ancho, fade a la derecha (madera),
+ * número + nombre, precio alineado a la derecha.
  */
-export function MenuBoardItem({ p, index = 0, flash = false, dense = false }) {
+export function MenuBoardItem({
+  p,
+  index = 0,
+  flash = false,
+  dense = false,
+  active = false,
+  maxSlots = 5,
+  textOutlinePx = 1.5,
+}) {
   const agotado = isAgotado(p);
   const num = displayNumber(p, index);
-  const img = p.img || imageForProduct(p.c, p.tp, p.imgV);
+  const imgCard =
+    p.imgCard || imageForProductCard(p.c, p.tp, p.imgV) || p.img || imageForProduct(p.c, p.tp, p.imgV);
+  const slots = Math.max(3, Math.min(12, Number(maxSlots) || 5));
+  const slotH = `calc((100% - ${(slots - 1) * 0.28}rem) / ${slots} * 0.92)`;
+  const stroke = textStrokeStyle(textOutlinePx);
 
   return (
     <article
-      className={`menu-board-item relative flex items-stretch gap-3 overflow-hidden rounded-xl border transition ${
+      data-code={p?.c || ""}
+      data-active={active ? "1" : "0"}
+      style={{
+        flex: `0 0 ${slotH}`,
+        minHeight: 0,
+        maxHeight: slotH,
+      }}
+      className={`menu-board-item menu-board-item--bleed relative overflow-hidden rounded-xl border transition-all duration-500 ease-out ${
+        active ? "menu-board-shine menu-board-item--active" : ""
+      } ${
         agotado
-          ? "border-rose-800/40 bg-black/35"
-          : "border-[rgba(232,197,106,0.22)] bg-[rgba(20,5,3,0.72)]"
-      } ${flash ? "ring-2 ring-gold anim-in" : ""} ${
-        dense ? "min-h-[88px] px-2.5 py-2" : "min-h-[108px] px-3 py-2.5"
-      }`}
+          ? "border-rose-800/40"
+          : active
+            ? "border-amber-300/70"
+            : "border-[rgba(232,197,106,0.22)]"
+      } ${flash ? "ring-2 ring-gold anim-in" : ""}`}
     >
-      <div
-        className={`flex shrink-0 items-center justify-center font-display font-black leading-none text-gold drop-shadow ${
-          dense ? "w-10 text-3xl" : "w-12 text-4xl"
-        }`}
-      >
-        {num}
-      </div>
-
-      <div
-        className={`relative shrink-0 overflow-hidden rounded-lg bg-white/5 ring-1 ring-white/10 ${
-          dense ? "h-16 w-16" : "h-20 w-20"
-        }`}
-      >
+      {/* Foto de fondo (formato ancho de tarjeta) */}
+      <div className="menu-board-bg absolute inset-0">
         <img
-          key={`${p.c}-${p.imgV || "0"}`}
-          src={img}
+          key={`${p.c}-card-${p.imgV || "0"}`}
+          src={imgCard}
           alt=""
-          className={`h-full w-full object-cover ${
-            agotado ? "opacity-45 grayscale" : ""
+          className={`h-full w-full object-cover object-left ${
+            agotado ? "opacity-40 grayscale" : ""
           }`}
           onError={(e) => {
             e.currentTarget.src = fallbackImageForProduct(p.c, p.tp);
           }}
         />
+        {/* Fade horizontal → madera */}
+        <div className="menu-board-bg-fade pointer-events-none absolute inset-0" />
         {agotado && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/45">
-            <span className="rounded bg-rose-600 px-1 text-[9px] font-black text-white">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+            <span className="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-black text-white">
               AGOTADO
             </span>
           </div>
         )}
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-col justify-center">
-        <p
-          className={`line-clamp-2 font-bold leading-tight ${
-            dense ? "text-lg" : "text-xl"
-          } ${agotado ? "text-cream/45" : "text-ivory"}`}
+      {/* Contenido encima */}
+      <div
+        className={`relative z-[1] flex h-full items-center gap-2 ${
+          dense ? "px-2 py-1 sm:px-2.5 sm:py-1.5" : "px-3 py-2"
+        }`}
+      >
+        <div
+          className={`flex shrink-0 items-center justify-center font-display font-black leading-none text-gold ${
+            dense ? "w-7 text-xl sm:w-9 sm:text-2xl" : "w-12 text-4xl"
+          }`}
+          style={stroke}
         >
-          {p.n}
-        </p>
-        <p
-          className={`font-display mt-0.5 font-semibold ${
-            dense ? "text-xl" : "text-2xl"
-          } ${agotado ? "text-cream/35 line-through" : "text-gold"}`}
-        >
-          {formatC(p.pr)}
-        </p>
+          {num}
+        </div>
+
+        <div className="min-w-0 flex-1 overflow-hidden pr-1">
+          <p
+            className={`line-clamp-2 font-bold leading-tight ${
+              dense ? "text-xs sm:text-base" : "text-xl"
+            } ${agotado ? "text-cream/50" : "text-ivory"}`}
+            style={stroke}
+          >
+            {p.n}
+          </p>
+        </div>
+
+        <div className="shrink-0 text-right">
+          <p
+            className={`font-display font-semibold tabular-nums ${
+              dense ? "text-sm sm:text-lg" : "text-2xl"
+            } ${agotado ? "text-cream/40 line-through" : "text-gold"}`}
+            style={stroke}
+          >
+            {formatC(p.pr)}
+          </p>
+        </div>
       </div>
     </article>
   );
 }
 
 /**
- * Hero foto grande: rota por TODOS los productos del pool con FX aleatorio.
- * Si un ítem es destacado (dst), se etiqueta como «Promoción del día».
+ * Hero foto grande 1:1 / full: rota productos del pool.
  */
 export function MenuBoardHero({
   products = [],
   intervalMs = 5500,
   title = "Menú del día",
   includeAgotados = false,
+  onActiveChange,
+  textOutlinePx = 2,
 }) {
   const pool = useMemo(() => {
     const raw = products || [];
@@ -141,24 +193,32 @@ export function MenuBoardHero({
     return () => window.clearInterval(id);
   }, [pool.length, intervalMs]);
 
+  const safeIdx = pool.length ? idx % pool.length : 0;
+  const activeProduct = pool.length ? pool[safeIdx] : null;
+
+  useEffect(() => {
+    if (!onActiveChange) return;
+    onActiveChange(activeProduct || null);
+  }, [activeProduct?.id, activeProduct?.c, onActiveChange]);
+
   if (!pool.length) {
     return (
-      <div className="panel-oak-deep flex h-full min-h-[320px] items-center justify-center rounded-2xl p-6">
+      <div className="panel-oak-deep flex h-full min-h-0 items-center justify-center rounded-2xl p-6">
         <p className="text-center text-xl text-cream/50">Sin platillos</p>
       </div>
     );
   }
 
-  const safeIdx = idx % pool.length;
-  const p = pool[safeIdx];
+  const p = activeProduct;
   const img = p.img || imageForProduct(p.c, p.tp, p.imgV);
   const num = displayNumber(p, safeIdx);
   const isPromo = p.dst === 1 || p.dst === true || p.destacado === true;
   const badge = isPromo ? "Promoción del día" : title;
   const total = pool.length;
+  const stroke = textStrokeStyle(textOutlinePx);
 
   return (
-    <div className="panel-oak-deep relative flex h-full min-h-[320px] flex-col overflow-hidden rounded-2xl">
+    <div className="panel-oak-deep relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl">
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <img
           key={`${p.id || p.c}-${tick}-${fx}`}
@@ -192,14 +252,23 @@ export function MenuBoardHero({
 
         <div className="absolute bottom-0 left-0 right-0 p-5">
           <div className="flex items-end gap-3">
-            <span className="font-display text-6xl font-black leading-none text-gold drop-shadow-lg md:text-7xl">
+            <span
+              className="font-display text-6xl font-black leading-none text-gold drop-shadow-lg md:text-7xl"
+              style={stroke}
+            >
               {num}
             </span>
             <div className="min-w-0 flex-1 pb-1">
-              <h2 className="font-display text-3xl font-bold leading-tight text-ivory drop-shadow md:text-4xl">
+              <h2
+                className="font-display text-3xl font-bold leading-tight text-ivory drop-shadow md:text-4xl"
+                style={stroke}
+              >
                 {p.n}
               </h2>
-              <p className="font-display mt-1 text-3xl text-gold md:text-4xl">
+              <p
+                className="font-display mt-1 text-3xl text-gold md:text-4xl"
+                style={stroke}
+              >
                 {formatC(p.pr)}
               </p>
             </div>
@@ -209,23 +278,23 @@ export function MenuBoardHero({
 
       {total > 1 && (
         <div className="flex flex-wrap items-center justify-center gap-1 bg-black/45 px-2 py-2">
-          {total <= 16
-            ? pool.map((item, i) => (
-                <span
-                  key={item.id || item.c || i}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === safeIdx ? "w-5 bg-amber-400" : "w-1.5 bg-white/30"
-                  }`}
-                />
-              ))
-            : (
-              <div className="h-1 w-full max-w-xs overflow-hidden rounded-full bg-white/15">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500"
-                  style={{ width: `${((safeIdx + 1) / total) * 100}%` }}
-                />
-              </div>
-            )}
+          {total <= 16 ? (
+            pool.map((item, i) => (
+              <span
+                key={item.id || item.c || i}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === safeIdx ? "w-5 bg-amber-400" : "w-1.5 bg-white/30"
+                }`}
+              />
+            ))
+          ) : (
+            <div className="h-1 w-full max-w-xs overflow-hidden rounded-full bg-white/15">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-amber-400 to-orange-500 transition-all duration-500"
+                style={{ width: `${((safeIdx + 1) / total) * 100}%` }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -296,21 +365,33 @@ function heroFxClass(fx) {
   }
 }
 
-/** Panel de sección con título tipo franquicia */
-export function MenuBoardPanel({ title, subtitle, children, className = "" }) {
+/** Panel de sección; si no hay title/subtitle, solo el listado. */
+export function MenuBoardPanel({
+  title = "",
+  subtitle = "",
+  children,
+  className = "",
+}) {
+  const showHead = Boolean(
+    (title && String(title).trim()) || (subtitle && String(subtitle).trim())
+  );
   return (
     <section
-      className={`panel-oak-deep flex flex-col overflow-hidden rounded-2xl ${className}`}
+      className={`panel-oak-deep flex min-h-0 flex-col overflow-hidden rounded-2xl ${className}`}
     >
-      <header className="shrink-0 border-b border-[rgba(232,197,106,0.2)] bg-black/35 px-4 py-3">
-        <h2 className="font-display text-2xl font-bold tracking-wide text-gold md:text-3xl">
-          {title}
-        </h2>
-        {subtitle && (
-          <p className="mt-0.5 text-sm text-cream/65">{subtitle}</p>
-        )}
-      </header>
-      <div className="min-h-0 flex-1 space-y-2 p-3">{children}</div>
+      {showHead && (
+        <header className="shrink-0 border-b border-[rgba(232,197,106,0.2)] bg-black/35 px-3 py-2 sm:px-4 sm:py-2.5">
+          {title && String(title).trim() && (
+            <h2 className="font-display text-xl font-bold tracking-wide text-gold sm:text-2xl md:text-3xl">
+              {title}
+            </h2>
+          )}
+          {subtitle && String(subtitle).trim() && (
+            <p className="mt-0.5 text-xs text-cream/65 sm:text-sm">{subtitle}</p>
+          )}
+        </header>
+      )}
+      <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-2.5">{children}</div>
     </section>
   );
 }

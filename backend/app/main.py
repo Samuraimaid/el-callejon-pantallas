@@ -2,7 +2,7 @@
 API Cartelería Digital — Buffet y Restaurante El Callejón (León, Nicaragua)
 
 6 pantallas Smart TV en tiempo real:
-  #1–#2 Menú 50" · #3–#4 Publicidad Barra 50" · #5–#6 Publicidad VIP 60"
+  #1–#2 Menú 50" · #3–#6 Publicidad independiente (favoritos /tv/3…/tv/6)
 Centro de Control: menú del día + campañas + mensajes dinámicos.
 """
 
@@ -14,7 +14,7 @@ from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
-from app.routers import auth, health, productos, publicidad
+from app.routers import auth, config_pantallas, health, productos, publicidad
 from app.ws_manager import (
     CHANNEL_ALL,
     VALID_CHANNELS,
@@ -32,18 +32,56 @@ app = FastAPI(
     version="1.1.0",
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origin_list,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# CORS abierto o lista + regex LAN (Smart TVs por IP:puerto)
+_cors_kw: dict = {
+    "allow_methods": ["*"],
+    "allow_headers": ["*"],
+}
+if settings.cors_allow_all:
+    _cors_kw["allow_origins"] = ["*"]
+    _cors_kw["allow_credentials"] = False
+else:
+    _cors_kw["allow_origins"] = settings.cors_origin_list
+    _cors_kw["allow_credentials"] = True
+    if settings.cors_origin_regex:
+        _cors_kw["allow_origin_regex"] = settings.cors_origin_regex
+
+app.add_middleware(CORSMiddleware, **_cors_kw)
 
 app.include_router(health.router)
 app.include_router(auth.router)
 app.include_router(productos.router)
 app.include_router(publicidad.router)
+app.include_router(config_pantallas.router)
+
+
+@app.get("/red")
+async def red_info():
+    """
+    Info de conexión para el hub / técnicos.
+    Las TVs deben abrir la IP LAN del PC servidor en el puerto del frontend (5173).
+    """
+    return {
+        "mensaje": (
+            "Abra en cada Smart TV: http://IP_DEL_SERVIDOR:5173 "
+            "y elija el botón de esa pantalla (/tv/1 … /tv/6). "
+            "Guarde la URL de la pantalla en favoritos."
+        ),
+        "puerto_hub": 5173,
+        "puerto_api": 8000,
+        "rutas_tv": {
+            "1": "/tv/1",
+            "2": "/tv/2",
+            "3": "/tv/3",
+            "4": "/tv/4",
+            "5": "/tv/5",
+            "6": "/tv/6",
+        },
+        "nota": (
+            "En Windows: ipconfig → IPv4 (ej. 192.168.1.129). "
+            "Firewall: permitir puertos 5173 (y 8000 si se usa API directa)."
+        ),
+    }
 
 
 @app.get("/")
@@ -53,6 +91,7 @@ async def root():
         "version": "1.1.0",
         "docs": "/docs",
         "health": "/health",
+        "red": "/red",
         "auth": "/api/auth/login",
         "pantallas": {
             "menu_comidas": "/pantalla/comidas",
@@ -74,8 +113,11 @@ async def root():
                 "h": "hello",
             },
             "publicidad": {
-                "barra": "/api/publicidad/BARRA_BEBIDAS",
-                "vip": "/api/publicidad/SALON_VIP",
+                "tv3": "/api/publicidad/TV3",
+                "tv4": "/api/publicidad/TV4",
+                "tv5": "/api/publicidad/TV5",
+                "tv6": "/api/publicidad/TV6",
+                "favoritos": "/tv/3 … /tv/6",
             },
         },
     }
