@@ -1,0 +1,208 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   Identidad visual — Madera Roble Rojo (El Callejón)
+   Colores inspirados en el salón físico del restaurante.
+   Textura ultra-ligera: solo CSS, sin bitmaps pesados de fondo.
+   ========================================================================== */
+
+@theme {
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-display: "Fraunces", Georgia, serif;
+
+  /* Roble / caoba */
+  --color-oak-deep: #5c1308;
+  --color-oak: #8b2617;
+  --color-oak-mid: #6e1c0f;
+  --color-oak-light: #a33a28;
+  --color-oak-glow: #c45c3a;
+
+  /* Alto contraste sobre madera */
+  --color-ivory: #f7f0e6;
+  --color-cream: #f0e2d0;
+  --color-gold: #e8c56a;
+  --color-gold-soft: #d4a84b;
+
+  --color-brand: #c45c26;
+  --color-brand-soft: #e8a54b;
+  --color-brand-deep: #8b3a14;
+  --color-ink: #1a120c;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #5c1308;
+  color: var(--color-ivory);
+  margin: 0;
+  overflow: hidden;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/*
+ * Madera roble/caoba orgánica — SIN rayas tipo persiana.
+ * Ruido fractal SVG (vetas + nudos) + veladura rojiza.
+ * Archivo local + data-URI de respaldo.
+ */
+.bg-oak-wood {
+  background-color: #5c1308;
+  background-image:
+    linear-gradient(
+      90deg,
+      rgba(139, 38, 23, 0.45) 0%,
+      rgba(92, 19, 8, 0.6) 50%,
+      rgba(139, 38, 23, 0.45) 100%
+    ),
+    /* SVG válido: feTurbulence + feColorMatrix (vetas orgánicas) */
+    url("/images/wood-grain.svg"),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 500 500'%3E%3Cfilter id='wood-grain' x='0' y='0' width='100%25' height='100%25' color-interpolation-filters='sRGB'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.015 0.18' numOctaves='4' seed='8' stitchTiles='stitch' result='noise'/%3E%3CfeColorMatrix in='noise' type='matrix' values='1 0 0 0 0.38 0 0.55 0 0 0.1 0 0 0.35 0 0.04 0 0 0 0.55 0' result='color'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23wood-grain)'/%3E%3C/svg%3E");
+  background-size: 100% 100%, 480px 480px, 480px 480px;
+  background-repeat: no-repeat, repeat, repeat;
+  background-blend-mode: multiply, soft-light, multiply;
+}
+
+/* Tarjetas: plano semitranslúcido + blur — menú legible, vetas al fondo */
+.panel-oak {
+  background-color: rgba(30, 6, 3, 0.65);
+  border: 1px solid rgba(232, 197, 106, 0.28);
+  box-shadow:
+    0 8px 28px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 240, 220, 0.07);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* Menú board estilo franquicia — paneles más opacos y limpios */
+.panel-oak-deep {
+  background-color: rgba(18, 4, 2, 0.82);
+  border: 1px solid rgba(232, 197, 106, 0.32);
+  box-shadow:
+    0 10px 32px rgba(0, 0, 0, 0.42),
+    inset 0 1px 0 rgba(255, 240, 220, 0.06);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.menu-board-item {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+/* Texto de alto contraste */
+.text-ivory {
+  color: #f7f0e6;
+}
+.text-cream {
+  color: #f0e2d0;
+}
+.text-gold {
+  color: #e8c56a;
+}
+.text-gold-soft {
+  color: #d4a84b;
+}
+
+/* Touch targets POS */
+.tap {
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Thermal voucher print */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #thermal-voucher,
+  #thermal-voucher * {
+    visibility: visible;
+  }
+  #thermal-voucher {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+  }
+}
+
+@keyframes fadeSoft {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes agotadoIn {
+  0% {
+    opacity: 0.4;
+    filter: grayscale(0);
+  }
+  100% {
+    opacity: 1;
+    filter: grayscale(0.85);
+  }
+}
+
+.anim-in {
+  animation: fadeSoft 0.35s ease-out both;
+}
+
+.anim-agotado {
+  animation: agotadoIn 0.45s ease-out both;
+}
+
+@keyframes kenburns {
+  0% {
+    transform: scale(1);
+  }
+  100% {
+    transform: scale(1.08);
+  }
+}
+
+.kenburns {
+  animation: kenburns 8s ease-in-out alternate infinite;
+}
+
+/* Contenedor de autoscroll TV — altura fija en la página; aquí solo barra oculta */
+.tv-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.tv-scroll::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.no-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(232, 197, 106, 0.35);
+  border-radius: 999px;
+}

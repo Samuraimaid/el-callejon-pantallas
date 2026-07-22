@@ -1,0 +1,47 @@
+# Env
+.env
+.env.local
+*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node
+node_modules/
+dist/
+build/
+.npm
+*.log
+npm-debug.log*
+
+# IDE / OS
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Docker volumes y modelos pesados (no subir a GitHub)
+data/postgres/
+data/u2net/
+*.onnx
+
+# Coverage / tests
+coverage/
+htmlcov/
+.coverage
+
+# Tokens / secretos locales
+backend/app/spotify_tokens.json
+spotify_tokens_temp.json
+*.pem
+*.key
+

@@ -1,0 +1,90 @@
+# El Callejón — Sistema de Gestión de Pantallas Digitales
+# Stack local: PostgreSQL + FastAPI (WebSockets) + React (Vite)
+# 6 Smart TVs: menú #1–#2 · publicidad barra #3–#4 · VIP #5–#6
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: el_callejon_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-callejon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-callejon_dev_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-el_callejon_pos}
+      TZ: America/Managua
+      PGTZ: America/Managua
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - el_callejon_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: el_callejon_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      CORS_ORIGINS: ${CORS_ORIGINS}
+      TZ: America/Managua
+      IMAGE_ROOT: /app/static/images
+      U2NET_HOME: /app/.u2net
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ./backend/app:/app/app
+      - ./frontend/public/images:/app/static/images
+      - ./data/u2net:/app/.u2net
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+    networks:
+      - el_callejon_net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+        VITE_WS_URL: ${VITE_WS_URL:-ws://localhost:8000/ws}
+    container_name: el_callejon_frontend
+    restart: unless-stopped
+    environment:
+      TZ: America/Managua
+    ports:
+      - "${FRONTEND_PORT:-5173}:5173"
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - ./frontend/index.html:/app/index.html
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - el_callejon_net
+
+volumes: {}
+
+networks:
+  el_callejon_net:
+    name: el_callejon_net
+    driver: bridge
