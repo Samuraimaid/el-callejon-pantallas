@@ -2,6 +2,26 @@
 
 Organización de fotos para menú TV y campañas de publicidad (Barra / VIP).
 
+## Seed / presentación del proyecto
+
+Todo el material de **muestra** para clonar el repo y mostrar el sistema funcionando:
+
+| Carpeta | Contenido | En Git |
+|---------|-----------|--------|
+| `platillos/`, `extras/`, `bebidas/` | Fotos de menú TV1–2 | Sí (~200 JPG) |
+| `slides/`, `publicidad/` | Carrusel de campañas | Sí |
+| `videos/seed-demo-*.mp4` | 2 videos cortos de demo | Sí |
+| `videos/pub-*` | Videos subidos en el local | **No** (runtime) |
+
+Tras clonar + `docker compose up`, opcional:
+
+```bash
+docker cp backend/scripts/seed_demo_media.py el_callejon_backend:/tmp/
+docker exec el_callejon_backend python /tmp/seed_demo_media.py
+```
+
+Eso deja TV3/TV4 con fotos + videos seed listos para `/tv/3` y `/tv/4`.
+
 ## `platillos/` — Menú TV #1 (fotos de platos)
 
 | Archivo | Representa | Código producto |

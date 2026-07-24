@@ -50,6 +50,8 @@ spotify_tokens_temp.json
 frontend/public/images/_raw_convert/
 
 
-# Videos/campa�as subidos en runtime (no versionar en Git)
+# Videos/campañas subidos en runtime (no versionar en Git)
 frontend/public/images/videos/**
 !frontend/public/images/videos/.gitkeep
+# Videos de muestra para demo / presentación del proyecto
+!frontend/public/images/videos/seed-demo-*
