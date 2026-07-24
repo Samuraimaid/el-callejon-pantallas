@@ -184,7 +184,7 @@ async def main() -> None:
                     SET slides = CAST(:slides AS jsonb),
                         mensajes = CAST(:mensajes AS jsonb),
                         duracion_slide = :dur,
-                        efecto_visual = CAST(:ef AS efecto_visual_publicidad),
+                        efecto_visual = :ef,
                         activo = TRUE,
                         actualizado_en = NOW()
                     WHERE zona = CAST(:zona AS zona_publicidad)
