@@ -74,6 +74,7 @@ function normalizeCampana(data) {
 
 /**
  * Administración de campañas publicitarias + mensajes dinámicos por zona.
+ * Multi-video, perfiles, plantillas editables, progreso 1080p.
  */
 export default function PublicidadAdminPanel({ onSaved }) {
   const [zona, setZona] = useState("TV3");
@@ -83,6 +84,17 @@ export default function PublicidadAdminPanel({ onSaved }) {
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [uploadFor, setUploadFor] = useState(null);
+  const [perfiles, setPerfiles] = useState([]);
+  const [perfilClave, setPerfilClave] = useState("restaurante_diario");
+  const [perfilEdit, setPerfilEdit] = useState(null);
+  const [targetZonas, setTargetZonas] = useState({
+    TV3: true,
+    TV4: true,
+    TV5: true,
+    TV6: true,
+  });
+  const [batch, setBatch] = useState(null);
+  const [batchPoll, setBatchPoll] = useState(null);
   const scroll = useArrowScroll(true);
 
   const load = useCallback(async () => {
@@ -99,9 +111,48 @@ export default function PublicidadAdminPanel({ onSaved }) {
     }
   }, [zona]);
 
+  const loadPerfiles = useCallback(async () => {
+    try {
+      const data = await api.getPerfiles();
+      setPerfiles(data.perfiles || []);
+    } catch {
+      /* tabla aún no migrada */
+    }
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadPerfiles();
+  }, [loadPerfiles]);
+
+  useEffect(() => {
+    if (!batchPoll) return undefined;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const b = await api.getVideoBatch(batchPoll);
+        if (!alive) return;
+        setBatch(b);
+        if (b.status === "ready" || b.status === "partial" || b.status === "error") {
+          setBatchPoll(null);
+          setMsg(b.message || "Procesamiento de videos finalizado.");
+          load();
+          onSaved?.();
+        }
+      } catch {
+        /* ignore poll errors */
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 1500);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [batchPoll, load, onSaved]);
 
   function updateSlide(id, patch) {
     setCampana((c) => {
@@ -192,9 +243,13 @@ export default function PublicidadAdminPanel({ onSaved }) {
           })),
         slides: campana.slides.map((s) => ({
           id: s.id,
+          media_tipo: s.media_tipo || (s.video_url ? "video" : "image"),
           imagen_url: (s.imagen_url || "").split("?")[0],
+          video_url: (s.video_url || "").split("?")[0],
           texto_principal: s.texto_principal || "",
           texto_secundario: s.texto_secundario || "",
+          animacion_texto: s.animacion_texto || "fade-in-up",
+          tamano_texto: s.tamano_texto || "mediano",
         })),
       };
       const updated = await api.putPublicidad(zona, body);
@@ -219,17 +274,33 @@ export default function PublicidadAdminPanel({ onSaved }) {
       onSaved?.();
       return result;
     }
+    const prev = campana?.slides?.find((s) => s.id === uploadFor);
     const result = await api.uploadPublicidadSlide(zona, blob, {
-      texto_principal: "",
-      texto_secundario: "",
+      texto_principal: prev?.texto_principal || "",
+      texto_secundario: prev?.texto_secundario || "",
+      animacion_texto: prev?.animacion_texto || "fade-in-up",
+      tamano_texto: prev?.tamano_texto || "mediano",
     });
     if (result.campana?.slides) {
       const slides = result.campana.slides;
       const last = slides[slides.length - 1];
       const withoutLast = slides.slice(0, -1);
+      const isVideo =
+        last.media_tipo === "video" ||
+        !!last.video_url ||
+        result.media_tipo === "video";
       const patched = withoutLast.map((s) =>
         s.id === uploadFor
-          ? { ...s, imagen_url: last.imagen_url || result.imagen_url }
+          ? {
+              ...s,
+              media_tipo: isVideo ? "video" : "image",
+              imagen_url: isVideo
+                ? ""
+                : last.imagen_url || result.imagen_url || s.imagen_url || "",
+              video_url: isVideo
+                ? last.video_url || result.video_url || ""
+                : "",
+            }
           : s
       );
       await api.putPublicidad(zona, {
@@ -245,7 +316,7 @@ export default function PublicidadAdminPanel({ onSaved }) {
         mensajes: campana.mensajes,
       });
       await load();
-      setMsg("Foto del slide actualizada.");
+      setMsg(isVideo ? "Video del slide actualizado." : "Foto del slide actualizada.");
       onSaved?.();
     }
     return result;
@@ -292,6 +363,356 @@ export default function PublicidadAdminPanel({ onSaved }) {
             {msg}
           </p>
         )}
+
+        {/* —— Multi-video + perfiles —— */}
+        <section className="mb-4 space-y-3 rounded-xl border border-amber-700/40 bg-gradient-to-br from-stone-900 to-amber-950/20 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="text-base font-bold text-amber-100">
+                🎬 Videos multi-pantalla · 1080p
+              </h3>
+              <p className="text-xs text-stone-400">
+                Sube varios MP4 a la vez. Se reescalan a 1080p y se publican con
+                textos automáticos del perfil. Se mostrarán al terminar el
+                post-proceso.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  setSaving(true);
+                  const r = await api.repairEncoding();
+                  setMsg(
+                    `Textos UTF-8 reparados en ${Object.keys(r.zonas || {}).length} zonas.`
+                  );
+                  load();
+                } catch (e) {
+                  setErr(e.message || "No se pudo reparar encoding");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="tap rounded-lg border border-stone-600 px-3 py-1.5 text-xs text-stone-300"
+            >
+              Reparar acentos
+            </button>
+          </div>
+
+          <div>
+            <p className="mb-1 text-xs font-semibold uppercase text-stone-400">
+              Pantallas destino
+            </p>
+            <div className="flex flex-wrap gap-3">
+              {ZONAS.map((z) => (
+                <label
+                  key={z.id}
+                  className="tap flex cursor-pointer items-center gap-2 rounded-lg border border-stone-700 bg-stone-950/60 px-3 py-2 text-sm"
+                >
+                  <input
+                    type="checkbox"
+                    checked={!!targetZonas[z.id]}
+                    onChange={() =>
+                      setTargetZonas((t) => ({ ...t, [z.id]: !t[z.id] }))
+                    }
+                    className="h-4 w-4 accent-amber-500"
+                  />
+                  <span>
+                    {z.icon} {z.label}
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase text-stone-400">
+                Perfil / plantillas
+              </span>
+              <select
+                value={perfilClave}
+                onChange={async (e) => {
+                  const c = e.target.value;
+                  setPerfilClave(c);
+                  try {
+                    const p = await api.getPerfil(c);
+                    setPerfilEdit(p);
+                    const zmap = { TV3: false, TV4: false, TV5: false, TV6: false };
+                    for (const z of p.zonas || []) zmap[z] = true;
+                    setTargetZonas(zmap);
+                  } catch {
+                    setPerfilEdit(null);
+                  }
+                }}
+                className="tap mt-1 w-full rounded-xl border border-stone-600 bg-stone-950 px-3 py-2.5 text-sm text-ivory"
+              >
+                {perfiles.length === 0 && (
+                  <option value="restaurante_diario">Restaurante · Diario</option>
+                )}
+                {perfiles.map((p) => (
+                  <option key={p.clave} value={p.clave}>
+                    {p.tipo === "festivo" ? "🎉 " : p.tipo === "evento" ? "🎈 " : "🍽 "}
+                    {p.nombre}
+                  </option>
+                ))}
+              </select>
+              {perfilEdit?.descripcion && (
+                <p className="mt-1 text-[11px] text-stone-500">
+                  {perfilEdit.descripcion}
+                </p>
+              )}
+            </label>
+            <div className="flex flex-wrap items-end gap-2">
+              <label className="tap cursor-pointer rounded-xl bg-amber-600 px-4 py-3 text-sm font-bold text-stone-950">
+                ＋ Varios videos
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm,video/*"
+                  multiple
+                  className="hidden"
+                  onChange={async (e) => {
+                    const list = Array.from(e.target.files || []);
+                    if (!list.length) return;
+                    const zonas = Object.entries(targetZonas)
+                      .filter(([, on]) => on)
+                      .map(([k]) => k);
+                    if (!zonas.length) {
+                      setErr("Marca al menos una pantalla destino");
+                      e.target.value = "";
+                      return;
+                    }
+                    try {
+                      setSaving(true);
+                      setErr("");
+                      setMsg(
+                        `Subiendo ${list.length} video(s)… se reescalarán a 1080p. Cuando terminen aparecerán en las TVs.`
+                      );
+                      const result = await api.uploadVideosMulti(list, {
+                        zonas,
+                        perfil: perfilClave,
+                        append: true,
+                        modo_evento: perfilEdit?.modo_evento ? true : "",
+                      });
+                      setBatch(result.batch || null);
+                      setBatchPoll(result.batch_id);
+                      setMsg(result.message || "Procesando videos…");
+                      onSaved?.();
+                    } catch (ex) {
+                      setErr(ex.message || "Error al subir videos");
+                    } finally {
+                      setSaving(false);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                disabled={saving}
+                onClick={async () => {
+                  const zonas = Object.entries(targetZonas)
+                    .filter(([, on]) => on)
+                    .map(([k]) => k);
+                  try {
+                    setSaving(true);
+                    await api.applyPerfil(perfilClave, {
+                      zonas,
+                      replace_slides: true,
+                      apply_mensajes: true,
+                    });
+                    setMsg(`Perfil «${perfilClave}» aplicado a ${zonas.join(", ")}`);
+                    load();
+                    onSaved?.();
+                  } catch (ex) {
+                    setErr(ex.message || "No se pudo aplicar perfil");
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+                className="tap rounded-xl border border-amber-700/60 bg-stone-900 px-4 py-3 text-sm font-semibold text-amber-100"
+              >
+                Aplicar textos del perfil
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const p = await api.getPerfil(perfilClave);
+                    setPerfilEdit(p);
+                  } catch (ex) {
+                    setErr(ex.message);
+                  }
+                }}
+                className="tap rounded-xl border border-stone-600 px-3 py-3 text-sm text-stone-300"
+              >
+                Editar plantillas
+              </button>
+            </div>
+          </div>
+
+          {batch && (
+            <div className="rounded-xl border border-stone-600 bg-stone-950/80 p-3">
+              <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+                <span className="font-semibold text-amber-200">
+                  {batch.status === "processing"
+                    ? "⏳ Post-procesando…"
+                    : batch.status === "ready"
+                      ? "✅ Videos listos"
+                      : "📋 Lote de videos"}
+                </span>
+                <span className="tabular-nums text-stone-400">
+                  {batch.progress ?? 0}% · {batch.ready ?? 0}/{batch.total ?? 0}
+                </span>
+              </div>
+              <div className="h-3 overflow-hidden rounded-full bg-stone-800">
+                <div
+                  className="h-full rounded-full bg-gradient-to-r from-amber-600 to-emerald-500 transition-all duration-500"
+                  style={{ width: `${Math.max(2, batch.progress || 0)}%` }}
+                />
+              </div>
+              <p className="mt-2 text-xs text-stone-400">{batch.message}</p>
+              <ul className="mt-2 max-h-28 space-y-1 overflow-y-auto text-[11px] text-stone-500">
+                {(batch.jobs || []).map((j) => (
+                  <li key={j.id} className="flex justify-between gap-2">
+                    <span className="truncate">{j.filename}</span>
+                    <span>
+                      {j.status} {j.progress}% · {j.stage}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {perfilEdit && (
+            <details className="rounded-xl border border-stone-700 bg-stone-950/50 p-3">
+              <summary className="cursor-pointer text-sm font-semibold text-amber-100">
+                Plantillas de «{perfilEdit.nombre}» (editables)
+              </summary>
+              <div className="mt-3 space-y-3">
+                {ZONAS.map((z) => {
+                  const pairs = perfilEdit.plantillas?.[z.id] || [];
+                  return (
+                    <div key={z.id}>
+                      <p className="mb-1 text-xs font-bold text-stone-400">
+                        {z.label}
+                      </p>
+                      {(pairs.length ? pairs : [{ principal: "", secundario: "" }]).map(
+                        (pair, i) => (
+                          <div
+                            key={i}
+                            className="mb-2 grid gap-2 sm:grid-cols-2"
+                          >
+                            <input
+                              value={pair.principal || ""}
+                              onChange={(e) => {
+                                setPerfilEdit((p) => {
+                                  const pl = {
+                                    ...(p.plantillas || {}),
+                                    [z.id]: [
+                                      ...((p.plantillas || {})[z.id] || [
+                                        { principal: "", secundario: "" },
+                                      ]),
+                                    ],
+                                  };
+                                  if (!pl[z.id][i]) {
+                                    pl[z.id][i] = {
+                                      principal: "",
+                                      secundario: "",
+                                    };
+                                  }
+                                  pl[z.id][i] = {
+                                    ...pl[z.id][i],
+                                    principal: e.target.value,
+                                  };
+                                  return { ...p, plantillas: pl };
+                                });
+                              }}
+                              placeholder="Texto principal"
+                              className="tap rounded-lg border border-stone-600 bg-stone-900 px-2 py-1.5 text-sm"
+                            />
+                            <input
+                              value={pair.secundario || ""}
+                              onChange={(e) => {
+                                setPerfilEdit((p) => {
+                                  const pl = {
+                                    ...(p.plantillas || {}),
+                                    [z.id]: [
+                                      ...((p.plantillas || {})[z.id] || [
+                                        { principal: "", secundario: "" },
+                                      ]),
+                                    ],
+                                  };
+                                  if (!pl[z.id][i]) {
+                                    pl[z.id][i] = {
+                                      principal: "",
+                                      secundario: "",
+                                    };
+                                  }
+                                  pl[z.id][i] = {
+                                    ...pl[z.id][i],
+                                    secundario: e.target.value,
+                                  };
+                                  return { ...p, plantillas: pl };
+                                });
+                              }}
+                              placeholder="Texto secundario"
+                              className="tap rounded-lg border border-stone-600 bg-stone-900 px-2 py-1.5 text-sm"
+                            />
+                          </div>
+                        )
+                      )}
+                      <button
+                        type="button"
+                        className="text-xs text-amber-400 underline"
+                        onClick={() => {
+                          setPerfilEdit((p) => {
+                            const pl = { ...(p.plantillas || {}) };
+                            pl[z.id] = [
+                              ...(pl[z.id] || []),
+                              { principal: "", secundario: "" },
+                            ];
+                            return { ...p, plantillas: pl };
+                          });
+                        }}
+                      >
+                        ＋ par de textos en {z.id}
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={async () => {
+                    try {
+                      setSaving(true);
+                      const updated = await api.putPerfil(perfilEdit.clave, {
+                        nombre: perfilEdit.nombre,
+                        descripcion: perfilEdit.descripcion,
+                        plantillas: perfilEdit.plantillas,
+                        mensajes: perfilEdit.mensajes,
+                        zonas: perfilEdit.zonas,
+                        modo_evento: perfilEdit.modo_evento,
+                      });
+                      setPerfilEdit(updated);
+                      setMsg("Plantillas guardadas.");
+                      loadPerfiles();
+                    } catch (ex) {
+                      setErr(ex.message || "Error al guardar plantillas");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                  className="tap rounded-xl bg-emerald-700 px-4 py-2 text-sm font-bold text-white"
+                >
+                  Guardar plantillas del perfil
+                </button>
+              </div>
+            </details>
+          )}
+        </section>
 
         {campana && (
           <div className="space-y-4">
@@ -502,17 +923,48 @@ export default function PublicidadAdminPanel({ onSaved }) {
               </ul>
             </section>
 
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="font-semibold text-amber-100">
                 Diapositivas ({campana.slides?.length || 0})
               </h3>
-              <button
-                type="button"
-                onClick={() => setUploadFor("new")}
-                className="tap rounded-xl bg-stone-800 px-4 py-2 text-sm font-semibold"
-              >
-                ＋ Agregar slide con foto
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setUploadFor("new")}
+                  className="tap rounded-xl bg-stone-800 px-4 py-2 text-sm font-semibold"
+                >
+                  ＋ Foto
+                </button>
+                <label className="tap cursor-pointer rounded-xl bg-amber-800/70 px-4 py-2 text-sm font-semibold text-amber-50">
+                  ＋ Video MP4/WebM
+                  <input
+                    type="file"
+                    accept="video/mp4,video/webm,video/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      try {
+                        setSaving(true);
+                        const result = await api.uploadPublicidadSlide(zona, f, {
+                          texto_principal: "Video",
+                          texto_secundario: "El Callejón",
+                          animacion_texto: "fade-in-up",
+                          filename: f.name || "video.mp4",
+                        });
+                        setCampana(normalizeCampana(result.campana));
+                        setMsg("Video agregado a la campaña.");
+                        onSaved?.();
+                      } catch (err) {
+                        setErr(err.message || "Error subiendo video");
+                      } finally {
+                        setSaving(false);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                </label>
+              </div>
             </div>
 
             <ul className="space-y-3">
@@ -523,15 +975,21 @@ export default function PublicidadAdminPanel({ onSaved }) {
                 >
                   <div className="flex gap-3">
                     <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-stone-800">
-                      <img
-                        src={s.imagen_url || "/images/slides/slide1-buffet.jpg"}
-                        alt=""
-                        className="h-full w-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.src =
-                            "/images/slides/slide1-buffet.jpg";
-                        }}
-                      />
+                      {s.media_tipo === "video" || s.video_url ? (
+                        <div className="flex h-full items-center justify-center bg-stone-900 text-2xl">
+                          🎬
+                        </div>
+                      ) : (
+                        <img
+                          src={s.imagen_url || "/images/slides/slide1-buffet.jpg"}
+                          alt=""
+                          className="h-full w-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src =
+                              "/images/slides/slide1-buffet.jpg";
+                          }}
+                        />
+                      )}
                       <button
                         type="button"
                         title="Cambiar foto"
@@ -564,6 +1022,36 @@ export default function PublicidadAdminPanel({ onSaved }) {
                         placeholder="Texto secundario"
                         className="tap w-full rounded-lg border border-stone-600 bg-stone-950 px-3 py-2 text-sm text-ivory outline-none focus:border-amber-500"
                       />
+                      <div className="flex flex-wrap gap-2">
+                        <select
+                          value={s.animacion_texto || "fade-in-up"}
+                          onChange={(e) =>
+                            updateSlide(s.id, {
+                              animacion_texto: e.target.value,
+                            })
+                          }
+                          className="tap rounded-lg border border-stone-600 bg-stone-950 px-2 py-1.5 text-xs text-ivory"
+                        >
+                          <option value="fade-in-up">Fade up</option>
+                          <option value="fade">Fade</option>
+                          <option value="bounce">Bounce</option>
+                          <option value="marquee">Marquesina</option>
+                          <option value="slide-left">Slide</option>
+                          <option value="zoom">Zoom</option>
+                          <option value="none">Sin animación</option>
+                        </select>
+                        <select
+                          value={s.tamano_texto || "mediano"}
+                          onChange={(e) =>
+                            updateSlide(s.id, { tamano_texto: e.target.value })
+                          }
+                          className="tap rounded-lg border border-stone-600 bg-stone-950 px-2 py-1.5 text-xs text-ivory"
+                        >
+                          <option value="pequeno">Texto peq.</option>
+                          <option value="mediano">Texto med.</option>
+                          <option value="grande">Texto grande</option>
+                        </select>
+                      </div>
                     </div>
                     <div className="flex shrink-0 flex-col gap-1">
                       <button

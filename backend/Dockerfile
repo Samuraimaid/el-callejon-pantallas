@@ -8,7 +8,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     U2NET_HOME=/app/.u2net
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libgomp1 \
+    && apt-get install -y --no-install-recommends curl libgomp1 ffmpeg \
     && rm -rf /var/lib/apt/lists/* \
     && mkdir -p /app/static/images /app/.u2net
 

@@ -36,6 +36,7 @@ export default function App() {
             <PantallaPublicidadPage
               zona="TV3"
               tituloZona="TV #3 · Barra"
+              tvId={3}
             />
           }
         />
@@ -45,6 +46,7 @@ export default function App() {
             <PantallaPublicidadPage
               zona="TV4"
               tituloZona="TV #4 · Parrilla"
+              tvId={4}
             />
           }
         />
@@ -54,6 +56,7 @@ export default function App() {
             <PantallaPublicidadPage
               zona="TV5"
               tituloZona="TV #5 · VIP Ambiente"
+              tvId={5}
             />
           }
         />
@@ -63,6 +66,7 @@ export default function App() {
             <PantallaPublicidadPage
               zona="TV6"
               tituloZona="TV #6 · VIP Platillos"
+              tvId={6}
             />
           }
         />

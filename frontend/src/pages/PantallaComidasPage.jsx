@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import MenuBoardScreen from "../components/tv/MenuBoardScreen";
+import TvRuntimeShell from "../components/tv/TvRuntimeShell";
 import { sortMenuItems } from "../components/tv/MenuBoard";
 import { useMenuTv } from "../hooks/useMenuTv";
 
 /**
- * TV 50" #1 — Solo platillos, layout menú board a pantalla completa.
+ * TV 50" #1 — Menú comidas + runtime industrial (cache/HB/power).
  */
 export default function PantallaComidasPage() {
   const { menu, flash, ready } = useMenuTv();
@@ -33,17 +34,28 @@ export default function PantallaComidasPage() {
   const colLeft = platillos.slice(0, mid);
   const colRight = platillos.slice(mid);
 
+  const snapshotExtra = useCallback(
+    () => ({
+      screen: "comidas",
+      n_platillos: platillos.length,
+      ready,
+    }),
+    [platillos.length, ready]
+  );
+
   return (
-    <MenuBoardScreen
-      boardKey="comidas"
-      ready={ready}
-      loadingText="Cargando platillos…"
-      colLeft={colLeft}
-      colRight={colRight}
-      heroPool={heroPool}
-      flash={flash}
-      leftIndexBase={0}
-      rightIndexBase={mid}
-    />
+    <TvRuntimeShell tvId={1} snapshotExtra={snapshotExtra}>
+      <MenuBoardScreen
+        boardKey="comidas"
+        ready={ready}
+        loadingText="Cargando platillos…"
+        colLeft={colLeft}
+        colRight={colRight}
+        heroPool={heroPool}
+        flash={flash}
+        leftIndexBase={0}
+        rightIndexBase={mid}
+      />
+    </TvRuntimeShell>
   );
 }

@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import MenuBoardScreen from "../components/tv/MenuBoardScreen";
+import TvRuntimeShell from "../components/tv/TvRuntimeShell";
 import { sortMenuItems } from "../components/tv/MenuBoard";
 import { useMenuTv } from "../hooks/useMenuTv";
 
 /**
- * TV 50" #2 — Extras y bebidas. Mismo tablero 3 columnas fijas que TV #1.
+ * TV 50" #2 — Complementos + runtime industrial.
  */
 export default function PantallaComplementosPage() {
   const { menu, flash, ready } = useMenuTv();
@@ -37,17 +38,28 @@ export default function PantallaComplementosPage() {
   const colLeft = items.slice(0, mid);
   const colRight = items.slice(mid);
 
+  const snapshotExtra = useCallback(
+    () => ({
+      screen: "complementos",
+      n_items: items.length,
+      ready,
+    }),
+    [items.length, ready]
+  );
+
   return (
-    <MenuBoardScreen
-      boardKey="complementos"
-      ready={ready}
-      loadingText="Cargando complementos…"
-      colLeft={colLeft}
-      colRight={colRight}
-      heroPool={heroPool}
-      flash={flash}
-      leftIndexBase={0}
-      rightIndexBase={mid}
-    />
+    <TvRuntimeShell tvId={2} snapshotExtra={snapshotExtra}>
+      <MenuBoardScreen
+        boardKey="complementos"
+        ready={ready}
+        loadingText="Cargando complementos…"
+        colLeft={colLeft}
+        colRight={colRight}
+        heroPool={heroPool}
+        flash={flash}
+        leftIndexBase={0}
+        rightIndexBase={mid}
+      />
+    </TvRuntimeShell>
   );
 }

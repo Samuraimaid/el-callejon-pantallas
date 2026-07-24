@@ -13,6 +13,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.text_encoding import fix_mojibake, fix_obj_strings
 from app.ws_manager import (
     CHANNEL_ADMIN,
     CHANNEL_ALL,
@@ -94,7 +95,7 @@ def _clean_mensajes(items: list[dict] | None) -> list[dict]:
     for m in items:
         if not isinstance(m, dict):
             continue
-        texto = (m.get("texto") or "").strip()
+        texto = fix_mojibake((m.get("texto") or "").strip())
         if not texto:
             continue
         cat = (m.get("categoria") or "chef").strip().lower()
@@ -106,8 +107,8 @@ def _clean_mensajes(items: list[dict] | None) -> list[dict]:
 
 
 def _map_row(row: Any) -> dict[str, Any]:
-    slides = _parse_json_list(row["slides"])
-    mensajes = _parse_json_list(row.get("mensajes"))
+    slides = fix_obj_strings(_parse_json_list(row["slides"]))
+    mensajes = fix_obj_strings(_parse_json_list(row.get("mensajes")))
     return {
         "id": str(row["id"]),
         "zona": row["zona"] if isinstance(row["zona"], str) else str(row["zona"]),
@@ -215,12 +216,45 @@ async def update_campana(
         if not isinstance(s, dict):
             continue
         sid = s.get("id") or str(uuid.uuid4())[:8]
+        video_url = str(s.get("video_url") or "").strip()
+        imagen_url = str(s.get("imagen_url") or s.get("url") or "").strip()
+        media_tipo = str(s.get("media_tipo") or "").lower().strip()
+        # Inferir tipo si el cliente no lo mandó (o llegó vacío por schemas viejos)
+        if media_tipo not in ("image", "video"):
+            media_tipo = "video" if video_url else "image"
+        if media_tipo == "video" and not video_url and imagen_url.lower().endswith(
+            (".mp4", ".webm", ".ogg")
+        ):
+            video_url = imagen_url
+            imagen_url = ""
+        anim = str(s.get("animacion_texto") or "fade-in-up").lower()
+        if anim not in (
+            "none",
+            "fade-in-up",
+            "fade",
+            "bounce",
+            "marquee",
+            "slide-left",
+            "zoom",
+        ):
+            anim = "fade-in-up"
+        tam = str(s.get("tamano_texto") or s.get("tamano_fuente") or "mediano").lower()
+        if tam not in ("pequeno", "mediano", "grande"):
+            tam = "mediano"
         clean_slides.append(
             {
                 "id": str(sid),
-                "imagen_url": s.get("imagen_url") or s.get("url") or "",
-                "texto_principal": s.get("texto_principal") or s.get("titulo") or "",
-                "texto_secundario": s.get("texto_secundario") or s.get("subtitulo") or "",
+                "media_tipo": media_tipo,
+                "imagen_url": imagen_url,
+                "video_url": video_url,
+                "texto_principal": fix_mojibake(
+                    s.get("texto_principal") or s.get("titulo") or ""
+                ),
+                "texto_secundario": fix_mojibake(
+                    s.get("texto_secundario") or s.get("subtitulo") or ""
+                ),
+                "animacion_texto": anim,
+                "tamano_texto": tam,
             }
         )
 
@@ -272,57 +306,94 @@ async def add_slide_image(
     *,
     texto_principal: str = "",
     texto_secundario: str = "",
+    animacion_texto: str = "fade-in-up",
+    tamano_texto: str = "mediano",
 ) -> dict[str, Any]:
-    """Guarda imagen en public/images/slides/ y la agrega a la campaña."""
+    """Guarda imagen o video y lo agrega a la campaña."""
     zona = normalize_zona(zona)
-    if upload.content_type and not upload.content_type.startswith("image/"):
-        raise HTTPException(400, "El archivo debe ser una imagen")
+    ctype = (upload.content_type or "").lower()
+    is_video = ctype.startswith("video/")
+    is_image = ctype.startswith("image/")
+    if not is_video and not is_image:
+        raise HTTPException(400, "El archivo debe ser imagen o video (mp4/webm)")
 
     raw = await upload.read()
     if not raw:
         raise HTTPException(400, "Archivo vacío")
-    if len(raw) > 12 * 1024 * 1024:
-        raise HTTPException(400, "Imagen demasiado grande (máx. 12 MB)")
+    max_bytes = 80 * 1024 * 1024 if is_video else 12 * 1024 * 1024
+    if len(raw) > max_bytes:
+        raise HTTPException(400, "Archivo demasiado grande")
 
     settings = get_settings()
-    slides_dir = Path(settings.image_root) / "slides"
-    slides_dir.mkdir(parents=True, exist_ok=True)
-
-    from io import BytesIO
-
-    from PIL import Image
-
-    img = Image.open(BytesIO(raw)).convert("RGB")
-    max_side = 1600
-    w, h = img.size
-    scale = min(1.0, max_side / max(w, h))
-    if scale < 1.0:
-        img = img.resize((int(w * scale), int(h * scale)), Image.Resampling.LANCZOS)
-
     slide_id = uuid.uuid4().hex[:10]
-    fname = f"pub-{zona.lower()}-{slide_id}.jpg"
-    dest = slides_dir / fname
-    img.save(dest, format="JPEG", quality=88, optimize=True)
+    media_tipo = "video" if is_video else "image"
+    imagen_url = ""
+    video_url = ""
 
-    version = int(time.time())
-    url = f"/images/slides/{fname}?v={version}"
+    if is_video:
+        from app.services.video_process import transcode_to_1080p, videos_dir
+
+        vdir = videos_dir()
+        raw_path = vdir / f"raw-{zona.lower()}-{slide_id}.bin"
+        out_path = vdir / f"pub-{zona.lower()}-{slide_id}.mp4"
+        raw_path.write_bytes(raw)
+        try:
+            transcode_to_1080p(raw_path, out_path)
+        finally:
+            try:
+                if raw_path.is_file():
+                    raw_path.unlink()
+            except OSError:
+                pass
+        video_url = f"/images/videos/{out_path.name}"
+    else:
+        slides_dir = Path(settings.image_root) / "slides"
+        slides_dir.mkdir(parents=True, exist_ok=True)
+        from io import BytesIO
+
+        from PIL import Image
+
+        img = Image.open(BytesIO(raw)).convert("RGB")
+        max_side = 1600
+        w, h = img.size
+        scale = min(1.0, max_side / max(w, h))
+        if scale < 1.0:
+            img = img.resize(
+                (int(w * scale), int(h * scale)), Image.Resampling.LANCZOS
+            )
+        fname = f"pub-{zona.lower()}-{slide_id}.jpg"
+        dest = slides_dir / fname
+        img.save(dest, format="JPEG", quality=88, optimize=True)
+        imagen_url = f"/images/slides/{fname}"
+
+    anim = (animacion_texto or "fade-in-up").lower()
+    if anim not in ("none", "fade-in-up", "fade", "bounce", "marquee", "slide-left", "zoom"):
+        anim = "fade-in-up"
+    tam = (tamano_texto or "mediano").lower()
+    if tam not in ("pequeno", "mediano", "grande"):
+        tam = "mediano"
 
     campana = await get_campana(db, zona)
     slides = list(campana["slides"])
     slides.append(
         {
             "id": slide_id,
-            "imagen_url": url.split("?")[0],
-            "texto_principal": texto_principal or "El Callejón",
-            "texto_secundario": texto_secundario or "León, Nicaragua",
+            "media_tipo": media_tipo,
+            "imagen_url": imagen_url,
+            "video_url": video_url,
+            "texto_principal": fix_mojibake(texto_principal or "El Callejón"),
+            "texto_secundario": fix_mojibake(texto_secundario or "León, Nicaragua"),
+            "animacion_texto": anim,
+            "tamano_texto": tam,
         }
     )
     updated = await update_campana(db, zona, slides=slides)
     return {
         "ok": True,
         "slide_id": slide_id,
-        "imagen_url": f"/images/slides/{fname}",
-        "url": url,
+        "media_tipo": media_tipo,
+        "imagen_url": imagen_url,
+        "video_url": video_url,
         "campana": updated,
     }
 

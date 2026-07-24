@@ -8,13 +8,15 @@ Centro de Control: menú del día + campañas + mensajes dinámicos.
 
 from __future__ import annotations
 
+from pathlib import Path
 from urllib.parse import parse_qs
 
 from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.routers import auth, config_pantallas, health, productos, publicidad
+from app.routers import auth, config_pantallas, content, health, pantallas, productos, publicidad
 from app.ws_manager import (
     CHANNEL_ALL,
     VALID_CHANNELS,
@@ -29,7 +31,17 @@ app = FastAPI(
         "Sistema de Gestión de Pantallas Digitales en Tiempo Real — "
         "menú del día, campañas publicitarias (Barra/VIP) y mensajes dinámicos."
     ),
-    version="1.1.0",
+    version="2.0.0",
+)
+
+# Imágenes/videos de campañas y menú (misma carpeta que Vite public/images)
+_image_root = Path(settings.image_root)
+_image_root.mkdir(parents=True, exist_ok=True)
+(_image_root / "videos").mkdir(parents=True, exist_ok=True)
+app.mount(
+    "/images",
+    StaticFiles(directory=str(_image_root)),
+    name="images",
 )
 
 # CORS abierto o lista + regex LAN (Smart TVs por IP:puerto)
@@ -53,6 +65,8 @@ app.include_router(auth.router)
 app.include_router(productos.router)
 app.include_router(publicidad.router)
 app.include_router(config_pantallas.router)
+app.include_router(pantallas.router)
+app.include_router(content.router)
 
 
 @app.get("/red")
@@ -88,7 +102,7 @@ async def red_info():
 async def root():
     return {
         "name": settings.app_name,
-        "version": "1.1.0",
+        "version": "2.0.0",
         "docs": "/docs",
         "health": "/health",
         "red": "/red",

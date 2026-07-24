@@ -3,11 +3,13 @@ import { useNavigate } from "react-router-dom";
 import GestionarMenuPanel from "../components/GestionarMenuPanel";
 import Logo from "../components/Logo";
 import MenuBoardConfigPanel from "../components/MenuBoardConfigPanel";
+import MonitoreoPantallasPanel from "../components/MonitoreoPantallasPanel";
 import PublicidadAdminPanel from "../components/PublicidadAdminPanel";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { clearSession, getUser } from "../lib/auth";
 
 const TABS = [
+  { id: "monitor", label: "Monitoreo TVs", icon: "📡" },
   { id: "menu", label: "Menú del Día", icon: "🍽️" },
   { id: "board", label: "Diseño TV #1–#2", icon: "🖼️" },
   { id: "publicidad", label: "Campañas TV #3–#6", icon: "📺" },
@@ -22,7 +24,7 @@ const TABS = [
 export default function ControlCenterPage() {
   const nav = useNavigate();
   const user = getUser();
-  const [tab, setTab] = useState("menu");
+  const [tab, setTab] = useState("monitor");
   const [wsStatus, setWsStatus] = useState("off");
   const [flash, setFlash] = useState("");
 
@@ -48,6 +50,13 @@ export default function ControlCenterPage() {
     if (ev.t === "cfg") {
       setFlash("Diseño de menú TV actualizado");
       window.setTimeout(() => setFlash(""), 2500);
+    }
+    if (ev.t === "hb") {
+      /* silencioso — panel de monitoreo se refresca solo */
+    }
+    if (ev.t === "ctrl") {
+      setFlash("Control remoto enviado a pantallas");
+      window.setTimeout(() => setFlash(""), 1800);
     }
   });
 
@@ -119,6 +128,7 @@ export default function ControlCenterPage() {
 
       {/* Área flexible: scroll interno + flechas del teclado */}
       <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        {tab === "monitor" && <MonitoreoPantallasPanel />}
         {tab === "menu" && <GestionarMenuPanel embedded />}
         {tab === "board" && <MenuBoardConfigPanel />}
         {tab === "publicidad" && <PublicidadAdminPanel />}

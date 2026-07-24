@@ -49,3 +49,7 @@ spotify_tokens_temp.json
 # Temp image conversion
 frontend/public/images/_raw_convert/
 
+
+# Videos/campañas subidos en runtime (no versionar en Git)
+frontend/public/images/videos/**
+!frontend/public/images/videos/.gitkeep

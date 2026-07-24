@@ -99,6 +99,37 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  // —— Pantallas: telemetría + control ——
+  getPantallasEstado: () => request("/api/pantallas/estado"),
+  controlPantallas: (body) =>
+    request("/api/pantallas/control", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  uploadEventoMedia: async (file, titulo = "") => {
+    const token = getToken();
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("titulo", titulo || file.name || "Evento");
+    const res = await fetch(`${API_URL}/api/pantallas/evento/media`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (res.status === 401) clearSession();
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        detail = body.detail || JSON.stringify(body);
+      } catch {
+        detail = (await res.text()) || detail;
+      }
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    return res.json();
+  },
+
   // —— Publicidad por zona (Barra / VIP) ——
   getPublicidad: (zona) => request(`/api/publicidad/${zona}`),
   putPublicidad: (zona, body) =>
@@ -108,14 +139,22 @@ export const api = {
     }),
   uploadPublicidadSlide: async (
     zona,
-    blob,
-    { texto_principal = "", texto_secundario = "" } = {}
+    blobOrFile,
+    {
+      texto_principal = "",
+      texto_secundario = "",
+      animacion_texto = "fade-in-up",
+      tamano_texto = "mediano",
+      filename = "slide.jpg",
+    } = {}
   ) => {
     const token = getToken();
     const fd = new FormData();
-    fd.append("file", blob, "slide.jpg");
+    fd.append("file", blobOrFile, filename);
     fd.append("texto_principal", texto_principal);
     fd.append("texto_secundario", texto_secundario);
+    fd.append("animacion_texto", animacion_texto);
+    fd.append("tamano_texto", tamano_texto);
     const res = await fetch(`${API_URL}/api/publicidad/${zona}/subir-slide`, {
       method: "POST",
       headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -135,6 +174,64 @@ export const api = {
     return res.json();
   },
 
+  getPerfiles: () => request("/api/publicidad/perfiles"),
+  getPerfil: (clave) => request(`/api/publicidad/perfiles/${clave}`),
+  putPerfil: (clave, body) =>
+    request(`/api/publicidad/perfiles/${clave}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  applyPerfil: (clave, body) =>
+    request(`/api/publicidad/perfiles/${clave}/aplicar`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  createPerfil: (body) =>
+    request("/api/publicidad/perfiles", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  repairEncoding: () =>
+    request("/api/publicidad/repair-encoding", { method: "POST" }),
+  getVideoBatch: (batchId) =>
+    request(`/api/publicidad/videos/batch/${batchId}`),
+  listVideoBatches: () => request("/api/publicidad/videos/jobs"),
+  getContentResources: () => request("/api/content/resources"),
+  getContentStatus: () => request("/api/content/status"),
+
+  uploadVideosMulti: async (
+    files,
+    { zonas = ["TV3"], perfil = "restaurante_diario", append = true, modo_evento = "" } = {}
+  ) => {
+    const token = getToken();
+    const fd = new FormData();
+    for (const f of files) {
+      fd.append("files", f, f.name || "video.mp4");
+    }
+    fd.append("zonas", Array.isArray(zonas) ? zonas.join(",") : String(zonas));
+    fd.append("perfil", perfil);
+    fd.append("append", append ? "true" : "false");
+    if (modo_evento !== "" && modo_evento != null) {
+      fd.append("modo_evento", modo_evento ? "true" : "false");
+    }
+    const res = await fetch(`${API_URL}/api/publicidad/videos/multi`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (res.status === 401) clearSession();
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        detail = body.detail || JSON.stringify(body);
+      } catch {
+        detail = (await res.text()) || detail;
+      }
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    return res.json();
+  },
 };
 
 export { API_URL };
