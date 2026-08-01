@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>El Callejón · Arranque del sistema</title>
+  <style>
+    :root {
+      --bg: #1a0f0a;
+      --card: rgba(0,0,0,0.45);
+      --amber: #e8c56a;
+      --cream: #f0e2d0;
+      --ok: #34d399;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, Segoe UI, sans-serif;
+      background: radial-gradient(ellipse at 30% 20%, #3d1a12 0%, var(--bg) 55%);
+      color: var(--cream);
+      padding: 1.5rem;
+    }
+    h1 { font-weight: 700; font-size: 1.75rem; color: #fff; margin: 0 0 0.25rem; }
+    .sub { opacity: 0.7; font-size: 0.9rem; margin-bottom: 1.5rem; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(232,197,106,0.35);
+      border-radius: 1.25rem;
+      padding: 1.25rem;
+      text-align: center;
+      backdrop-filter: blur(8px);
+    }
+    .card h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.05rem;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+    .card.staff { border-color: rgba(248,113,113,0.45); }
+    .card.staff h2 { color: #fca5a5; }
+    .url {
+      font-family: ui-monospace, Consolas, monospace;
+      font-size: 0.95rem;
+      word-break: break-all;
+      color: #fff;
+      margin: 0.75rem 0;
+      padding: 0.5rem;
+      background: rgba(0,0,0,0.35);
+      border-radius: 0.5rem;
+    }
+    .qr {
+      width: 200px;
+      height: 200px;
+      margin: 0.75rem auto;
+      background: #fff;
+      border-radius: 0.75rem;
+      padding: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr img { width: 100%; height: 100%; object-fit: contain; }
+    .hint { font-size: 0.8rem; opacity: 0.65; line-height: 1.4; }
+    .status {
+      max-width: 960px;
+      margin: 0 auto 1.25rem;
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(52,211,153,0.4);
+      color: var(--ok);
+      font-size: 0.9rem;
+    }
+    .tvs {
+      max-width: 960px;
+      margin: 1.5rem auto 0;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 0.5rem;
+    }
+    .tvs a {
+      display: block;
+      text-align: center;
+      padding: 0.65rem;
+      border-radius: 0.75rem;
+      background: rgba(0,0,0,0.35);
+      border: 1px solid rgba(232,197,106,0.25);
+      color: var(--cream);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.85rem;
+    }
+    .tvs a:hover { border-color: var(--amber); color: #fff; }
+    footer {
+      max-width: 960px;
+      margin: 2rem auto 0;
+      font-size: 0.75rem;
+      opacity: 0.5;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="status" id="status">● Sistema en línea · __LAN_IP__</div>
+  <div style="max-width:960px;margin:0 auto 1rem;">
+    <h1>El Callejón · Pantallas digitales</h1>
+    <p class="sub">Escanee el QR correspondiente · no comparta el de control con las TVs del salón</p>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>① Pantallas (Smart TVs)</h2>
+      <p class="hint">Lobby público: cada TV elige /tv/1 … /tv/6 y guarda favorito.</p>
+      <div class="url" id="url-tv">__HUB_TV__</div>
+      <div class="qr"><img id="qr-tv" alt="QR pantallas" /></div>
+      <p class="hint">Abrir en el navegador de la Smart TV o escanear con el móvil y compartir URL.</p>
+    </div>
+
+    <div class="card staff">
+      <h2>② Centro de Control (staff)</h2>
+      <p class="hint">Solo personal · login · <strong>no</strong> aparece en el lobby de TVs.</p>
+      <div class="url" id="url-admin">__HUB_ADMIN__</div>
+      <div class="qr"><img id="qr-admin" alt="QR control" /></div>
+      <p class="hint">Preferible abrir solo en el PC del bar o tablet de administración.</p>
+    </div>
+  </div>
+
+  <div class="tvs">
+    <a href="__HUB_TV__/tv/1" target="_blank">TV 1 · Comidas</a>
+    <a href="__HUB_TV__/tv/2" target="_blank">TV 2 · Complementos</a>
+    <a href="__HUB_TV__/tv/3" target="_blank">TV 3 · Barra</a>
+    <a href="__HUB_TV__/tv/4" target="_blank">TV 4 · Parrilla</a>
+    <a href="__HUB_TV__/tv/5" target="_blank">TV 5 · VIP Amb.</a>
+    <a href="__HUB_TV__/tv/6" target="_blank">TV 6 · VIP Plat.</a>
+  </div>
+
+  <footer>
+    API backend: __API_URL__ · Ambiente host: __AMBIENT__ · Generado: __TS__
+  </footer>
+
+  <script>
+    // QR offline-friendly vía API pública; si falla, el texto de la URL basta
+    function setQr(imgId, data) {
+      var img = document.getElementById(imgId);
+      var enc = encodeURIComponent(data);
+      img.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + enc;
+      img.onerror = function () {
+        img.alt = data;
+        img.style.display = "none";
+        img.parentElement.innerHTML = "<p style='color:#111;font-size:11px;padding:8px;word-break:break-all'>" + data + "</p>";
+      };
+    }
+    setQr("qr-tv", "__HUB_TV__");
+    setQr("qr-admin", "__HUB_ADMIN__");
+  </script>
+</body>
+</html>

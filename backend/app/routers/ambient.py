@@ -107,6 +107,18 @@ async def shuffle(body: ToggleIn, _user=Depends(require_caja)) -> dict[str, Any]
     return await amb.set_shuffle(body.on)
 
 
+class ModeIn(BaseModel):
+    """Modos: all_shuffle | all_order | folder_shuffle | folder_order"""
+
+    mode: str = "all_shuffle"
+    folder: str | None = None
+
+
+@router.post("/mode")
+async def play_mode(body: ModeIn, _user=Depends(require_caja)) -> dict[str, Any]:
+    return await amb.set_play_mode(body.mode, folder=body.folder)
+
+
 @router.post("/volume")
 async def volume(body: VolumeIn, _user=Depends(require_caja)) -> dict[str, Any]:
     return await amb.set_volume(body.volume)
@@ -119,10 +131,95 @@ async def pause_on_event(body: ToggleIn, _user=Depends(require_caja)) -> dict[st
 
 @router.post("/scan")
 async def scan(_user=Depends(require_caja)) -> dict[str, Any]:
+    """
+    Rescanea MP3 y normaliza archivos de forma DEFINITIVA:
+    renombra a 'Artista - Titulo.mp3', escribe ID3 y embebe caratula.
+    Los ya normalizados se saltan (proceso una sola vez).
+    """
     return await amb.scan()
+
+
+class NormalizeIn(BaseModel):
+    force: bool = False
+
+
+@router.post("/normalize")
+async def normalize(
+    body: NormalizeIn | None = None, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    """Solo renombrar + ID3 + caratula (sin depender de scan)."""
+    force = bool(body.force) if body else False
+    return await amb.normalize_library(force=force)
 
 
 @router.post("/broadcast")
 async def broadcast(_user=Depends(require_caja)) -> dict[str, Any]:
     await amb.broadcast_now_playing()
     return {"ok": True}
+
+
+class LikeIn(BaseModel):
+    rel: str | None = None
+    liked: bool | None = None
+
+
+class PlaylistNameIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=60)
+
+
+class PlaylistTrackIn(BaseModel):
+    name: str = Field(..., min_length=1, max_length=60)
+    rel: str | None = None
+
+
+class PlaylistPlayIn(BaseModel):
+    name: str = "likes"
+    shuffle: bool = True
+
+
+@router.post("/like")
+async def like(body: LikeIn, _user=Depends(require_caja)) -> dict[str, Any]:
+    """Me gusta / quitar me gusta (lista Me gusta)."""
+    return await amb.like_track(rel=body.rel, liked=body.liked)
+
+
+@router.get("/playlists")
+async def playlists(_user=Depends(require_caja)) -> dict[str, Any]:
+    return await amb.get_playlists()
+
+
+@router.post("/playlist/create")
+async def playlist_create(
+    body: PlaylistNameIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    return await amb.create_playlist(body.name)
+
+
+@router.post("/playlist/delete")
+async def playlist_delete(
+    body: PlaylistNameIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    return await amb.delete_playlist(body.name)
+
+
+@router.post("/playlist/add")
+async def playlist_add(
+    body: PlaylistTrackIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    return await amb.playlist_add(body.name, rel=body.rel)
+
+
+@router.post("/playlist/remove")
+async def playlist_remove(
+    body: PlaylistTrackIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    if not body.rel:
+        return {"ok": False, "error": "rel requerido"}
+    return await amb.playlist_remove(body.name, body.rel)
+
+
+@router.post("/playlist/play")
+async def playlist_play(
+    body: PlaylistPlayIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    return await amb.playlist_play(body.name, shuffle=body.shuffle)

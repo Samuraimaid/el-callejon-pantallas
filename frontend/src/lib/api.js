@@ -29,10 +29,27 @@ async function request(path, options = {}) {
 
 export const api = {
   health: () => request("/health"),
-  login: (usuario, password) =>
+  pinStatus: () => request("/api/auth/pin/status"),
+  /** Login solo PIN -> JWT */
+  pinLogin: (pin) =>
+    request("/api/auth/pin", {
+      method: "POST",
+      body: JSON.stringify({ pin }),
+    }),
+  pinChange: (old_pin, new_pin) =>
+    request("/api/auth/pin/change", {
+      method: "POST",
+      body: JSON.stringify({ old_pin, new_pin }),
+    }),
+  /** Compat */
+  login: (usuario, password, pin) =>
     request("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ usuario, password }),
+      body: JSON.stringify({
+        pin: pin || password,
+        usuario,
+        password,
+      }),
     }),
   me: () => request("/api/auth/me"),
 
@@ -247,7 +264,52 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ on }),
     }),
-  ambientScan: () => request("/api/ambient/scan", { method: "POST", body: "{}" }),
+  ambientScan: () =>
+    request("/api/ambient/scan", { method: "POST", body: "{}" }),
+  ambientNormalize: (force = false) =>
+    request("/api/ambient/normalize", {
+      method: "POST",
+      body: JSON.stringify({ force }),
+    }),
+  ambientMode: (mode, folder) =>
+    request("/api/ambient/mode", {
+      method: "POST",
+      body: JSON.stringify({
+        mode,
+        folder: folder === undefined ? undefined : folder,
+      }),
+    }),
+  ambientLike: (rel, liked) =>
+    request("/api/ambient/like", {
+      method: "POST",
+      body: JSON.stringify({ rel, liked }),
+    }),
+  ambientPlaylists: () => request("/api/ambient/playlists"),
+  ambientPlaylistCreate: (name) =>
+    request("/api/ambient/playlist/create", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  ambientPlaylistDelete: (name) =>
+    request("/api/ambient/playlist/delete", {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }),
+  ambientPlaylistAdd: (name, rel) =>
+    request("/api/ambient/playlist/add", {
+      method: "POST",
+      body: JSON.stringify({ name, rel }),
+    }),
+  ambientPlaylistRemove: (name, rel) =>
+    request("/api/ambient/playlist/remove", {
+      method: "POST",
+      body: JSON.stringify({ name, rel }),
+    }),
+  ambientPlaylistPlay: (name, shuffle = true) =>
+    request("/api/ambient/playlist/play", {
+      method: "POST",
+      body: JSON.stringify({ name, shuffle }),
+    }),
   ambientBroadcast: () =>
     request("/api/ambient/broadcast", { method: "POST", body: "{}" }),
   ambientConfig: () => request("/api/ambient/config"),

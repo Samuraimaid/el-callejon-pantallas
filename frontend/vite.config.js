@@ -38,6 +38,11 @@ export default defineConfig({
         target: apiTarget,
         changeOrigin: true,
       },
+      // Carátulas cacheadas en el backend (image_root) por si no están en public/
+      "/images/covers": {
+        target: apiTarget,
+        changeOrigin: true,
+      },
       "/ws": {
         target: wsTarget,
         ws: true,

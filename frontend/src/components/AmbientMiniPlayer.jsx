@@ -4,7 +4,7 @@ import { useWebSocket } from "../hooks/useWebSocket";
 
 /**
  * Mini reproductor fijo (arriba centro del Centro de Control).
- * Permite prev / play-pause / next sin abrir la pestaña Ambiente.
+ * Muestra carátula + artista/titulo limpios.
  */
 export default function AmbientMiniPlayer() {
   const [st, setSt] = useState(null);
@@ -27,7 +27,6 @@ export default function AmbientMiniPlayer() {
 
   useWebSocket("admin,pantallas", (ev) => {
     if (ev?.t !== "now_playing") return;
-    // Confirmar con el servidor (evita quedar en la pista anterior)
     window.setTimeout(() => {
       void refresh();
     }, 350);
@@ -52,9 +51,34 @@ export default function AmbientMiniPlayer() {
     : st?.offline
       ? "Ambiente offline"
       : "Ambiente";
+  const cover = cur?.cover_url || cur?.album_art || null;
+  const liked = !!st?.liked;
 
   return (
-    <div className="ambient-mini pointer-events-auto flex max-w-[min(52vw,20rem)] items-center gap-1.5 rounded-full border border-stone-600/80 bg-black/55 px-2 py-1 shadow-md backdrop-blur-sm sm:max-w-[min(40vw,24rem)] sm:gap-2 sm:px-2.5 sm:py-1.5">
+    <div className="ambient-mini pointer-events-auto flex max-w-[min(60vw,26rem)] items-center gap-1.5 rounded-full border border-stone-600/80 bg-black/55 px-2 py-1 shadow-md backdrop-blur-sm sm:max-w-[min(48vw,28rem)] sm:gap-2 sm:px-2.5 sm:py-1.5">
+      {cover ? (
+        <img
+          src={cover}
+          alt=""
+          className="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-white/20 sm:h-8 sm:w-8"
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
+        />
+      ) : null}
+      <button
+        type="button"
+        disabled={busy || !cur}
+        className={`tap shrink-0 rounded-full px-1.5 py-0.5 text-xs disabled:opacity-40 ${
+          liked ? "text-rose-400" : "text-cream/90 hover:bg-white/10"
+        }`}
+        title={liked ? "Quitar me gusta" : "Me gusta"}
+        onClick={() =>
+          act(() => api.ambientLike(cur?.rel, liked ? false : true))
+        }
+      >
+        {liked ? "♥" : "♡"}
+      </button>
       <button
         type="button"
         disabled={busy}
@@ -88,7 +112,10 @@ export default function AmbientMiniPlayer() {
         <p className="truncate text-[9px] font-semibold uppercase tracking-wide text-emerald-300/80">
           {playing ? "♪ En vivo" : st?.paused ? "Pausa" : "Ambiente"}
         </p>
-        <p className="truncate text-[10px] text-ivory/90 sm:text-[11px]" title={line}>
+        <p
+          className="truncate text-[10px] text-ivory/90 sm:text-[11px]"
+          title={line}
+        >
           {line}
         </p>
       </div>

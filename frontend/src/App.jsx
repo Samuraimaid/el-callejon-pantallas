@@ -20,8 +20,11 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
+        {/* Lobby público solo para Smart TVs — sin enlaces al panel de admin */}
         <Route path="/" element={<HomePage />} />
+        {/* Acceso staff: URL directa (no aparece en el hub de pantallas) */}
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/control" element={<LoginPage />} />
         <Route
           path="/admin"
           element={
@@ -30,7 +33,8 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-        <Route path="/cajero" element={<Navigate to="/admin" replace />} />
+        {/* Alias legacy de cajero → no se anuncia en el lobby */}
+        <Route path="/cajero" element={<Navigate to="/login" replace />} />
 
         {/* ——— Favoritos Smart TV (URL corta estable) ——— */}
         <Route

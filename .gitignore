@@ -59,3 +59,12 @@ frontend/public/images/videos/**
 # Biblioteca MP3 del restaurante (no versionar)
 Music/
 
+# Hub generado por el instalador (IP local)
+scripts/generated/
+
+# Snapshots / backups locales
+snapshots/
+
+# Caratulas descargadas (runtime)
+frontend/public/images/covers/
+

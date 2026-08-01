@@ -40,6 +40,7 @@ function StatusBadge({ estado }) {
     online: { c: "bg-emerald-500", t: "En línea" },
     weak: { c: "bg-amber-400", t: "Débil" },
     offline: { c: "bg-rose-600", t: "Offline" },
+    off: { c: "bg-stone-700", t: "Off 3m" },
     error: { c: "bg-orange-500", t: "Error" },
     standby: { c: "bg-stone-500", t: "Stand-by" },
   };
@@ -613,20 +614,36 @@ function TvTile({
     videoTurn && Number(videoTurn.tv_id) === Number(p.id);
   const label = SHORT_LABEL[p.id] || p.etiqueta || `TV #${p.id}`;
   const snap = p.snapshot || {};
+  const skipPreview =
+    p.render_preview === false ||
+    p.server_off ||
+    p.estado === "off" ||
+    p.estado === "offline";
   const previewUrl =
-    snap.preview_url ||
-    snap.thumb ||
-    FALLBACK_PREVIEW[p.id] ||
-    "/images/slides/slide5-bienvenidos.jpg";
-  const useLive = isLive && on && !p.modo_evento && !liveBlocked;
+    !skipPreview &&
+    (snap.preview_url ||
+      snap.thumb ||
+      FALLBACK_PREVIEW[p.id] ||
+      "/images/slides/slide5-bienvenidos.jpg");
+  const useLive =
+    isLive && on && !p.modo_evento && !liveBlocked && !skipPreview;
 
   return (
     <div className="panel-oak flex flex-col overflow-hidden rounded-xl">
       <div className="relative aspect-video bg-black">
-        {!on ? (
+        {!on || p.estado === "standby" ? (
           <div className="flex h-full items-center justify-center bg-black">
             <span className="text-[10px] tracking-widest text-stone-600">
               STANDBY
+            </span>
+          </div>
+        ) : skipPreview ? (
+          <div className="flex h-full flex-col items-center justify-center bg-stone-950">
+            <span className="text-[10px] tracking-widest text-stone-500">
+              OFF
+            </span>
+            <span className="mt-1 px-2 text-center text-[9px] text-stone-600">
+              Sin señal &gt;3 min · sin preview (ahorro CPU)
             </span>
           </div>
         ) : p.modo_evento ? (
@@ -644,7 +661,7 @@ function TvTile({
           />
         ) : (
           <img
-            src={previewUrl}
+            src={previewUrl || FALLBACK_PREVIEW[p.id]}
             alt=""
             className="h-full w-full object-cover opacity-95"
             onError={(e) => {

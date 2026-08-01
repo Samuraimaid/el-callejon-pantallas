@@ -15,6 +15,8 @@ from app.ws_manager import CHANNEL_ADMIN, CHANNEL_ALL, CHANNEL_PANTALLAS, ws_man
 HEARTBEAT_INTERVAL = 4.0
 WEAK_LATENCY_MS = 1500
 OFFLINE_AFTER_S = 8.0
+# Tras 3 min sin heartbeat: modo off (ahorro CPU, sin previews)
+IDLE_OFF_AFTER_S = 180.0
 
 DEFAULT_TVS: dict[int, dict[str, Any]] = {
     1: {"id": 1, "etiqueta": "TV #1 · Menú Comidas", "ruta": "/tv/1"},
@@ -58,6 +60,8 @@ def _ensure() -> None:
 
 
 def _compute_estado(tv: dict[str, Any]) -> str:
+    if tv.get("server_off"):
+        return "off"
     if tv.get("error_msg"):
         return "error"
     if not tv.get("power_on", True) or not _master_power:
@@ -66,6 +70,8 @@ def _compute_estado(tv: dict[str, Any]) -> str:
     if last is None:
         return "offline"
     age = _now() - float(last)
+    if age > IDLE_OFF_AFTER_S:
+        return "off"
     if age > OFFLINE_AFTER_S:
         return "offline"
     lat = tv.get("latencia_ms")
@@ -74,20 +80,64 @@ def _compute_estado(tv: dict[str, Any]) -> str:
     return "online"
 
 
+def _apply_idle_off(tv: dict[str, Any]) -> None:
+    """
+    Si lleva >3 min sin heartbeat: modo off, limpia snapshot/thumb
+    para no procesar ni enviar previews al admin (ahorro CPU).
+    """
+    last = tv.get("ultimo_ping_ts")
+    if last is None:
+        # Nunca conecto: no ocupar recursos de preview
+        tv["server_off"] = True
+        tv["snapshot"] = {}
+        return
+    age = _now() - float(last)
+    if age > IDLE_OFF_AFTER_S:
+        tv["server_off"] = True
+        # Liberar memoria de capturas / thumbs
+        tv["snapshot"] = {}
+        tv["en_linea"] = False
+    else:
+        # Si volvio a responder, heartbeat limpia server_off
+        pass
+
+
 def refresh_statuses() -> None:
     _ensure()
     for tv in _state.values():
+        _apply_idle_off(tv)
         tv["estado"] = _compute_estado(tv)
-        tv["en_linea"] = tv["estado"] in ("online", "weak", "standby", "error")
+        tv["en_linea"] = tv["estado"] in ("online", "weak", "error")
+        # standby cuenta como presente pero apagada a proposito
+        if tv["estado"] == "standby":
+            tv["en_linea"] = False
 
 
 def get_all_estado() -> dict[str, Any]:
     _ensure()
     refresh_statuses()
+    pantallas = []
+    for i in range(1, 7):
+        tv = deepcopy(_state[i])
+        # No enviar thumbs/snapshots de TVs off/offline (ahorro red/CPU admin)
+        if tv.get("estado") in ("off", "offline") or tv.get("server_off"):
+            snap = dict(tv.get("snapshot") or {})
+            snap.pop("thumb", None)
+            # Mantener label minimo si existe
+            tv["snapshot"] = {
+                k: snap[k]
+                for k in ("label", "screen", "display_ready")
+                if k in snap
+            }
+            tv["render_preview"] = False
+        else:
+            tv["render_preview"] = True
+        pantallas.append(tv)
     return {
         "master_power": _master_power,
-        "pantallas": [deepcopy(_state[i]) for i in range(1, 7)],
+        "pantallas": pantallas,
         "ts": int(_now()),
+        "idle_off_after_s": IDLE_OFF_AFTER_S,
     }
 
 
@@ -107,6 +157,7 @@ async def heartbeat(
     tv = _state[tv_id]
     tv["ultimo_ping_ts"] = _now()
     tv["ultimo_ping"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    tv["server_off"] = False  # volvio a la vida
     if latencia_ms is not None:
         tv["latencia_ms"] = max(0, int(latencia_ms))
     if snapshot is not None:
@@ -114,6 +165,7 @@ async def heartbeat(
         thumb = snap.get("thumb")
         if isinstance(thumb, str) and len(thumb) > 120_000:
             snap["thumb"] = thumb[:120_000]
+        # No guardar thumbs pesados si la TV esta en modo evento (opcional)
         tv["snapshot"] = snap
         # Aviso a la cola de contenido: esta TV ya muestra imagen
         try:

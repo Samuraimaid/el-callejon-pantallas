@@ -33,6 +33,8 @@ OFFLINE_PRIORITY_BASE = 1000
 
 # Sin heartbeat reciente → offline para prioridad de descarga
 ONLINE_GRACE_S = 10.0
+# Alineado con pantallas.IDLE_OFF_AFTER_S: tras 3 min no compiten
+IDLE_OFF_S = 180.0
 # Lease de TV offline se libera en ~6s (no 45–90s) para no frenar al resto
 LEASE_OFFLINE_RELEASE_S = 6.0
 # IDs menú vs publicidad
@@ -71,18 +73,24 @@ def is_tv_online(tv_id: int) -> bool:
         pant.refresh_statuses()
         tv = pant._state.get(tid)
         if tv is not None:
+            # Forzar actualizacion de off por inactividad
+            try:
+                pant.refresh_statuses()
+                tv = pant._state.get(tid) or tv
+            except Exception:
+                pass
             estado = tv.get("estado") or "offline"
-            if estado == "standby":
+            if estado in ("standby", "offline", "off") or tv.get("server_off"):
                 return False
             if tv.get("power_on") is False:
-                return False
-            if estado == "offline":
                 return False
             if estado in ("online", "weak", "error"):
                 return True
             last = tv.get("ultimo_ping_ts")
             if last is not None and (now - float(last)) <= ONLINE_GRACE_S:
                 return True
+            if last is not None and (now - float(last)) > IDLE_OFF_S:
+                return False
     except Exception:
         pass
 
@@ -91,6 +99,8 @@ def is_tv_online(tv_id: int) -> bool:
     last_cd = st.get("last_seen")
     if last_cd is not None and (now - float(last_cd)) <= ONLINE_GRACE_S:
         return True
+    if last_cd is not None and (now - float(last_cd)) > IDLE_OFF_S:
+        return False
 
     return False
 

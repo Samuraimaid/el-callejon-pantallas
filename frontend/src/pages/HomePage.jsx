@@ -234,12 +234,8 @@ export default function HomePage() {
           </div>
         </div>
 
-        <Link
-          to="/login"
-          className="tap w-full rounded-2xl bg-gradient-to-r from-[#a33a28] to-[#d4a84b] py-3.5 text-center text-lg font-bold text-[#1a120c] shadow-lg"
-        >
-          Centro de Control
-        </Link>
+        {/* Centro de Control NO se enlaza aquí (solo personal con URL /login).
+            Reduce exposición del panel en el lobby de las Smart TVs. */}
 
         <p className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-300/75">
           Elija la pantalla de este televisor

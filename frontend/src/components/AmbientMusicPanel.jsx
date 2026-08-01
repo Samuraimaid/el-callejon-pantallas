@@ -16,6 +16,12 @@ export default function AmbientMusicPanel() {
   const [busy, setBusy] = useState(false);
   const [ui, setUi] = useState({ ...AMBIENT_UI_DEFAULTS });
   const [uiSaved, setUiSaved] = useState("");
+  const [scanMsg, setScanMsg] = useState("");
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [pinMsg, setPinMsg] = useState("");
+  const [newListName, setNewListName] = useState("");
+  const [addListName, setAddListName] = useState("likes");
 
   const refresh = useCallback(async () => {
     try {
@@ -85,12 +91,13 @@ export default function AmbientMusicPanel() {
     : st?.offline
       ? "HOST OFFLINE · ejecute ambient_host_player.py"
       : "El Callejón · Ambiente listo";
+  const cover = cur?.cover_url || cur?.album_art || null;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-3 sm:p-4">
       <p className="mb-2 text-[11px] text-cream/55">
         Música del PC → amplificador (jack o Bluetooth). Banner en TV #3–#6.
-        El panel imita Winamp clásico; el audio lo reproduce el host Windows.
+        Títulos limpios + carátula (iTunes). El audio lo reproduce el host Windows.
       </p>
 
       {/* Shell Winamp clásico */}
@@ -100,12 +107,28 @@ export default function AmbientMusicPanel() {
           <span className="opacity-70">CLÁSICO · AMBIENTE</span>
         </div>
         <div className="winamp-body">
-          <div className="winamp-lcd" title={lcd}>
-            <div className="winamp-lcd-scroll">{lcd}</div>
-            <div className="winamp-lcd-meta">
-              {playing ? "► PLAY" : st?.paused ? "❚❚ PAUSE" : "■ STOP"}
-              {cur?.folder ? ` · ${cur.folder}` : ""}
-              {st?.shuffle ? " · SHUF" : ""}
+          <div className="flex items-stretch gap-2">
+            {cover ? (
+              <img
+                src={cover}
+                alt=""
+                className="h-[4.5rem] w-[4.5rem] shrink-0 rounded border border-lime-900/60 object-cover"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            ) : (
+              <div className="flex h-[4.5rem] w-[4.5rem] shrink-0 items-center justify-center rounded border border-lime-900/60 bg-black/50 text-2xl text-lime-700/80">
+                ♪
+              </div>
+            )}
+            <div className="winamp-lcd min-w-0 flex-1" title={lcd}>
+              <div className="winamp-lcd-scroll">{lcd}</div>
+              <div className="winamp-lcd-meta">
+                {playing ? "► PLAY" : st?.paused ? "❚❚ PAUSE" : "■ STOP"}
+                {cur?.folder ? ` · ${cur.folder}` : ""}
+                {st?.shuffle ? " · SHUF" : ""}
+              </div>
             </div>
           </div>
 
@@ -146,16 +169,65 @@ export default function AmbientMusicPanel() {
             >
               ⏭
             </button>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-1">
             <button
               type="button"
-              disabled={busy}
-              className={`winamp-btn ${st?.shuffle ? "on" : ""}`}
+              disabled={busy || !cur}
+              className={`winamp-btn ${st?.liked ? "on" : ""}`}
+              title="Me gusta"
               onClick={() =>
-                act(() => api.ambientShuffle(!st?.shuffle))
+                act(() =>
+                  api.ambientLike(cur?.rel, st?.liked ? false : true)
+                )
               }
             >
-              SHUF
+              {st?.liked ? "♥" : "♡"} Like
             </button>
+            <button
+              type="button"
+              disabled={busy || !cur}
+              className="winamp-btn"
+              title="Agregar a lista"
+              onClick={() =>
+                act(() =>
+                  api.ambientPlaylistAdd(addListName || "likes", cur?.rel)
+                )
+              }
+            >
+              + Lista
+            </button>
+          </div>
+
+          <div className="mt-2 grid grid-cols-2 gap-1">
+            {[
+              { id: "all_shuffle", label: "Shuffle todas" },
+              { id: "all_order", label: "Orden todas" },
+              { id: "folder_shuffle", label: "Shuffle carpeta" },
+              { id: "folder_order", label: "Orden carpeta" },
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                disabled={busy}
+                className={`winamp-btn text-[9px] leading-tight ${
+                  (st?.play_mode || "all_shuffle") === m.id ? "on" : ""
+                }`}
+                onClick={() =>
+                  act(() =>
+                    api.ambientMode(
+                      m.id,
+                      m.id.startsWith("folder")
+                        ? folder || st?.folder || undefined
+                        : ""
+                    )
+                  )
+                }
+              >
+                {m.label}
+              </button>
+            ))}
           </div>
 
           <label className="winamp-vol">
@@ -182,17 +254,95 @@ export default function AmbientMusicPanel() {
             />
             Pausar ambiente en modo evento (opcional)
           </label>
+          <p className="mt-1 text-[9px] text-lime-800/90">
+            Modo: {st?.play_mode || "all_shuffle"}
+            {st?.folder ? ` · ${st.folder}` : " · todas las carpetas"}
+          </p>
         </div>
 
-        <div className="winamp-plist-head">PLAYLIST · CARPETAS</div>
+        <div className="winamp-plist-head">LISTAS · ME GUSTA · CARPETAS</div>
         <div className="winamp-plist">
           <button
             type="button"
-            className={`winamp-folder ${!folder ? "active" : ""}`}
+            className={`winamp-folder ${
+              st?.active_playlist === "likes" ? "active" : ""
+            }`}
+            onClick={() => act(() => api.ambientPlaylistPlay("likes", true))}
+          >
+            ♥ Me gusta ({st?.likes_count ?? 0})
+          </button>
+          {(st?.playlist_names || [])
+            .filter((n) => n !== "likes")
+            .map((n) => (
+              <div key={n} className="flex gap-0.5">
+                <button
+                  type="button"
+                  className={`winamp-folder min-w-0 flex-1 ${
+                    st?.active_playlist === n ? "active" : ""
+                  }`}
+                  onClick={() =>
+                    act(() => api.ambientPlaylistPlay(n, true))
+                  }
+                >
+                  ☰ {n}
+                </button>
+                <button
+                  type="button"
+                  className="winamp-btn px-1 text-[10px]"
+                  title="Borrar lista"
+                  onClick={() => act(() => api.ambientPlaylistDelete(n))}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          <div className="flex gap-1 p-1">
+            <input
+              className="min-w-0 flex-1 rounded border border-lime-900/50 bg-black/40 px-1 py-0.5 text-[10px] text-lime-200"
+              placeholder="Nueva lista…"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value.slice(0, 40))}
+            />
+            <button
+              type="button"
+              className="winamp-btn text-[10px]"
+              disabled={!newListName.trim()}
+              onClick={async () => {
+                const n = newListName.trim();
+                if (!n) return;
+                await act(() => api.ambientPlaylistCreate(n));
+                setAddListName(n);
+                setNewListName("");
+                refresh();
+              }}
+            >
+              Crear
+            </button>
+          </div>
+          <label className="block px-1 text-[9px] text-lime-800">
+            Agregar a:
+            <select
+              className="mt-0.5 w-full rounded border border-lime-900/50 bg-black/50 px-1 py-0.5 text-[10px] text-lime-100"
+              value={addListName}
+              onChange={(e) => setAddListName(e.target.value)}
+            >
+              <option value="likes">Me gusta</option>
+              {(st?.playlist_names || [])
+                .filter((n) => n !== "likes")
+                .map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className={`winamp-folder ${!folder && !st?.active_playlist ? "active" : ""}`}
             onClick={() => {
               setFolder("");
               loadLib("");
-              act(() => api.ambientPlay({ folder: "" }));
+              act(() => api.ambientMode("all_shuffle", ""));
             }}
           >
             ★ Todas ({st?.library_count ?? "—"})
@@ -253,9 +403,30 @@ export default function AmbientMusicPanel() {
           type="button"
           className="tap rounded-lg border border-stone-600 px-3 py-2 text-xs"
           disabled={busy}
-          onClick={() => act(() => api.ambientScan())}
+          onClick={async () => {
+            setBusy(true);
+            setScanMsg(
+              "Escaneando y normalizando MP3 (renombrar + ID3 + carátula)… puede tardar"
+            );
+            try {
+              const s = await api.ambientScan();
+              setSt(s);
+              setScanMsg(
+                s.message ||
+                  `OK: ${s.renamed ?? "?"} renombrados, ${s.tagged ?? "?"} con ID3, ${s.covers_downloaded ?? "?"} carátulas`
+              );
+              await loadLib(folder || "");
+              refresh();
+            } catch (e) {
+              setErr(e.message || "Scan falló");
+              setScanMsg("");
+            } finally {
+              setBusy(false);
+            }
+          }}
+          title="Rescanea Music/ y renombra archivos + metadatos una sola vez"
         >
-          Scan
+          Scan + normalizar
         </button>
         <button
           type="button"
@@ -272,6 +443,80 @@ export default function AmbientMusicPanel() {
           {err}
         </p>
       )}
+      {scanMsg && (
+        <p className="mx-auto mt-2 max-w-md rounded-lg bg-emerald-950/40 px-3 py-2 text-xs text-emerald-200">
+          {scanMsg}
+        </p>
+      )}
+
+      {/* Seguridad PIN */}
+      <div className="mx-auto mt-4 w-full max-w-md rounded-xl border border-rose-900/40 bg-black/35 p-3">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-rose-200/90">
+          Seguridad · cambiar PIN
+        </h3>
+        <p className="mt-1 text-[10px] text-cream/50">
+          PIN de 4 a 8 digitos. Es el unico acceso al Centro de Control.
+        </p>
+        <div className="mt-2 grid grid-cols-2 gap-2">
+          <label className="text-[11px] text-cream/80">
+            PIN actual
+            <input
+              type="password"
+              inputMode="numeric"
+              className="mt-0.5 w-full rounded-lg border border-stone-600 bg-black/40 px-2 py-1.5 tracking-widest"
+              value={oldPin}
+              onChange={(e) =>
+                setOldPin(e.target.value.replace(/\D/g, "").slice(0, 8))
+              }
+              maxLength={8}
+            />
+          </label>
+          <label className="text-[11px] text-cream/80">
+            PIN nuevo
+            <input
+              type="password"
+              inputMode="numeric"
+              className="mt-0.5 w-full rounded-lg border border-stone-600 bg-black/40 px-2 py-1.5 tracking-widest"
+              value={newPin}
+              onChange={(e) =>
+                setNewPin(e.target.value.replace(/\D/g, "").slice(0, 8))
+              }
+              maxLength={8}
+            />
+          </label>
+        </div>
+        <button
+          type="button"
+          disabled={busy || oldPin.length < 4 || newPin.length < 4}
+          className="tap mt-2 w-full rounded-lg bg-rose-900/70 px-3 py-2 text-xs font-bold text-rose-50 disabled:opacity-40"
+          onClick={async () => {
+            setPinMsg("");
+            setBusy(true);
+            try {
+              const r = await api.pinChange(oldPin, newPin);
+              setPinMsg(r.message || "PIN actualizado");
+              setOldPin("");
+              setNewPin("");
+            } catch (e) {
+              let m = e.message || "No se pudo cambiar";
+              try {
+                const j = JSON.parse(m);
+                m = j.message || m;
+              } catch {
+                /* */
+              }
+              setPinMsg(m);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Guardar PIN nuevo
+        </button>
+        {pinMsg && (
+          <p className="mt-2 text-[10px] text-amber-100/90">{pinMsg}</p>
+        )}
+      </div>
 
       {/* Config UI / banners — expuesta en /api/ambient/config y /status */}
       <div className="mx-auto mt-4 w-full max-w-md rounded-xl border border-stone-700/80 bg-black/35 p-3">

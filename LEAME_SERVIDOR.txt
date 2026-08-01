@@ -1,0 +1,59 @@
+================================================================================
+  EL CALLEJON - PC SERVIDOR (pantallas digitales + musica)
+================================================================================
+
+INSTALACION (una sola vez en el PC del restaurante)
+---------------------------------------------------
+1. Copie esta carpeta completa a:
+      C:\EL_CALLEJON_POS
+
+2. Doble clic (como Administrador si lo pide):
+      INSTALLAR.bat
+
+3. El instalador:
+   - Revisa el PC e instala Docker / Python si faltan
+   - Abre puertos de red (5173, 8000, 8788)
+   - Levanta la base de datos y el sistema
+   - Enciende la musica (Me gusta o shuffle todas)
+   - Abre el navegador con codigos QR
+   - Deja el arranque automatico al ENCENDER el PC
+   - Programa backup semanal (domingo 03:00)
+
+ACCESOS
+-------
+  Pantallas (Smart TVs)     http://IP_DEL_PC:5173/
+  Cada TV favorito:         http://IP_DEL_PC:5173/tv/1  ...  /tv/6
+  Centro de Control (PIN)   http://IP_DEL_PC:5173/login
+  PIN inicial               2580   (cambiar en Ambiente -> Seguridad)
+
+  El lobby de TVs NO muestra el boton de control (seguridad).
+
+USO DIARIO
+----------
+  Solo encienda el PC servidor e inicie sesion de Windows.
+  En ~10-30 segundos:
+    - Suena musica
+    - Sistema en linea
+    - Puede escanear el QR del tablet de administracion
+
+COMANDOS UTILES
+---------------
+  INSTALLAR.bat                 Instalacion / reparacion completa
+  scripts\Start-CallejonBoot.bat   Arranque manual completo
+  scripts\Start-AmbientHost.bat    Solo musica
+  scripts\Register-Autostart.bat   (Re)activar inicio automatico
+  scripts\Backup-CallejonUSB.bat   Copia a USB
+  scripts\Snapshot-Callejon.bat    Snapshot limpio ahora
+
+LOGS
+----
+  scripts\generated\boot.log
+  scripts\generated\ambient.log
+  scripts\generated\hub.html     (QR generados)
+
+REQUISITOS
+----------
+  Windows 10/11 64-bit, 8 GB RAM recomendado, Docker Desktop,
+  red local (Wi-Fi o cable) compartida con las Smart TVs.
+
+================================================================================

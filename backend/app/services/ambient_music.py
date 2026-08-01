@@ -55,18 +55,23 @@ async def _req(
 
 
 async def get_status() -> dict[str, Any]:
+    from app.services import album_art
     from app.services import ambient_config as amb_cfg
 
     st = await _req("GET", "/status")
     # Importante: NO tocar _last_status aquí antes de maybe_broadcast.
-    # Si se actualiza antes, track_changed siempre es False y nunca hay toast.
     if st.get("ok"):
         await maybe_broadcast(st)
-    # Siempre adjuntar config de UI/banners (también si host offline)
-    ui = amb_cfg.get_ui_config()
     st = dict(st) if isinstance(st, dict) else {"ok": False}
+    # Limpiar título/artista + carátula (cache local)
+    if st.get("current"):
+        try:
+            st["current"] = await album_art.enrich_track(st.get("current"))
+        except Exception:
+            pass
+    ui = amb_cfg.get_ui_config()
     st["ui"] = ui
-    st["config"] = ui  # alias
+    st["config"] = ui
     return st
 
 
@@ -83,8 +88,38 @@ async def poll_host_for_track_changes() -> dict[str, Any] | None:
 
 
 async def get_library(folder: str | None = None) -> dict[str, Any]:
+    from app.services import album_art
+
     q = f"?folder={folder}" if folder else ""
-    return await _req("GET", f"/library{q}")
+    lib = await _req("GET", f"/library{q}")
+    if not lib.get("ok"):
+        return lib
+    items = []
+    for t in lib.get("items") or []:
+        cleaned = album_art.clean_title_artist(
+            t.get("title") or "", t.get("artist") or ""
+        )
+        row = {**t, **cleaned}
+        # cover si ya esta en cache disco
+        key_art = None
+        try:
+            # no bloquear: solo ruta si existe
+            from pathlib import Path
+            from app.config import get_settings
+            import hashlib
+
+            raw = f"{cleaned['artist']}|{cleaned['title']}".lower().encode()
+            k = hashlib.sha1(raw).hexdigest()[:16]
+            p = Path(get_settings().image_root) / "covers" / f"{k}.jpg"
+            if p.is_file():
+                key_art = f"/images/covers/{k}.jpg"
+        except Exception:
+            pass
+        if key_art:
+            row["cover_url"] = key_art
+        items.append(row)
+    lib["items"] = items
+    return lib
 
 
 async def play(folder: str | None = None, track_id: int | None = None) -> dict[str, Any]:
@@ -161,7 +196,79 @@ async def event_hook(modo_evento: bool) -> dict[str, Any]:
 
 
 async def scan() -> dict[str, Any]:
-    return await _req("POST", "/scan", {})
+    """
+    Rescanea la biblioteca del host y normaliza archivos DEFINITIVAMENTE:
+    renombra MP3, escribe ID3 y embebe caratula (en el host).
+    Solo reprocesa archivos que aun no estan normalizados.
+    """
+    # Timeout alto: iTunes + rename de muchos archivos
+    st = await _req("POST", "/scan", {}, timeout=600.0)
+    if isinstance(st, dict):
+        st.setdefault(
+            "message",
+            "Scan + normalizacion (nombres, ID3, caratulas) completados",
+        )
+    return st
+
+
+async def normalize_library(force: bool = False) -> dict[str, Any]:
+    """Solo normalizacion (sin rescan previo)."""
+    return await _req(
+        "POST", "/normalize", {"force": force}, timeout=600.0
+    )
+
+
+async def set_play_mode(mode: str, folder: str | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"mode": mode}
+    if folder is not None:
+        body["folder"] = folder
+    st = await _req("POST", "/mode", body)
+    if st.get("ok"):
+        await broadcast_now_playing(st)
+    return st
+
+
+async def like_track(
+    rel: str | None = None, liked: bool | None = None
+) -> dict[str, Any]:
+    body: dict[str, Any] = {}
+    if rel is not None:
+        body["rel"] = rel
+    if liked is not None:
+        body["liked"] = liked
+    return await _req("POST", "/like", body)
+
+
+async def get_playlists() -> dict[str, Any]:
+    return await _req("GET", "/playlists")
+
+
+async def create_playlist(name: str) -> dict[str, Any]:
+    return await _req("POST", "/playlist/create", {"name": name})
+
+
+async def delete_playlist(name: str) -> dict[str, Any]:
+    return await _req("POST", "/playlist/delete", {"name": name})
+
+
+async def playlist_add(name: str, rel: str | None = None) -> dict[str, Any]:
+    body: dict[str, Any] = {"name": name}
+    if rel is not None:
+        body["rel"] = rel
+    return await _req("POST", "/playlist/add", body)
+
+
+async def playlist_remove(name: str, rel: str) -> dict[str, Any]:
+    return await _req("POST", "/playlist/remove", {"name": name, "rel": rel})
+
+
+async def playlist_play(name: str, shuffle: bool = True) -> dict[str, Any]:
+    st = await _req(
+        "POST", "/playlist/play", {"name": name, "shuffle": shuffle}
+    )
+    if st.get("ok"):
+        await broadcast_now_playing(st)
+    return st
 
 
 def _track_key(cur: dict | None) -> str:
@@ -192,7 +299,15 @@ async def broadcast_now_playing(
     if not force and elapsed > 20:
         _last_status = st
         return
-    _last_status = st
+    # Enriquecer con nombres limpios + carátula
+    try:
+        from app.services import album_art
+
+        cur = await album_art.enrich_track(cur) or cur
+    except Exception:
+        pass
+
+    _last_status = {**(st or {}), "current": cur}
     payload = {
         "t": "now_playing",
         "playing": True,
@@ -203,6 +318,7 @@ async def broadcast_now_playing(
         "artist": cur.get("artist") or "",
         "album": cur.get("album") or "",
         "folder": cur.get("folder") or "",
+        "cover_url": cur.get("cover_url") or cur.get("album_art") or "",
         "started_at": cur.get("started_at") or st.get("started_at"),
         "elapsed_s": elapsed,
         "volume": st.get("volume"),

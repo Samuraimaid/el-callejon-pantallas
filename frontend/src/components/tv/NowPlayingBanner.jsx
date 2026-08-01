@@ -56,6 +56,7 @@ export default function NowPlayingBanner({ enabled = true }) {
       artist: cur.artist,
       folder: cur.folder,
       rel: cur.rel,
+      cover_url: cur.cover_url || cur.album_art || "",
     });
     setVisible(true);
     window.clearTimeout(hideTimer.current);
@@ -112,9 +113,14 @@ export default function NowPlayingBanner({ enabled = true }) {
       if (!key) continue;
 
       const elapsed = Number(data.elapsed_s ?? 0);
-      // Si el servidor ya va en otra pista fresca, preferir la del servidor
       if (elapsed <= maxE && key !== lastTrack.current) {
-        showToast(cur, mySeq);
+        showToast(
+          {
+            ...cur,
+            cover_url: cur.cover_url || cur.album_art || ev.cover_url,
+          },
+          mySeq
+        );
         return;
       }
     }
@@ -129,6 +135,7 @@ export default function NowPlayingBanner({ enabled = true }) {
           folder: ev.folder,
           rel: ev.rel,
           track_id: ev.track_id,
+          cover_url: ev.cover_url || "",
         },
         mySeq
       );
@@ -177,14 +184,27 @@ export default function NowPlayingBanner({ enabled = true }) {
   if (!enabled || !featureOn || !np?.title || !visible) return null;
 
   const line = [np.artist, np.title].filter(Boolean).join(" — ");
+  // Covers se guardan en public/images/covers (same-origin /images/...)
+  const cover = np.cover_url || null;
 
   return (
     <div
       className="np-toast np-toast-bl pointer-events-none z-35"
       aria-live="polite"
     >
-      <div className="np-toast-card flex max-w-[min(92vw,22rem)] items-center gap-3 rounded-2xl border border-emerald-400/30 bg-black/80 px-3.5 py-2.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
-        <VuMeter active />
+      <div className="np-toast-card flex max-w-[min(92vw,24rem)] items-center gap-3 rounded-2xl border border-emerald-400/30 bg-black/80 px-3.5 py-2.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
+        {cover ? (
+          <img
+            src={cover}
+            alt=""
+            className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-white/15"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+          />
+        ) : (
+          <VuMeter active />
+        )}
         <div className="min-w-0 flex-1">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/90">
             Ahora suena
