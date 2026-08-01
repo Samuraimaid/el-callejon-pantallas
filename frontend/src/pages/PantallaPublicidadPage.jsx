@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import MensajesDinamicosBanner from "../components/MensajesDinamicosBanner";
 import FicoshaBanner from "../components/tv/FicoshaBanner";
+import NowPlayingBanner from "../components/tv/NowPlayingBanner";
 import TvFullscreenChrome from "../components/tv/TvFullscreenChrome";
 import TvRuntimeShell from "../components/tv/TvRuntimeShell";
 import { useVideoTurn } from "../hooks/useVideoTurn";
@@ -140,17 +141,27 @@ export default function PantallaPublicidadPage({
     hasVideoTurn,
   ]);
 
-  const snapshotExtra = useCallback(
-    () => ({
+  const snapshotExtra = useCallback(() => {
+    const s = slides[index] || slides[0];
+    const preview =
+      (hasVideoTurn && videoTurn?.video_url
+        ? s?.imagen_url || "/images/slides/slide5-bienvenidos.jpg"
+        : null) ||
+      s?.imagen_url ||
+      s?.video_url ||
+      "/images/slides/slide5-bienvenidos.jpg";
+    return {
       screen: "publicidad",
       zona,
       slide: index,
       n_slides: slides.length,
       media: hasVideoTurn ? "video" : "image",
       video_turn: hasVideoTurn,
-    }),
-    [zona, index, slides.length, hasVideoTurn]
-  );
+      display_ready: slides.length > 0 || !!campana,
+      preview_url: String(preview).split("?")[0],
+      label: s?.texto_principal || zona,
+    };
+  }, [zona, index, slides, hasVideoTurn, videoTurn, campana]);
 
   const body = (() => {
     if (error && !campana) {
@@ -279,8 +290,10 @@ export default function PantallaPublicidadPage({
           </div>
         </div>
 
+        {/* Promociones: arriba a la derecha */}
         <FicoshaBanner />
 
+        {/* Puntos de slide: abajo centro */}
         <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center gap-3">
           {slides.map((s, i) => (
             <button
@@ -298,13 +311,21 @@ export default function PantallaPublicidadPage({
           ))}
         </div>
 
+        {/* Sabías qué / Chef: abajo derecha */}
         {mostrarMensajes && (
-          <MensajesDinamicosBanner
-            mensajes={mensajes}
-            duracionMs={duracionMensaje}
-            enabled={mostrarMensajes}
-          />
+          <div className="pub-banners-br">
+            <MensajesDinamicosBanner
+              mensajes={mensajes}
+              duracionMs={duracionMensaje}
+              enabled={mostrarMensajes}
+            />
+          </div>
         )}
+
+        {/* Ahora suena: abajo izquierda, solo 5s al inicio de canción */}
+        <div className="pub-banners-bl">
+          <NowPlayingBanner enabled />
+        </div>
       </div>
     );
   })();

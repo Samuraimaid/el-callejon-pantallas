@@ -12,7 +12,7 @@ import {
 /**
  * Sincroniza contenido de la TV con el servidor:
  * - reutiliza caché si version igual (cortes de luz / reinicio)
- * - pide lease exclusivo (1 TV a la vez; prioridad 1–2 en servidor)
+ * - pide lease exclusivo (1 TV a la vez; prioridad 1–2 solo si están en línea)
  * - descarga assets uno a uno con progreso % y ETA
  */
 export function useContentSync(tvId, { enabled = true } = {}) {
@@ -60,6 +60,26 @@ export function useContentSync(tvId, { enabled = true } = {}) {
             "Contenido en caché — listo (sin cambios; reutilizable tras corte de luz)"
           );
           setDetail(`v${manifest.version} · ${manifest.asset_count} fotos`);
+          // Avisar al servidor: esta TV ya funciona (libera cola TV3–6)
+          try {
+            const cachedBytes = await estimateCacheBytes(
+              assets.map((a) => a.url)
+            );
+            await fetch(`${API_URL}/api/content/ack`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                tv_id: tvId,
+                version: manifest.version,
+                cached_bytes: cachedBytes,
+                assets_ok: ok || assets.length,
+                assets_fail: 0,
+                display_ready: true,
+              }),
+            });
+          } catch {
+            /* */
+          }
           return;
         }
       }
@@ -72,6 +92,22 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         setPhase("ready");
         setProgress(100);
         setMessage("Sin archivos nuevos que descargar");
+        try {
+          await fetch(`${API_URL}/api/content/ack`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tv_id: tvId,
+              version: manifest.version,
+              cached_bytes: 0,
+              assets_ok: 0,
+              assets_fail: 0,
+              display_ready: true,
+            }),
+          });
+        } catch {
+          /* */
+        }
         return;
       }
 
@@ -100,10 +136,14 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         setMessage(data.message || "En cola de descarga…");
         setDetail(
           data.holder_tv_id
-            ? `TV #${data.holder_tv_id} usa el ancho de banda`
-            : data.reason || ""
+            ? `TV #${data.holder_tv_id} usa el canal · reintento ${attempt + 1}`
+            : data.menus_status || data.reason || ""
         );
-        const wait = Math.max(1, Number(data.retry_after_s) || 3) * 1000;
+        // Si solo espera menús y ya deberían estar listos, reintentar más rápido
+        const wait =
+          data.reason === "priority_menus_only"
+            ? 2000
+            : Math.max(1, Number(data.retry_after_s) || 3) * 1000;
         await sleep(wait);
       }
 
@@ -178,6 +218,7 @@ export function useContentSync(tvId, { enabled = true } = {}) {
           cached_bytes: cachedBytes,
           assets_ok: ok,
           assets_fail: fail,
+          display_ready: true,
         }),
       }).catch(() => {});
 

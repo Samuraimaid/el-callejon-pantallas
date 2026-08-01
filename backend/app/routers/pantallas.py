@@ -32,18 +32,38 @@ class ControlIn(BaseModel):
     all_tvs: bool = False
 
 
+class EventoScheduleIn(BaseModel):
+    enabled: bool | None = None
+    titulo: str | None = None
+    starts_at: str | None = Field(
+        default=None, description="ISO-8601 inicio (local o con offset)"
+    )
+    ends_at: str | None = Field(default=None, description="ISO-8601 fin")
+    clear: bool = False
+
+
 @router.get("/estado")
 async def estado_pantallas(
     db: AsyncSession = Depends(get_db),
     _user=Depends(require_caja),
 ) -> dict[str, Any]:
     await pant_svc.load_from_db(db)
-    return pant_svc.get_all_estado()
+    try:
+        await pant_svc.tick_evento_schedule(db)
+    except Exception:
+        pass
+    data = pant_svc.get_all_estado()
+    data["evento_schedule"] = await pant_svc.get_evento_schedule(db)
+    return data
 
 
 @router.get("/estado/public")
-async def estado_public() -> dict[str, Any]:
+async def estado_public(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Estado ligero sin auth (para TVs que leen power/volumen al boot)."""
+    try:
+        await pant_svc.tick_evento_schedule(db)
+    except Exception:
+        pass
     data = pant_svc.get_all_estado()
     # No exponer thumbs enormes
     for p in data["pantallas"]:
@@ -51,7 +71,32 @@ async def estado_public() -> dict[str, Any]:
         if "thumb" in snap:
             snap = {k: v for k, v in snap.items() if k != "thumb"}
             p["snapshot"] = snap
+    data["evento_schedule"] = await pant_svc.get_evento_schedule(db)
     return data
+
+
+@router.get("/evento/schedule")
+async def get_evento_schedule(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    return await pant_svc.get_evento_schedule(db)
+
+
+@router.put("/evento/schedule")
+async def put_evento_schedule(
+    body: EventoScheduleIn,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    return await pant_svc.set_evento_schedule(
+        db,
+        enabled=body.enabled,
+        titulo=body.titulo,
+        starts_at=body.starts_at,
+        ends_at=body.ends_at,
+        clear=body.clear,
+    )
 
 
 @router.post("/{tv_id}/heartbeat")
@@ -63,6 +108,11 @@ async def heartbeat(
     if tv_id < 1 or tv_id > 6:
         raise HTTPException(400, "tv_id debe ser 1-6")
     try:
+        # Aplicar ventana de evento programado (ligero)
+        try:
+            await pant_svc.tick_evento_schedule(db)
+        except Exception:
+            pass
         tv = await pant_svc.heartbeat(
             db,
             tv_id,
@@ -94,6 +144,63 @@ async def control(
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+
+
+@router.get("/evento/plantillas")
+async def list_evento_plantillas() -> dict[str, Any]:
+    from app.services import evento_templates as et
+
+    return {"plantillas": et.list_templates()}
+
+
+@router.get("/evento/plantillas/activa")
+async def get_plantilla_activa(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+    from app.services import evento_templates as et
+
+    return {"template": await et.get_active_template(db)}
+
+
+class AplicarPlantillaIn(BaseModel):
+    template_id: str
+    activar_modo_evento: bool = True
+    musica_activa: bool = True
+    titulo: str | None = None
+    subtitulo: str | None = None
+
+
+@router.post("/evento/plantillas/aplicar")
+async def aplicar_plantilla(
+    body: AplicarPlantillaIn,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    from app.services import evento_templates as et
+
+    textos = {}
+    if body.titulo:
+        textos["titulo"] = body.titulo
+    if body.subtitulo:
+        textos["subtitulo"] = body.subtitulo
+    try:
+        return await et.apply_template(
+            db,
+            body.template_id,
+            activar_modo_evento=body.activar_modo_evento,
+            musica_activa=body.musica_activa,
+            textos=textos or None,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.delete("/evento/plantillas/activa")
+async def clear_plantilla(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    from app.services import evento_templates as et
+
+    return await et.clear_active_template(db)
 
 
 @router.get("/evento/media")

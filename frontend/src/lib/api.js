@@ -106,6 +106,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  getEventoSchedule: () => request("/api/pantallas/evento/schedule"),
+  putEventoSchedule: (body) =>
+    request("/api/pantallas/evento/schedule", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  getEventoPlantillas: () => request("/api/pantallas/evento/plantillas"),
+  getEventoPlantillaActiva: () =>
+    request("/api/pantallas/evento/plantillas/activa"),
+  aplicarEventoPlantilla: (body) =>
+    request("/api/pantallas/evento/plantillas/aplicar", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  clearEventoPlantilla: () =>
+    request("/api/pantallas/evento/plantillas/activa", { method: "DELETE" }),
   uploadEventoMedia: async (file, titulo = "") => {
     const token = getToken();
     const fd = new FormData();
@@ -198,6 +214,42 @@ export const api = {
   listVideoBatches: () => request("/api/publicidad/videos/jobs"),
   getContentResources: () => request("/api/content/resources"),
   getContentStatus: () => request("/api/content/status"),
+
+  // —— Música ambiente (host Winamp-like → amplificador) ——
+  ambientStatus: () => request("/api/ambient/status"),
+  ambientLibrary: (folder) =>
+    request(
+      `/api/ambient/library${folder ? `?folder=${encodeURIComponent(folder)}` : ""}`
+    ),
+  ambientPlay: (body = {}) =>
+    request("/api/ambient/play", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  ambientPause: () => request("/api/ambient/pause", { method: "POST", body: "{}" }),
+  ambientResume: () =>
+    request("/api/ambient/resume", { method: "POST", body: "{}" }),
+  ambientStop: () => request("/api/ambient/stop", { method: "POST", body: "{}" }),
+  ambientNext: () => request("/api/ambient/next", { method: "POST", body: "{}" }),
+  ambientPrev: () => request("/api/ambient/prev", { method: "POST", body: "{}" }),
+  ambientShuffle: (on) =>
+    request("/api/ambient/shuffle", {
+      method: "POST",
+      body: JSON.stringify({ on }),
+    }),
+  ambientVolume: (volume) =>
+    request("/api/ambient/volume", {
+      method: "POST",
+      body: JSON.stringify({ volume }),
+    }),
+  ambientPauseOnEvent: (on) =>
+    request("/api/ambient/pause-on-event", {
+      method: "POST",
+      body: JSON.stringify({ on }),
+    }),
+  ambientScan: () => request("/api/ambient/scan", { method: "POST", body: "{}" }),
+  ambientBroadcast: () =>
+    request("/api/ambient/broadcast", { method: "POST", body: "{}" }),
 
   uploadVideosMulti: async (
     files,

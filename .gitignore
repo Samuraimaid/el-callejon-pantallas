@@ -55,3 +55,7 @@ frontend/public/images/videos/**
 !frontend/public/images/videos/.gitkeep
 # Videos de muestra para demo / presentación del proyecto
 !frontend/public/images/videos/seed-demo-*
+
+# Biblioteca MP3 del restaurante (no versionar)
+Music/
+

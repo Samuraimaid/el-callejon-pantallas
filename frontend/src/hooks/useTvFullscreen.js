@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { isTvEmbedMode } from "../lib/tvEmbed";
 
 function getFsElement() {
   return (
@@ -49,17 +50,31 @@ async function requestFs(el) {
 /**
  * Pantalla completa para Smart TVs / móviles.
  * Los navegadores suelen exigir un toque del usuario; el overlay gestiona eso.
+ * En embed/preview del Centro de Control: desactivado por completo.
  */
 export function useTvFullscreen({ autoTry = true } = {}) {
-  const [isFs, setIsFs] = useState(() => !!getFsElement() || isStandaloneDisplay());
-  const [supported, setSupported] = useState(true);
-  const [standalone] = useState(() => isStandaloneDisplay());
+  const embed = isTvEmbedMode();
+  const [isFs, setIsFs] = useState(
+    () => !embed && (!!getFsElement() || isStandaloneDisplay())
+  );
+  const [supported, setSupported] = useState(!embed);
+  const [standalone] = useState(() => !embed && isStandaloneDisplay());
 
   const sync = useCallback(() => {
+    if (isTvEmbedMode()) {
+      setIsFs(false);
+      return;
+    }
     setIsFs(!!getFsElement() || isStandaloneDisplay());
   }, []);
 
   useEffect(() => {
+    if (embed) {
+      setSupported(false);
+      setIsFs(false);
+      return undefined;
+    }
+
     const el = document.documentElement;
     const ok = !!(
       el.requestFullscreen ||
@@ -86,10 +101,11 @@ export function useTvFullscreen({ autoTry = true } = {}) {
     window.visualViewport?.addEventListener("resize", setVh);
     window.visualViewport?.addEventListener("scroll", setVh);
 
-    // Intento automático (falla sin gesto en Chrome; no pasa nada)
+    // Solo en TV real (no preview): intento suave; Chrome exige gesto
     let tryId = 0;
     if (autoTry && ok && !getFsElement() && !isStandaloneDisplay()) {
       tryId = window.setTimeout(() => {
+        if (isTvEmbedMode()) return;
         requestFs(document.documentElement).then(sync);
       }, 400);
     }
@@ -103,16 +119,16 @@ export function useTvFullscreen({ autoTry = true } = {}) {
       window.visualViewport?.removeEventListener("scroll", setVh);
       window.clearTimeout(tryId);
     };
-  }, [autoTry, sync]);
+  }, [autoTry, embed, sync]);
 
   const enter = useCallback(async () => {
+    if (isTvEmbedMode()) return false;
     if (isStandaloneDisplay()) {
       setIsFs(true);
       return true;
     }
     const ok = await requestFs(document.documentElement);
     sync();
-    // Fallback: scroll para ocultar barra en algunos móviles
     try {
       window.scrollTo(0, 1);
     } catch {
@@ -122,6 +138,7 @@ export function useTvFullscreen({ autoTry = true } = {}) {
   }, [sync]);
 
   const exit = useCallback(async () => {
+    if (isTvEmbedMode()) return;
     try {
       if (document.exitFullscreen) await document.exitFullscreen();
       else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
@@ -134,11 +151,12 @@ export function useTvFullscreen({ autoTry = true } = {}) {
 
   return {
     isFullscreen: isFs,
-    supported,
-    standalone,
+    supported: embed ? false : supported,
+    standalone: embed ? false : standalone,
     enter,
     exit,
+    embed,
     /** true si conviene mostrar el botón/overlay de “entrar a pantalla completa” */
-    needsPrompt: supported && !isFs && !standalone,
+    needsPrompt: !embed && supported && !isFs && !standalone,
   };
 }

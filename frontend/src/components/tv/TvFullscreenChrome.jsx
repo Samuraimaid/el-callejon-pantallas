@@ -1,16 +1,38 @@
+import { useEffect } from "react";
 import { useTvFullscreen } from "../../hooks/useTvFullscreen";
+import { isTvEmbedMode } from "../../lib/tvEmbed";
 
 /**
- * Overlay + atajo para forzar pantalla completa en rutas de TV.
- * Los navegadores (Chrome móvil/TV) exigen un toque del usuario.
+ * Pantalla completa en TVs reales:
+ * - Intento automático al abrir (muchas Smart TVs lo permiten)
+ * - Si el navegador exige gesto: overlay a pantalla completa (un toque)
+ * - Una vez activa, persiste hasta salir
+ * Centro de Control (embed): no se monta.
  */
 export default function TvFullscreenChrome({ label = "pantalla" }) {
+  const embed = isTvEmbedMode();
   const { isFullscreen, needsPrompt, enter, exit, standalone } =
-    useTvFullscreen({ autoTry: true });
+    useTvFullscreen({ autoTry: !embed });
+
+  // Primer toque en cualquier parte → fullscreen (fallback si autoTry falló)
+  useEffect(() => {
+    if (embed || isFullscreen || standalone) return undefined;
+    const once = () => {
+      enter();
+    };
+    // capture: intercepta antes que botones internos
+    window.addEventListener("pointerdown", once, { once: true, capture: true });
+    window.addEventListener("keydown", once, { once: true, capture: true });
+    return () => {
+      window.removeEventListener("pointerdown", once, { capture: true });
+      window.removeEventListener("keydown", once, { capture: true });
+    };
+  }, [embed, isFullscreen, standalone, enter]);
+
+  if (embed) return null;
 
   return (
     <>
-      {/* Overlay grande: un toque y se oculta la barra de direcciones */}
       {needsPrompt && (
         <button
           type="button"
@@ -24,18 +46,13 @@ export default function TvFullscreenChrome({ label = "pantalla" }) {
             </span>
             <span className="tv-fs-title">Pantalla completa</span>
             <span className="tv-fs-desc">
-              Toque aquí una vez para ocultar la barra del navegador y usar todo
-              el espacio de la {label}.
+              Toque una vez para usar todo el espacio de la {label}.
             </span>
             <span className="tv-fs-btn">Activar ahora</span>
-            <span className="tv-fs-hint">
-              En Smart TV: favoritos → abrir → tocar una vez
-            </span>
           </span>
         </button>
       )}
 
-      {/* Chip discreto si salió de fullscreen */}
       {!needsPrompt && !isFullscreen && !standalone && (
         <button
           type="button"
@@ -47,7 +64,6 @@ export default function TvFullscreenChrome({ label = "pantalla" }) {
         </button>
       )}
 
-      {/* Salir (útil en PC de prueba; en TV casi no se ve) */}
       {isFullscreen && !standalone && (
         <button
           type="button"

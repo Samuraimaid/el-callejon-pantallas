@@ -3,6 +3,7 @@ import MenuBoardScreen from "../components/tv/MenuBoardScreen";
 import TvRuntimeShell from "../components/tv/TvRuntimeShell";
 import { sortMenuItems } from "../components/tv/MenuBoard";
 import { useMenuTv } from "../hooks/useMenuTv";
+import { imageForProduct, imageForProductCard } from "../lib/constants";
 
 /**
  * TV 50" #2 — Complementos + runtime industrial.
@@ -38,14 +39,25 @@ export default function PantallaComplementosPage() {
   const colLeft = items.slice(0, mid);
   const colRight = items.slice(mid);
 
-  const snapshotExtra = useCallback(
-    () => ({
+  const snapshotExtra = useCallback(() => {
+    const hero = heroPool[0] || items[0];
+    const preview =
+      hero?.imgCard ||
+      hero?.img ||
+      (hero
+        ? imageForProductCard(hero.c, hero.tp, hero.imgV) ||
+          imageForProduct(hero.c, hero.tp, hero.imgV)
+        : null) ||
+      "/images/bebidas/jugos-naturales.jpg";
+    return {
       screen: "complementos",
       n_items: items.length,
       ready,
-    }),
-    [items.length, ready]
-  );
+      display_ready: !!ready && items.length > 0,
+      preview_url: preview,
+      label: hero?.n || "Complementos",
+    };
+  }, [items, heroPool, ready]);
 
   return (
     <TvRuntimeShell tvId={2} snapshotExtra={snapshotExtra}>

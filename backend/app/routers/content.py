@@ -32,6 +32,7 @@ class AckIn(BaseModel):
     cached_bytes: int = 0
     assets_ok: int = 0
     assets_fail: int = 0
+    display_ready: bool = True
 
 
 class VideoDoneIn(BaseModel):
@@ -85,6 +86,7 @@ async def ack(body: AckIn) -> dict[str, Any]:
         cached_bytes=body.cached_bytes,
         assets_ok=body.assets_ok,
         assets_fail=body.assets_fail,
+        display_ready=body.display_ready,
     )
 
 

@@ -1,37 +1,49 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_URL } from "../../lib/constants";
 import { CACHE_KEYS, cacheGetData, cacheSet } from "../../lib/tvCache";
+import { isTvEmbedMode } from "../../lib/tvEmbed";
 import { useContentSync } from "../../hooks/useContentSync";
 import { useTvRuntime } from "../../hooks/useTvRuntime";
 import ContentLoadingOverlay from "./ContentLoadingOverlay";
+import EventTemplateStage from "./EventTemplateStage";
 
 /**
  * Envoltorio industrial: standby, modo evento, sync de contenido 1-a-1,
  * barra de progreso y caché local reutilizable.
+ * En ?embed=1 (preview admin): sin sync pesado ni overlay de carga.
  */
 export default function TvRuntimeShell({
   tvId,
   snapshotExtra = null,
   children,
 }) {
+  const embed = isTvEmbedMode();
+
   const snapshotBuilder = useCallback(() => {
+    if (embed) return { embed: true, path: window.location.pathname };
     const extra =
       typeof snapshotExtra === "function" ? snapshotExtra() : snapshotExtra || {};
     return {
       label: document.title,
       ...extra,
     };
-  }, [snapshotExtra]);
+  }, [snapshotExtra, embed]);
 
   const { powerOn, volumen, modoEvento, standby, renderError, setRenderError } =
     useTvRuntime(tvId, { snapshotBuilder });
 
-  const sync = useContentSync(tvId, { enabled: !standby && !modoEvento });
+  // Preview del Centro de Control: no competir por lease ni bloquear la vista
+  const sync = useContentSync(tvId, {
+    enabled: !embed && !standby && !modoEvento,
+  });
 
   const [eventoItems, setEventoItems] = useState(
     () => cacheGetData(CACHE_KEYS.evento)?.items || []
   );
   const [evtIdx, setEvtIdx] = useState(0);
+  const [eventTemplate, setEventTemplate] = useState(
+    () => cacheGetData(CACHE_KEYS.eventoPlantilla) || null
+  );
 
   useEffect(() => {
     (async () => {
@@ -45,22 +57,41 @@ export default function TvRuntimeShell({
       } catch {
         /* cache */
       }
+      try {
+        const res = await fetch(`${API_URL}/api/pantallas/evento/plantillas/activa`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setEventTemplate(data.template || null);
+        cacheSet(CACHE_KEYS.eventoPlantilla, data.template || null);
+      } catch {
+        /* cache */
+      }
     })();
   }, [modoEvento]);
 
   useEffect(() => {
     if (!modoEvento || eventoItems.length <= 1) return undefined;
+    const ms = Math.max(
+      4000,
+      Number(eventTemplate?.duracion_slide_ms) || 7000
+    );
     const id = window.setInterval(() => {
       setEvtIdx((i) => (i + 1) % eventoItems.length);
-    }, 7000);
+    }, ms);
     return () => window.clearInterval(id);
-  }, [modoEvento, eventoItems.length]);
+  }, [modoEvento, eventoItems.length, eventTemplate?.duracion_slide_ms]);
 
   // Volumen en videos del evento
   useEffect(() => {
-    document.querySelectorAll("video").forEach((v) => {
-      v.volume = Math.max(0, Math.min(1, (volumen || 0) / 100));
-      v.muted = (volumen || 0) <= 0 || standby;
+    document.querySelectorAll("video, audio").forEach((v) => {
+      try {
+        v.volume = Math.max(0, Math.min(1, (volumen || 0) / 100));
+        if (v.tagName === "VIDEO") {
+          v.muted = (volumen || 0) <= 0 || standby;
+        }
+      } catch {
+        /* */
+      }
     });
   }, [volumen, standby, modoEvento, evtIdx]);
 
@@ -73,12 +104,25 @@ export default function TvRuntimeShell({
   }
 
   if (modoEvento) {
+    if (eventTemplate) {
+      const item = eventoItems[evtIdx % Math.max(1, eventoItems.length)];
+      return (
+        <EventTemplateStage
+          template={eventTemplate}
+          item={item}
+          volumen={volumen}
+          embed={embed}
+        />
+      );
+    }
     const item = eventoItems[evtIdx % Math.max(1, eventoItems.length)];
     if (!item) {
       return (
         <div className="tv-event-empty bg-black text-ivory">
           <p className="font-display text-3xl">Modo Evento</p>
-          <p className="mt-2 text-cream/60">Sin fotos cargadas en el panel</p>
+          <p className="mt-2 text-cream/60">
+            Elija una plantilla en el Centro de Control o suba media
+          </p>
         </div>
       );
     }
@@ -92,18 +136,25 @@ export default function TvRuntimeShell({
   }
 
   return (
-    <div className="relative h-full w-full" data-tv={tvId} data-vol={volumen}>
-      <ContentLoadingOverlay
-        tvId={tvId}
-        phase={sync.phase}
-        progress={sync.progress}
-        etaSec={sync.etaSec}
-        message={sync.message}
-        detail={sync.detail}
-        queueInfo={sync.queueInfo}
-        fromCache={sync.fromCache}
-      />
-      {renderError && (
+    <div
+      className="relative h-full w-full"
+      data-tv={tvId}
+      data-vol={volumen}
+      data-embed={embed ? "1" : "0"}
+    >
+      {!embed && (
+        <ContentLoadingOverlay
+          tvId={tvId}
+          phase={sync.phase}
+          progress={sync.progress}
+          etaSec={sync.etaSec}
+          message={sync.message}
+          detail={sync.detail}
+          queueInfo={sync.queueInfo}
+          fromCache={sync.fromCache}
+        />
+      )}
+      {renderError && !embed && (
         <div className="pointer-events-none absolute left-2 top-2 z-[100] rounded bg-rose-900/90 px-2 py-1 text-xs text-white">
           ⚠️ {renderError}
           <button
@@ -115,8 +166,8 @@ export default function TvRuntimeShell({
           </button>
         </div>
       )}
-      {/* Mientras descarga masiva, no montar media pesada (ahorra CPU/red) */}
-      {sync.blocking ? null : children}
+      {/* En embed siempre mostrar contenido; en TV real esperar fin de sync */}
+      {embed || !sync.blocking ? children : null}
     </div>
   );
 }

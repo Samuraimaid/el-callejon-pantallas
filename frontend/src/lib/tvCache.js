@@ -91,4 +91,5 @@ export const CACHE_KEYS = {
   config: "config_menu_v1",
   control: "control_v1",
   evento: "evento_media_v1",
+  eventoPlantilla: "evento_plantilla_v1",
 };

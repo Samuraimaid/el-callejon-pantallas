@@ -1,9 +1,13 @@
 """
 Entrega de contenido industrial:
 - 1 transferencia a la vez (todo el ancho de banda)
-- Prioridad TV1 y TV2 (menú / complementos)
+- Prioridad TV1 y TV2 (menú / complementos) SOLO si están en línea
+- Si TV1/2 (u otra) está offline, pierde prioridad y no bloquea la cola
+- Modo solo-publicidad: el servidor opera con 1 sola TV de publicidad
+  aunque TV1 y TV2 no existan / no respondan
+- Al volver en línea, las faltantes descargan campañas del servidor
 - Manifiestos con versión para reutilizar caché entre días
-- Turno de video: 1 TV a la vez
+- Turno de video: 1 TV a la vez (también con una sola candidata)
 """
 
 from __future__ import annotations
@@ -22,8 +26,18 @@ from app.config import get_settings
 from app.services.resources import get_resources
 from app.ws_manager import CHANNEL_ADMIN, CHANNEL_ALL, CHANNEL_PANTALLAS, ws_manager
 
-# Prioridad de cola: menor número = más prioridad
+# Prioridad base de cola: menor número = más prioridad (solo aplica si está en línea)
 TV_PRIORITY = {1: 0, 2: 1, 3: 10, 4: 11, 5: 12, 6: 13}
+# Offline: se relega al final (no cuello de botella para las que sí responden)
+OFFLINE_PRIORITY_BASE = 1000
+
+# Sin heartbeat reciente → offline para prioridad de descarga
+ONLINE_GRACE_S = 10.0
+# Lease de TV offline se libera en ~6s (no 45–90s) para no frenar al resto
+LEASE_OFFLINE_RELEASE_S = 6.0
+# IDs menú vs publicidad
+MENU_TV_IDS = (1, 2)
+AD_TV_IDS = (3, 4, 5, 6)
 
 ZONA_BY_TV = {3: "TV3", 4: "TV4", 5: "TV5", 6: "TV6"}
 
@@ -37,6 +51,96 @@ _video_rr: list[int] = []  # round-robin TVs con video
 
 def _now() -> float:
     return time.time()
+
+
+def is_tv_online(tv_id: int) -> bool:
+    """
+    True si la TV tiene actividad reciente (heartbeat o pedido de lease/ack).
+    Offline / standby no compiten por prioridad ni bloquean la cola.
+    """
+    tid = int(tv_id)
+    now = _now()
+
+    # Actividad de contenido (lease, ack, mark_display_ready vía heartbeat)
+    st = _tv_state.get(tid) or {}
+    last_cd = st.get("last_seen")
+    if last_cd is not None and (now - float(last_cd)) <= ONLINE_GRACE_S:
+        return True
+
+    try:
+        from app.services import pantallas as pant
+
+        pant._ensure()
+        pant.refresh_statuses()
+        tv = pant._state.get(tid)
+        if tv is not None:
+            estado = tv.get("estado") or "offline"
+            if estado == "standby":
+                return False
+            if estado in ("online", "weak", "error"):
+                return True
+            last = tv.get("ultimo_ping_ts")
+            if last is not None and (now - float(last)) <= ONLINE_GRACE_S:
+                return True
+    except Exception:
+        pass
+
+    return False
+
+
+def effective_priority(tv_id: int) -> int:
+    """
+    Prioridad efectiva para la cola de descarga.
+    TV1/2 solo tienen prioridad alta si están en línea; si no, pasan al final.
+    """
+    tid = int(tv_id)
+    base = TV_PRIORITY.get(tid, 50)
+    if not is_tv_online(tid):
+        return OFFLINE_PRIORITY_BASE + base
+    return base
+
+
+def online_tv_ids() -> list[int]:
+    return [i for i in range(1, 7) if is_tv_online(i)]
+
+
+def any_online_menu_tvs() -> bool:
+    return any(is_tv_online(i) for i in MENU_TV_IDS)
+
+
+def any_online_ad_tvs() -> bool:
+    return any(is_tv_online(i) for i in AD_TV_IDS)
+
+
+def solo_publicidad_mode() -> bool:
+    """
+    True cuando no hay menús en línea y sí hay al menos una publicidad.
+    El servidor debe operar con esa(s) pantalla(s) sin esperar TV1/TV2.
+    """
+    return (not any_online_menu_tvs()) and any_online_ad_tvs()
+
+
+def _sort_wait_queue() -> None:
+    """Ordena cola: en línea primero (TV1/2 > resto), offline al final."""
+    global _wait_queue
+    _wait_queue.sort(
+        key=lambda x: (effective_priority(int(x["tv_id"])), float(x.get("ts") or 0))
+    )
+
+
+def _purge_offline_from_queue() -> list[int]:
+    """Quita de la cola TVs offline (no deben bloquear a las en línea)."""
+    global _wait_queue
+    dropped: list[int] = []
+    kept: list[dict[str, Any]] = []
+    for x in _wait_queue:
+        tid = int(x["tv_id"])
+        if is_tv_online(tid):
+            kept.append(x)
+        else:
+            dropped.append(tid)
+    _wait_queue = kept
+    return dropped
 
 
 def _image_root() -> Path:
@@ -217,24 +321,88 @@ async def build_manifest(db: AsyncSession, tv_id: int) -> dict[str, Any]:
     }
 
 
+LEASE_MAX_S = 90.0  # liberar canal si la TV no terminó / se fue
+
+
 def _purge_stale_lease() -> None:
+    """Libera lease caducado o de TV offline (evita cuello de botella)."""
     global _lease
     if not _lease:
         return
-    # lease max 3 min
-    if _now() - float(_lease.get("granted_at") or 0) > 180:
+    age = _now() - float(_lease.get("granted_at") or 0)
+    last_beat = float(_lease.get("last_beat") or _lease.get("granted_at") or 0)
+    holder = int(_lease.get("tv_id") or 0)
+    # sin actividad 45s o total > LEASE_MAX_S
+    if age > LEASE_MAX_S or (_now() - last_beat) > 45:
         _lease = None
+        return
+    # TV titular offline → liberar pronto para la siguiente en línea
+    if holder and not is_tv_online(holder):
+        if (_now() - last_beat) >= LEASE_OFFLINE_RELEASE_S or age >= LEASE_OFFLINE_RELEASE_S:
+            _lease = None
+
+
+def _menu_tvs_blocking() -> tuple[bool, str]:
+    """
+    ¿Hay menús (TV1/2) EN LÍNEA que aún ocupan prioridad de descarga?
+    Si TV1 o TV2 están offline, NO bloquean: pierden prioridad.
+    En modo solo-publicidad (ningún menú en línea) → nunca bloquea.
+    """
+    if not any_online_menu_tvs():
+        return False, "modo_solo_publicidad(TV1–2 offline)"
+
+    details: list[str] = []
+    blocking = False
+
+    for mid in MENU_TV_IDS:
+        online = is_tv_online(mid)
+        st = _tv_state.get(mid) or {}
+        holding = bool(_lease and int(_lease.get("tv_id") or 0) == mid)
+        hb_ready = bool(st.get("display_ready"))
+        acked = float(st.get("acked_at") or 0)
+        assets_ok = int(st.get("assets_ok") or 0)
+        recent_ack = bool(acked and (_now() - acked) < 7200 and assets_ok > 0)
+
+        if not online:
+            details.append(f"TV{mid}=offline(sin prioridad)")
+            continue
+
+        if holding:
+            blocking = True
+            details.append(f"TV{mid}=descargando")
+        elif hb_ready or recent_ack:
+            details.append(f"TV{mid}=ok")
+        else:
+            # En línea pero aún no lista; solo bloquea si está en cola pidiendo menú
+            in_q = any(int(x.get("tv_id")) == mid for x in _wait_queue)
+            if in_q:
+                blocking = True
+                details.append(f"TV{mid}=en_cola")
+            else:
+                details.append(f"TV{mid}=en_linea")
+
+    detail = ", ".join(details) if details else "sin menús en línea"
+    return blocking, detail
 
 
 def request_lease(tv_id: int, *, reason: str = "sync") -> dict[str, Any]:
     """
     Solicita el canal exclusivo de descarga.
-    Prioridad: TV1, TV2, luego el resto por orden de llegada.
+
+    Política de prioridad (dinámica por presencia):
+    - TV1 y TV2 tienen prioridad solo si están en línea.
+    - Offline → pierden prioridad y salen de la cola (no bloquean).
+    - Con solo 1 TV de publicidad en línea (TV1/2 ausentes), opera normal.
+    - Al reconectar, las faltantes piden lease y descargan del servidor.
     """
     global _lease, _wait_queue
     _purge_stale_lease()
+    _purge_offline_from_queue()
+    _sort_wait_queue()
+
     res = get_resources()
     policy = res["policy"]
+    tv_id = int(tv_id)
 
     if not policy.get("allow_transfer"):
         return {
@@ -245,32 +413,104 @@ def request_lease(tv_id: int, *, reason: str = "sync") -> dict[str, Any]:
             "retry_after_s": 5,
         }
 
-    if policy.get("priority_only_menus") and tv_id not in (1, 2):
-        # En hot, publicidad espera
-        return {
-            "granted": False,
-            "reason": "priority_menus_only",
-            "message": "Servidor ocupado: primero TV1–2 (menús)",
-            "resources": res,
-            "retry_after_s": 8,
-        }
+    # Marcar presencia ANTES de evaluar online/prioridad (quien pide lease está vivo)
+    prev = _tv_state.get(tv_id) or {}
+    _tv_state[tv_id] = {**prev, "last_seen": _now()}
+    solo_ads = solo_publicidad_mode() or (
+        tv_id in AD_TV_IDS and not any_online_menu_tvs()
+    )
+
+    # En hot: NO bloquear publicidad si no hay menús en línea (modo solo-publicidad)
+    # Solo bloquear si un menú EN LÍNEA sigue ocupando el canal
+    if (
+        policy.get("priority_only_menus")
+        and tv_id not in MENU_TV_IDS
+        and not solo_ads
+        and any_online_menu_tvs()
+    ):
+        menus_blocking, detail = _menu_tvs_blocking()
+        if menus_blocking:
+            return {
+                "granted": False,
+                "reason": "priority_menus_only",
+                "message": (
+                    "Carga alta: priorizando menús en línea (TV1–2). "
+                    f"({detail})"
+                ),
+                "menus_status": detail,
+                "resources": res,
+                "retry_after_s": 4,
+                "solo_publicidad": False,
+            }
+        # menús offline o listos → no hay cuello de botella artificial
 
     if _lease and int(_lease.get("tv_id")) == tv_id:
+        _lease["last_beat"] = _now()
         return {
             "granted": True,
             "lease_id": _lease["lease_id"],
             "tv_id": tv_id,
             "exclusive": True,
             "expires_in_s": max(
-                1, 180 - int(_now() - float(_lease["granted_at"]))
+                1, int(LEASE_MAX_S - (_now() - float(_lease["granted_at"])))
             ),
             "resources": res,
             "policy": policy,
             "message": "Ya tiene el canal de descarga",
+            "priority": effective_priority(tv_id),
+            "solo_publicidad": solo_ads,
         }
 
     if _lease:
-        # encolar si no está
+        holder = int(_lease["tv_id"])
+        # Titular offline → liberar (gracia 6s; menús offline liberan al instante
+        # si hay publicidad esperando, para no frenar modo solo-publicidad)
+        if not is_tv_online(holder):
+            last_beat = float(_lease.get("last_beat") or _lease.get("granted_at") or 0)
+            age_idle = _now() - last_beat
+            release_now = (
+                age_idle >= LEASE_OFFLINE_RELEASE_S
+                or (holder in MENU_TV_IDS and tv_id in AD_TV_IDS)
+                or solo_ads
+            )
+            if release_now:
+                _lease = None
+            else:
+                if not any(int(x.get("tv_id")) == tv_id for x in _wait_queue):
+                    _wait_queue.append(
+                        {
+                            "tv_id": tv_id,
+                            "reason": reason,
+                            "ts": _now(),
+                            "request_id": uuid.uuid4().hex[:8],
+                        }
+                    )
+                _sort_wait_queue()
+                pos = next(
+                    (
+                        i
+                        for i, x in enumerate(_wait_queue)
+                        if int(x["tv_id"]) == tv_id
+                    ),
+                    0,
+                )
+                return {
+                    "granted": False,
+                    "reason": "holder_going_offline",
+                    "holder_tv_id": holder,
+                    "queue_position": pos + 1,
+                    "queue_len": len(_wait_queue),
+                    "message": (
+                        f"TV #{holder} dejó de responder; liberando canal (~"
+                        f"{LEASE_OFFLINE_RELEASE_S:.0f}s). "
+                        f"Posición en cola: {pos + 1}."
+                    ),
+                    "resources": res,
+                    "retry_after_s": 1,
+                    "solo_publicidad": solo_ads,
+                }
+
+    if _lease:
         if not any(int(x.get("tv_id")) == tv_id for x in _wait_queue):
             _wait_queue.append(
                 {
@@ -280,9 +520,7 @@ def request_lease(tv_id: int, *, reason: str = "sync") -> dict[str, Any]:
                     "request_id": uuid.uuid4().hex[:8],
                 }
             )
-            _wait_queue.sort(
-                key=lambda x: (TV_PRIORITY.get(int(x["tv_id"]), 50), x["ts"])
-            )
+        _sort_wait_queue()
         pos = next(
             (
                 i
@@ -292,6 +530,12 @@ def request_lease(tv_id: int, *, reason: str = "sync") -> dict[str, Any]:
             0,
         )
         holder = int(_lease["tv_id"])
+        holder_label = {1: "Menú comidas", 2: "Complementos"}.get(
+            holder, f"TV #{holder}"
+        )
+        holder_note = ""
+        if holder in (1, 2) and not is_tv_online(holder):
+            holder_note = " (sin prioridad: offline)"
         return {
             "granted": False,
             "reason": "busy",
@@ -299,43 +543,62 @@ def request_lease(tv_id: int, *, reason: str = "sync") -> dict[str, Any]:
             "queue_position": pos + 1,
             "queue_len": len(_wait_queue),
             "message": (
-                f"TV #{holder} está descargando. "
-                f"Usted es #{pos + 1} en cola "
-                f"(prioridad menús TV1–2)."
+                f"{holder_label} (TV #{holder}){holder_note} usa el canal de red. "
+                f"Esta pantalla es #{pos + 1} en cola "
+                f"(prioridad: en línea primero; TV1–2 solo si están conectadas)."
             ),
             "resources": res,
-            "retry_after_s": 2 if tv_id in (1, 2) else 4,
+            "retry_after_s": 2 if effective_priority(tv_id) < 10 else 3,
+            "priority": effective_priority(tv_id),
+            "solo_publicidad": solo_ads,
         }
 
-    # Otorgar: si hay cola, el primero (ya ordenado por prioridad)
+    # Canal libre: si hay cola, solo la cabeza (en línea) obtiene el lease
     if _wait_queue:
-        # Si este tv_id es el primero o de mayor prioridad que el head y es 1/2
-        head = _wait_queue[0]
-        if int(head["tv_id"]) != tv_id:
-            # insertar/actualizar y reordenar
+        _purge_offline_from_queue()
+        _sort_wait_queue()
+        # Modo solo-publicidad + esta TV es la única en cola de ads: saltar
+        # entradas fantasma y otorgar de inmediato
+        if solo_ads and tv_id in AD_TV_IDS:
+            _wait_queue = [
+                x
+                for x in _wait_queue
+                if int(x["tv_id"]) == tv_id or is_tv_online(int(x["tv_id"]))
+            ]
+        if _wait_queue and int(_wait_queue[0]["tv_id"]) != tv_id:
             if not any(int(x.get("tv_id")) == tv_id for x in _wait_queue):
                 _wait_queue.append(
-                    {"tv_id": tv_id, "reason": reason, "ts": _now(), "request_id": uuid.uuid4().hex[:8]}
+                    {
+                        "tv_id": tv_id,
+                        "reason": reason,
+                        "ts": _now(),
+                        "request_id": uuid.uuid4().hex[:8],
+                    }
                 )
-            _wait_queue.sort(
-                key=lambda x: (TV_PRIORITY.get(int(x["tv_id"]), 50), x["ts"])
-            )
+            _sort_wait_queue()
             if int(_wait_queue[0]["tv_id"]) != tv_id:
                 pos = next(
                     i
                     for i, x in enumerate(_wait_queue)
                     if int(x["tv_id"]) == tv_id
                 )
+                head = int(_wait_queue[0]["tv_id"])
                 return {
                     "granted": False,
                     "reason": "queued",
                     "queue_position": pos + 1,
                     "queue_len": len(_wait_queue),
-                    "message": f"En cola de descarga posición {pos + 1}",
+                    "next_tv_id": head,
+                    "message": (
+                        f"En cola de descarga posición {pos + 1} "
+                        f"(siguiente: TV #{head}; solo pantallas en línea)."
+                    ),
                     "resources": res,
                     "retry_after_s": 2,
+                    "priority": effective_priority(tv_id),
+                    "solo_publicidad": solo_ads,
                 }
-        # pop this tv
+        # esta TV es la cabeza → salir de cola y otorgar
         _wait_queue = [x for x in _wait_queue if int(x["tv_id"]) != tv_id]
 
     lease_id = uuid.uuid4().hex
@@ -343,18 +606,28 @@ def request_lease(tv_id: int, *, reason: str = "sync") -> dict[str, Any]:
         "lease_id": lease_id,
         "tv_id": tv_id,
         "granted_at": _now(),
+        "last_beat": _now(),
         "reason": reason,
     }
+    msg = "Canal exclusivo concedido — use todo el ancho de banda"
+    if solo_ads:
+        msg = (
+            "Canal concedido (modo solo publicidad: TV1–2 no disponibles; "
+            "esta pantalla opera con normalidad)."
+        )
     return {
         "granted": True,
         "lease_id": lease_id,
         "tv_id": tv_id,
         "exclusive": True,
-        "expires_in_s": 180,
+        "expires_in_s": int(LEASE_MAX_S),
         "resources": res,
         "policy": policy,
-        "message": "Canal exclusivo concedido — use todo el ancho de banda",
+        "priority": effective_priority(tv_id),
+        "solo_publicidad": solo_ads,
+        "message": msg,
     }
+
 
 
 def release_lease(tv_id: int, lease_id: str | None = None) -> dict[str, Any]:
@@ -383,28 +656,76 @@ def ack_cache(
     cached_bytes: int = 0,
     assets_ok: int = 0,
     assets_fail: int = 0,
+    display_ready: bool = True,
 ) -> dict[str, Any]:
+    prev = _tv_state.get(tv_id) or {}
     _tv_state[tv_id] = {
+        **prev,
         "version": version,
         "cached_bytes": cached_bytes,
         "assets_ok": assets_ok,
         "assets_fail": assets_fail,
         "acked_at": _now(),
+        "display_ready": bool(display_ready),
     }
+    # Liberar canal para la siguiente TV (p. ej. TV3 tras TV1/2)
+    release_lease(tv_id)
     return {"ok": True, "tv_id": tv_id, "version": version}
+
+
+def mark_display_ready(tv_id: int, *, ready: bool = True, screen: str = "") -> None:
+    """Heartbeat: la TV ya muestra contenido (aunque no haya re-descargado)."""
+    if tv_id < 1 or tv_id > 6:
+        return
+    prev = _tv_state.get(tv_id) or {}
+    _tv_state[tv_id] = {
+        **prev,
+        "display_ready": bool(ready),
+        "screen": screen or prev.get("screen"),
+        "last_seen": _now(),
+    }
+    if ready and _lease and int(_lease.get("tv_id")) == tv_id:
+        if _now() - float(_lease.get("last_beat") or 0) > 20:
+            release_lease(tv_id)
 
 
 def get_delivery_status() -> dict[str, Any]:
     _purge_stale_lease()
+    _purge_offline_from_queue()
+    _sort_wait_queue()
     res = get_resources()
+    online_map = {i: is_tv_online(i) for i in range(1, 7)}
+    online_list = [i for i in range(1, 7) if online_map.get(i)]
+    solo_ads = solo_publicidad_mode()
     return {
         "resources": res,
         "lease": _lease,
         "queue": list(_wait_queue),
         "tv_cache": {str(k): v for k, v in _tv_state.items()},
+        "tv_online": online_map,
+        "online_tvs": online_list,
+        "solo_publicidad": solo_ads,
+        "priority_online_only": True,
+        "min_screens_required": 1,
+        "priority_order": [
+            i
+            for i in sorted(range(1, 7), key=lambda t: effective_priority(t))
+            if online_map.get(i)
+        ],
         "video_turn": _video_turn,
         "policy": res.get("policy"),
+        "message": (
+            "Modo solo publicidad activo: opera con las pantallas en línea "
+            "sin esperar TV1–2."
+            if solo_ads
+            else (
+                "Prioridad: TV1–2 solo si están en línea; "
+                "1 sola publicidad basta; offline no bloquea; "
+                "al reconectar descargan del servidor."
+            )
+        ),
     }
+
 
 
 async def _broadcast_video(payload: dict) -> None:

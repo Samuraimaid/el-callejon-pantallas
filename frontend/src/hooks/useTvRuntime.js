@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { API_URL } from "../lib/constants";
 import { CACHE_KEYS, cacheGetData, cacheSet } from "../lib/tvCache";
+import { isTvEmbedMode } from "../lib/tvEmbed";
 import { useWebSocket } from "./useWebSocket";
 
 /**
@@ -9,8 +10,10 @@ import { useWebSocket } from "./useWebSocket";
  * - heartbeat 4s
  * - escucha ctrl (power/volumen/evento)
  * - reporta snapshot compacto al admin
+ * - en embed (preview admin): sin heartbeat (no saturar servidor)
  */
 export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
+  const embed = isTvEmbedMode();
   const [powerOn, setPowerOn] = useState(true);
   const [volumen, setVolumen] = useState(25);
   const [modoEvento, setModoEvento] = useState(false);
@@ -109,11 +112,11 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
     [tvId]
   );
 
-  useWebSocket("pantallas,all", onWs);
+  useWebSocket(embed ? "" : "pantallas,all", onWs);
 
-  // Heartbeat cada 4s
+  // Heartbeat cada 4s (desactivado en preview del admin)
   useEffect(() => {
-    if (!tvId) return undefined;
+    if (!tvId || embed) return undefined;
     let alive = true;
 
     const beat = async () => {

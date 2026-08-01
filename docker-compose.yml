@@ -42,12 +42,20 @@ services:
       TZ: America/Managua
       IMAGE_ROOT: /app/static/images
       U2NET_HOME: /app/.u2net
+      # IP LAN del PC Windows (Smart TVs); ver .env → LAN_IP
+      LAN_IP: ${LAN_IP:-}
+      FRONTEND_PORT: ${FRONTEND_PORT:-5173}
+      # Reproductor ambiente en el PC Windows (scripts/ambient_host_player.py)
+      AMBIENT_HOST_URL: ${AMBIENT_HOST_URL:-http://host.docker.internal:8788}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./backend/app:/app/app
       - ./frontend/public/images:/app/static/images
       - ./data/u2net:/app/.u2net
+      - ./Music:/music:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy

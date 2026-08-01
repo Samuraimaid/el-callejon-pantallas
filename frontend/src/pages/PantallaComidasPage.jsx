@@ -3,6 +3,7 @@ import MenuBoardScreen from "../components/tv/MenuBoardScreen";
 import TvRuntimeShell from "../components/tv/TvRuntimeShell";
 import { sortMenuItems } from "../components/tv/MenuBoard";
 import { useMenuTv } from "../hooks/useMenuTv";
+import { imageForProduct, imageForProductCard } from "../lib/constants";
 
 /**
  * TV 50" #1 — Menú comidas + runtime industrial (cache/HB/power).
@@ -34,14 +35,25 @@ export default function PantallaComidasPage() {
   const colLeft = platillos.slice(0, mid);
   const colRight = platillos.slice(mid);
 
-  const snapshotExtra = useCallback(
-    () => ({
+  const snapshotExtra = useCallback(() => {
+    const hero = heroPool[0] || platillos[0];
+    const preview =
+      hero?.imgCard ||
+      hero?.img ||
+      (hero
+        ? imageForProductCard(hero.c, hero.tp, hero.imgV) ||
+          imageForProduct(hero.c, hero.tp, hero.imgV)
+        : null) ||
+      "/images/slides/slide-platos-mixtos.jpg";
+    return {
       screen: "comidas",
       n_platillos: platillos.length,
       ready,
-    }),
-    [platillos.length, ready]
-  );
+      display_ready: !!ready && platillos.length > 0,
+      preview_url: preview,
+      label: hero?.n || "Menú comidas",
+    };
+  }, [platillos, heroPool, ready]);
 
   return (
     <TvRuntimeShell tvId={1} snapshotExtra={snapshotExtra}>

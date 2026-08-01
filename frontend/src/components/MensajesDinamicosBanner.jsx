@@ -58,16 +58,14 @@ export default function MensajesDinamicosBanner({
 
   return (
     <div
-      className={`pointer-events-none absolute bottom-10 left-8 right-8 z-40 flex justify-start sm:left-auto sm:right-8 sm:max-w-xl transition-all duration-500 ease-out ${
-        visible
-          ? "translate-y-0 opacity-100"
-          : "translate-y-5 opacity-0"
+      className={`msg-banner-wrap pointer-events-none z-30 transition-all duration-500 ease-out ${
+        visible ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
       }`}
       aria-live="polite"
     >
-      <div className="msg-banner flex w-full max-w-xl items-start gap-3 rounded-2xl border border-amber-400/25 bg-black/70 px-4 py-3.5 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
+      <div className="msg-banner flex w-full max-w-[min(92vw,24rem)] items-start gap-2.5 rounded-2xl border border-amber-400/25 bg-black/75 px-3.5 py-3 shadow-2xl backdrop-blur-md ring-1 ring-white/10">
         <div
-          className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-2xl shadow-inner ${
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-xl shadow-inner ${
             cat === "chef"
               ? "bg-gradient-to-br from-amber-600/90 to-orange-800/90"
               : "bg-gradient-to-br from-[#a33a28]/90 to-amber-700/80"
@@ -76,10 +74,10 @@ export default function MensajesDinamicosBanner({
           {icon}
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300/95">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300/95">
             {label}
           </p>
-          <p className="mt-1 font-display text-lg leading-snug text-white sm:text-xl">
+          <p className="mt-0.5 font-display text-base leading-snug text-white sm:text-lg">
             {msg.texto}
           </p>
         </div>
@@ -98,15 +96,6 @@ export default function MensajesDinamicosBanner({
           </div>
         )}
       </div>
-      <style>{`
-        .msg-banner {
-          animation: msgGlow 4s ease-in-out infinite alternate;
-        }
-        @keyframes msgGlow {
-          from { box-shadow: 0 12px 40px rgba(0,0,0,0.45); }
-          to { box-shadow: 0 12px 48px rgba(212,168,75,0.22); }
-        }
-      `}</style>
     </div>
   );
 }

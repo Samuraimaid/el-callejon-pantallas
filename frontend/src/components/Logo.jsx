@@ -32,9 +32,9 @@ export default function Logo({
         className={
           isTv
             ? `${sizes.tv} object-contain`
-            : `${sizes[size] || sizes.md} rounded-full object-cover shadow-md ring-2 ring-amber-500/40 bg-yellow-300`
+            : `${sizes[size] || sizes.md} object-contain drop-shadow-md`
         }
-        style={isTv ? style : undefined}
+        style={style}
         draggable={false}
         onError={(e) => {
           if (e.currentTarget.src.indexOf("logo-el-callejon.jpg") === -1) {

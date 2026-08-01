@@ -121,9 +121,16 @@ def build_policy(sample: dict[str, Any] | None = None) -> dict[str, Any]:
             "max_concurrent_transfers": 1,
             "transfer_chunk_pause_ms": 120,
             "video_min_gap_s": 9999,
+            # Prioridad menús solo si TV1–2 están EN LÍNEA y descargando;
+            # offline pierden prioridad (no cuello de botella)
             "priority_only_menus": True,
+            "priority_online_only": True,
+            "admin_preview": "snapshot",
             "cache_budget_mb": budget,
-            "message": "Carga alta: priorizando menús TV1–2; videos en pausa",
+            "message": (
+                "Carga alta: menús en línea primero; "
+                "TV offline no bloquea; 1 publicidad basta sin TV1–2"
+            ),
         }
     if level == "warm":
         budget = {
@@ -143,8 +150,10 @@ def build_policy(sample: dict[str, Any] | None = None) -> dict[str, Any]:
             "transfer_chunk_pause_ms": 40,
             "video_min_gap_s": 90,
             "priority_only_menus": False,
+            "priority_online_only": True,
+            "admin_preview": "snapshot",
             "cache_budget_mb": budget,
-            "message": "Carga media: 1 transferencia a la vez; sin reescalar video",
+            "message": "Carga media: previews por captura; sin reescalar video",
         }
 
     budget = {
@@ -164,8 +173,12 @@ def build_policy(sample: dict[str, Any] | None = None) -> dict[str, Any]:
         "transfer_chunk_pause_ms": 0,
         "video_min_gap_s": 45,
         "priority_only_menus": False,
+        "priority_online_only": True,
+        # Por defecto capturas en admin; el panel permite 1 TV en vivo a la vez
+        "admin_preview": "snapshot",
+        "max_live_previews": 1,
         "cache_budget_mb": budget,
-        "message": "Carga normal: entrega serial TV1–2 prioritarias",
+        "message": "Carga normal: capturas por defecto; máx. 1 preview en vivo",
     }
 
 

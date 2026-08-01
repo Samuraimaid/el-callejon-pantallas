@@ -60,7 +60,7 @@ export default function ContentLoadingOverlay({
             Cola de red: posición {queueInfo.position}
             {queueInfo.holder ? ` · TV #${queueInfo.holder} descargando` : ""}
             <span className="mt-1 block text-[11px] text-stone-400">
-              Prioridad: TV1 y TV2 (menús) primero · 1 televisor a la vez
+              1 TV en línea basta · TV1–2 solo priorizan si están conectadas · offline no bloquea
             </span>
           </p>
         )}

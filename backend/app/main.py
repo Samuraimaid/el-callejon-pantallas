@@ -16,7 +16,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
-from app.routers import auth, config_pantallas, content, health, pantallas, productos, publicidad
+from app.routers import (
+    ambient,
+    auth,
+    config_pantallas,
+    content,
+    health,
+    pantallas,
+    productos,
+    publicidad,
+)
 from app.ws_manager import (
     CHANNEL_ALL,
     VALID_CHANNELS,
@@ -67,22 +76,103 @@ app.include_router(publicidad.router)
 app.include_router(config_pantallas.router)
 app.include_router(pantallas.router)
 app.include_router(content.router)
+app.include_router(ambient.router)
+
+
+def _detect_lan_ips() -> list[str]:
+    """IPs privadas del host/contenedor (para hub en Smart TVs)."""
+    import os
+    import socket
+
+    found: list[str] = []
+    seen: set[str] = set()
+
+    def add(ip: str | None) -> None:
+        if not ip or ip in seen:
+            return
+        if ip.startswith("127.") or ip == "0.0.0.0" or ":" in ip:
+            return
+        # Preferir redes locales típicas
+        if not (
+            ip.startswith("192.168.")
+            or ip.startswith("10.")
+            or ip.startswith("172.")
+        ):
+            return
+        seen.add(ip)
+        found.append(ip)
+
+    # Override manual (recomendado en Docker: LAN_IP del host Windows)
+    for key in ("LAN_IP", "HOST_LAN_IP", "PUBLIC_HOST"):
+        raw = (os.environ.get(key) or "").strip()
+        if raw:
+            # puede ser host o URL
+            raw = raw.replace("http://", "").replace("https://", "").split("/")[0]
+            raw = raw.split(":")[0]
+            add(raw)
+
+    # Socket UDP: IP de la interfaz de salida por defecto
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(0.4)
+        s.connect(("8.8.8.8", 80))
+        add(s.getsockname()[0])
+        s.close()
+    except OSError:
+        pass
+
+    try:
+        hostname = socket.gethostname()
+        for info in socket.getaddrinfo(hostname, None, socket.AF_INET):
+            add(info[4][0])
+    except OSError:
+        pass
+
+    # Linux: hostname -I / ip route
+    try:
+        import subprocess
+
+        out = subprocess.check_output(
+            ["hostname", "-I"], stderr=subprocess.DEVNULL, timeout=1
+        ).decode("utf-8", errors="replace")
+        for part in out.split():
+            add(part.strip())
+    except (OSError, subprocess.SubprocessError):
+        pass
+
+    # Preferir 192.168.* sobre 172.* (Docker bridge)
+    found.sort(
+        key=lambda ip: (
+            0 if ip.startswith("192.168.") else 1 if ip.startswith("10.") else 2,
+            ip,
+        )
+    )
+    return found
 
 
 @app.get("/red")
 async def red_info():
     """
     Info de conexión para el hub / técnicos.
-    Las TVs deben abrir la IP LAN del PC servidor en el puerto del frontend (5173).
+    Incluye IP(s) LAN detectadas del servidor para las Smart TVs.
     """
+    import os
+
+    ips = _detect_lan_ips()
+    puerto_hub = int(os.environ.get("FRONTEND_PORT") or os.environ.get("HUB_PORT") or 5173)
+    preferred = ips[0] if ips else None
+    hub_url = f"http://{preferred}:{puerto_hub}" if preferred else None
+
     return {
         "mensaje": (
-            "Abra en cada Smart TV: http://IP_DEL_SERVIDOR:5173 "
-            "y elija el botón de esa pantalla (/tv/1 … /tv/6). "
-            "Guarde la URL de la pantalla en favoritos."
+            "Abra en cada Smart TV la dirección del hub y elija su pantalla "
+            "(/tv/1 … /tv/6). Guarde la URL en favoritos."
         ),
-        "puerto_hub": 5173,
+        "puerto_hub": puerto_hub,
         "puerto_api": 8000,
+        "ips": ips,
+        "ip_preferida": preferred,
+        "hub_url": hub_url,
         "rutas_tv": {
             "1": "/tv/1",
             "2": "/tv/2",
@@ -92,8 +182,8 @@ async def red_info():
             "6": "/tv/6",
         },
         "nota": (
-            "En Windows: ipconfig → IPv4 (ej. 192.168.1.129). "
-            "Firewall: permitir puertos 5173 (y 8000 si se usa API directa)."
+            "Si corre en Docker y ve IP 172.x, defina LAN_IP=su.ip.local en .env "
+            "(ipconfig → IPv4 del PC host)."
         ),
     }
 

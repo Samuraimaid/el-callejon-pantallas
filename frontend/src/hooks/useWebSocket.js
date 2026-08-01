@@ -12,10 +12,12 @@ export function useWebSocket(channels = "all", onEvent) {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
   const retryRef = useRef(0);
+  const disabled = !channels || channels === "off" || channels === "none";
 
-  const url = `${WS_BASE}${WS_BASE.includes("?") ? "&" : "?"}ch=${encodeURIComponent(channels)}`;
+  const url = `${WS_BASE}${WS_BASE.includes("?") ? "&" : "?"}ch=${encodeURIComponent(channels || "all")}`;
 
   const connect = useCallback(() => {
+    if (disabled) return;
     if (
       wsRef.current &&
       (wsRef.current.readyState === WebSocket.OPEN ||
@@ -45,15 +47,19 @@ export function useWebSocket(channels = "all", onEvent) {
         /* ignore */
       }
     };
-  }, [url]);
+  }, [url, disabled]);
 
   useEffect(() => {
+    if (disabled) {
+      setStatus("off");
+      return undefined;
+    }
     connect();
     return () => {
       wsRef.current?.close();
       wsRef.current = null;
     };
-  }, [connect]);
+  }, [connect, disabled]);
 
   return { status, url };
 }
