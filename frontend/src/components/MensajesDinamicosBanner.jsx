@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAmbientUiConfig } from "../hooks/useAmbientUiConfig";
+import OverflowMarquee from "./OverflowMarquee";
 
 const LABELS = {
   chef: "Recomendaciones del Chef",
@@ -11,17 +13,24 @@ const ICONS = {
 };
 
 /**
- * Banner flotante inferior: rota mensajes del admin (Chef / ¿Sabías qué?).
- * Ligero para Smart TV — solo CSS + timers.
+ * Banner flotante: rota mensajes (Chef / ¿Sabías qué?).
+ * Duración y marquesina desde config ambiente del servidor.
  */
 export default function MensajesDinamicosBanner({
   mensajes = [],
-  duracionMs = 9000,
+  duracionMs,
   enabled = true,
 }) {
+  const { cfg } = useAmbientUiConfig();
+  const holdMs = Math.max(
+    3000,
+    Number(duracionMs ?? cfg.mensajes_duracion_ms) || 9000
+  );
+  const marqueeOn = cfg.banner_marquee_enabled !== false;
+  const marqueeSpeed = Number(cfg.banner_marquee_speed_px_s) || 42;
+
   const list = useMemo(
-    () =>
-      (mensajes || []).filter((m) => (m?.texto || "").trim().length > 0),
+    () => (mensajes || []).filter((m) => (m?.texto || "").trim().length > 0),
     [mensajes]
   );
 
@@ -31,11 +40,10 @@ export default function MensajesDinamicosBanner({
   useEffect(() => {
     setIndex(0);
     setVisible(true);
-  }, [list.length, duracionMs]);
+  }, [list.length, holdMs]);
 
   useEffect(() => {
     if (!enabled || list.length <= 1) return undefined;
-    const hold = Math.max(3000, Number(duracionMs) || 9000);
     const fade = 450;
 
     const id = window.setInterval(() => {
@@ -44,10 +52,10 @@ export default function MensajesDinamicosBanner({
         setIndex((i) => (i + 1) % list.length);
         setVisible(true);
       }, fade);
-    }, hold);
+    }, holdMs);
 
     return () => window.clearInterval(id);
-  }, [enabled, list.length, duracionMs]);
+  }, [enabled, list.length, holdMs]);
 
   if (!enabled || !list.length) return null;
 
@@ -55,6 +63,7 @@ export default function MensajesDinamicosBanner({
   const cat = msg.categoria === "sabias" ? "sabias" : "chef";
   const label = LABELS[cat];
   const icon = ICONS[cat];
+  const texto = (msg.texto || "").trim();
 
   return (
     <div
@@ -73,13 +82,18 @@ export default function MensajesDinamicosBanner({
         >
           {icon}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300/95">
             {label}
           </p>
-          <p className="mt-0.5 font-display text-base leading-snug text-white sm:text-lg">
-            {msg.texto}
-          </p>
+          <OverflowMarquee
+            className="mt-0.5 font-display text-base leading-snug text-white sm:text-lg"
+            enabled={marqueeOn}
+            speedPxS={marqueeSpeed}
+            title={texto}
+          >
+            {texto}
+          </OverflowMarquee>
         </div>
         {list.length > 1 && (
           <div className="flex shrink-0 flex-col items-center gap-1 pt-1">

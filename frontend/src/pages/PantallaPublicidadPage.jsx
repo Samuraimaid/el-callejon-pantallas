@@ -222,9 +222,24 @@ export default function PantallaPublicidadPage({
                   v.muted = true;
                   v.play?.().catch(() => {});
                 });
+                // Watchdog: no quedarse en negro si el video se cuelga
+                const maxMs = Math.min(
+                  180000,
+                  Math.max(20000, ((v.duration || 60) + 8) * 1000)
+                );
+                window.clearTimeout(v._tvWatchdog);
+                v._tvWatchdog = window.setTimeout(() => {
+                  markVideoDone();
+                }, maxMs);
               }}
-              onEnded={() => markVideoDone()}
-              onError={() => markVideoDone()}
+              onEnded={(e) => {
+                window.clearTimeout(e.currentTarget._tvWatchdog);
+                markVideoDone();
+              }}
+              onError={(e) => {
+                window.clearTimeout(e.currentTarget._tvWatchdog);
+                markVideoDone();
+              }}
             />
             <p className="pointer-events-none absolute bottom-6 left-1/2 z-10 -translate-x-1/2 rounded-full bg-black/55 px-4 py-1 text-xs text-amber-100/90">
               Video en turno · solo esta pantalla

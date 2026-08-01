@@ -331,6 +331,8 @@ async def add_slide_image(
     video_url = ""
 
     if is_video:
+        import asyncio
+
         from app.services.video_process import transcode_to_1080p, videos_dir
 
         vdir = videos_dir()
@@ -338,7 +340,11 @@ async def add_slide_image(
         out_path = vdir / f"pub-{zona.lower()}-{slide_id}.mp4"
         raw_path.write_bytes(raw)
         try:
-            transcode_to_1080p(raw_path, out_path)
+            # No bloquear el event loop (heartbeats/WS de las TVs)
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(
+                None, lambda: transcode_to_1080p(raw_path, out_path)
+            )
         finally:
             try:
                 if raw_path.is_file():
@@ -347,24 +353,30 @@ async def add_slide_image(
                 pass
         video_url = f"/images/videos/{out_path.name}"
     else:
-        slides_dir = Path(settings.image_root) / "slides"
-        slides_dir.mkdir(parents=True, exist_ok=True)
+        import asyncio
         from io import BytesIO
 
-        from PIL import Image
+        slides_dir = Path(settings.image_root) / "slides"
+        slides_dir.mkdir(parents=True, exist_ok=True)
 
-        img = Image.open(BytesIO(raw)).convert("RGB")
-        max_side = 1600
-        w, h = img.size
-        scale = min(1.0, max_side / max(w, h))
-        if scale < 1.0:
-            img = img.resize(
-                (int(w * scale), int(h * scale)), Image.Resampling.LANCZOS
-            )
-        fname = f"pub-{zona.lower()}-{slide_id}.jpg"
-        dest = slides_dir / fname
-        img.save(dest, format="JPEG", quality=88, optimize=True)
-        imagen_url = f"/images/slides/{fname}"
+        def _save_jpeg() -> str:
+            from PIL import Image
+
+            img = Image.open(BytesIO(raw)).convert("RGB")
+            max_side = 1600
+            w, h = img.size
+            scale = min(1.0, max_side / max(w, h))
+            if scale < 1.0:
+                img = img.resize(
+                    (int(w * scale), int(h * scale)), Image.Resampling.LANCZOS
+                )
+            fname = f"pub-{zona.lower()}-{slide_id}.jpg"
+            dest = slides_dir / fname
+            img.save(dest, format="JPEG", quality=88, optimize=True)
+            return f"/images/slides/{fname}"
+
+        loop = asyncio.get_running_loop()
+        imagen_url = await loop.run_in_executor(None, _save_jpeg)
 
     anim = (animacion_texto or "fade-in-up").lower()
     if anim not in ("none", "fade-in-up", "fade", "bounce", "marquee", "slide-left", "zoom"):

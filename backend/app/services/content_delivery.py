@@ -47,6 +47,8 @@ _wait_queue: list[dict[str, Any]] = []  # {tv_id, reason, ts, request_id}
 _tv_state: dict[int, dict[str, Any]] = {}  # ack/cache por TV
 _video_turn: dict[str, Any] | None = None  # {tv_id, video_url, started, token}
 _video_rr: list[int] = []  # round-robin TVs con video
+_last_video_ended_at: float = 0.0  # para video_min_gap_s
+_video_candidates_cache: tuple[float, list[tuple[int, list]]] | None = None
 
 
 def _now() -> float:
@@ -55,18 +57,13 @@ def _now() -> float:
 
 def is_tv_online(tv_id: int) -> bool:
     """
-    True si la TV tiene actividad reciente (heartbeat o pedido de lease/ack).
+    True si la TV responde y no está en standby/apagada.
     Offline / standby no compiten por prioridad ni bloquean la cola.
     """
     tid = int(tv_id)
     now = _now()
 
-    # Actividad de contenido (lease, ack, mark_display_ready vía heartbeat)
-    st = _tv_state.get(tid) or {}
-    last_cd = st.get("last_seen")
-    if last_cd is not None and (now - float(last_cd)) <= ONLINE_GRACE_S:
-        return True
-
+    # Primero pantallas: standby / power_off ganan sobre last_seen de lease
     try:
         from app.services import pantallas as pant
 
@@ -77,6 +74,10 @@ def is_tv_online(tv_id: int) -> bool:
             estado = tv.get("estado") or "offline"
             if estado == "standby":
                 return False
+            if tv.get("power_on") is False:
+                return False
+            if estado == "offline":
+                return False
             if estado in ("online", "weak", "error"):
                 return True
             last = tv.get("ultimo_ping_ts")
@@ -84,6 +85,12 @@ def is_tv_online(tv_id: int) -> bool:
                 return True
     except Exception:
         pass
+
+    # Respaldo: actividad de contenido reciente (lease/ack)
+    st = _tv_state.get(tid) or {}
+    last_cd = st.get("last_seen")
+    if last_cd is not None and (now - float(last_cd)) <= ONLINE_GRACE_S:
+        return True
 
     return False
 
@@ -684,9 +691,9 @@ def mark_display_ready(tv_id: int, *, ready: bool = True, screen: str = "") -> N
         "screen": screen or prev.get("screen"),
         "last_seen": _now(),
     }
-    if ready and _lease and int(_lease.get("tv_id")) == tv_id:
-        if _now() - float(_lease.get("last_beat") or 0) > 20:
-            release_lease(tv_id)
+    # NO liberar el lease solo por display_ready: la TV puede estar descargando
+    # aún con la campaña visible. El lease se renueva con request_lease o
+    # se libera en ack_cache / timeout / offline.
 
 
 def get_delivery_status() -> dict[str, Any]:
@@ -734,16 +741,51 @@ async def _broadcast_video(payload: dict) -> None:
     await ws_manager.publish(CHANNEL_ALL, payload)
 
 
+async def _get_video_candidates(
+    db: AsyncSession, *, force: bool = False
+) -> list[tuple[int, list]]:
+    """Cachea candidatos de video ~45s (evita 4 manifests por cada poll)."""
+    global _video_candidates_cache
+    now = _now()
+    if (
+        not force
+        and _video_candidates_cache
+        and (now - float(_video_candidates_cache[0])) < 45
+    ):
+        return list(_video_candidates_cache[1])
+    candidates: list[tuple[int, list]] = []
+    for tid, _zona in ZONA_BY_TV.items():
+        man = await build_manifest(db, tid)
+        vids = man.get("videos") or []
+        if vids:
+            candidates.append((tid, vids))
+    _video_candidates_cache = (now, candidates)
+    return list(candidates)
+
+
 async def tick_video_turn(db: AsyncSession) -> dict[str, Any] | None:
     """
     Asigna turno de video a una sola TV (si la política lo permite).
+    Respeta video_min_gap_s entre turnos y notifica parada por WS.
     """
-    global _video_turn, _video_rr
+    global _video_turn, _video_rr, _last_video_ended_at
     res = get_resources()
     policy = res["policy"]
     if not policy.get("allow_video_play"):
         if _video_turn:
+            prev = dict(_video_turn)
             _video_turn = None
+            _last_video_ended_at = _now()
+            await _broadcast_video(
+                {
+                    "t": "vidturn",
+                    "tv_id": None,
+                    "stop": True,
+                    "reason": "policy_deny",
+                    "prev_tv_id": prev.get("tv_id"),
+                    "message": "Video pausado por política de carga",
+                }
+            )
         return None
 
     # Si hay turno activo y no expiró (max 8 min), mantener
@@ -751,17 +793,26 @@ async def tick_video_turn(db: AsyncSession) -> dict[str, Any] | None:
         age = _now() - float(_video_turn.get("started") or 0)
         if age < 480:
             return _video_turn
+        # Expiró por tiempo
+        prev = dict(_video_turn)
         _video_turn = None
+        _last_video_ended_at = _now()
+        await _broadcast_video(
+            {
+                "t": "vidturn",
+                "tv_id": None,
+                "stop": True,
+                "reason": "expired",
+                "prev_tv_id": prev.get("tv_id"),
+            }
+        )
 
     gap = float(policy.get("video_min_gap_s") or 45)
-    # Construir candidatos TV3-6 con al menos un video
-    candidates = []
-    for tid, zona in ZONA_BY_TV.items():
-        man = await build_manifest(db, tid)
-        vids = man.get("videos") or []
-        if vids:
-            candidates.append((tid, vids))
+    # Respetar espacio mínimo entre videos
+    if _last_video_ended_at and (_now() - _last_video_ended_at) < gap:
+        return None
 
+    candidates = await _get_video_candidates(db)
     if not candidates:
         return None
 
@@ -769,7 +820,6 @@ async def tick_video_turn(db: AsyncSession) -> dict[str, Any] | None:
     order = [c[0] for c in candidates]
     if not _video_rr:
         _video_rr = order[:]
-    # avanzar al siguiente
     next_tv = None
     for _ in range(len(order) + 1):
         if not _video_rr:
@@ -806,12 +856,24 @@ async def tick_video_turn(db: AsyncSession) -> dict[str, Any] | None:
     return _video_turn
 
 
-def video_done(tv_id: int, token: str | None = None) -> dict[str, Any]:
-    global _video_turn
+async def video_done(tv_id: int, token: str | None = None) -> dict[str, Any]:
+    global _video_turn, _last_video_ended_at
     if _video_turn and int(_video_turn.get("tv_id")) == tv_id:
         if token and _video_turn.get("token") != token:
             return {"ok": False, "error": "token inválido"}
+        prev = dict(_video_turn)
         _video_turn = None
+        _last_video_ended_at = _now()
+        await _broadcast_video(
+            {
+                "t": "vidturn",
+                "tv_id": None,
+                "stop": True,
+                "reason": "done",
+                "prev_tv_id": prev.get("tv_id"),
+                "token": prev.get("token"),
+            }
+        )
         return {"ok": True, "cleared": True}
     return {"ok": True, "cleared": False}
 

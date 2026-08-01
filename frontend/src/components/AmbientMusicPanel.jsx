@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
+import { AMBIENT_UI_DEFAULTS } from "../hooks/useAmbientUiConfig";
 
 /**
  * Panel estilo Winamp clásico — controla el reproductor del host
  * (salida jack/Bluetooth → amplificador). No embebe el EXE de Winamp.
+ * Incluye config de banners (duraciones, marquesina) vía /api/ambient/config.
  */
 export default function AmbientMusicPanel() {
   const [st, setSt] = useState(null);
@@ -12,18 +14,39 @@ export default function AmbientMusicPanel() {
   const [tracks, setTracks] = useState([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [ui, setUi] = useState({ ...AMBIENT_UI_DEFAULTS });
+  const [uiSaved, setUiSaved] = useState("");
 
   const refresh = useCallback(async () => {
     try {
       const s = await api.ambientStatus();
       setSt(s);
       if (s.folders) setFolders(s.folders);
+      const cfg = s.ui || s.config;
+      if (cfg) setUi((prev) => ({ ...prev, ...AMBIENT_UI_DEFAULTS, ...cfg }));
       setErr(s.offline ? s.error || "Host offline" : "");
     } catch (e) {
       setErr(e.message || "Sin conexión al reproductor");
       setSt({ ok: false, offline: true });
     }
   }, []);
+
+  async function saveUi(patch) {
+    setBusy(true);
+    setUiSaved("");
+    try {
+      const next = { ...ui, ...patch };
+      setUi(next);
+      const res = await api.ambientConfigUpdate(patch);
+      if (res?.config) setUi((p) => ({ ...p, ...res.config }));
+      setUiSaved("Config de banners guardada · TVs actualizadas");
+      window.setTimeout(() => setUiSaved(""), 3500);
+    } catch (e) {
+      setErr(e.message || "No se pudo guardar config");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const loadLib = useCallback(async (f) => {
     try {
@@ -249,6 +272,174 @@ export default function AmbientMusicPanel() {
           {err}
         </p>
       )}
+
+      {/* Config UI / banners — expuesta en /api/ambient/config y /status */}
+      <div className="mx-auto mt-4 w-full max-w-md rounded-xl border border-stone-700/80 bg-black/35 p-3">
+        <h3 className="text-xs font-bold uppercase tracking-wide text-amber-200/90">
+          Banners en TV (config ambiente)
+        </h3>
+        <p className="mt-1 text-[10px] text-cream/50">
+          Disponible en <code className="text-lime-400/80">GET/PUT /api/ambient/config</code>{" "}
+          y dentro de <code className="text-lime-400/80">/api/ambient/status</code> →{" "}
+          <code className="text-lime-400/80">ui</code>.
+        </p>
+
+        <label className="mt-3 flex items-center justify-between gap-2 text-[11px] text-cream/80">
+          <span>Mostrar «Ahora suena»</span>
+          <input
+            type="checkbox"
+            checked={ui.now_playing_enabled !== false}
+            disabled={busy}
+            onChange={(e) =>
+              saveUi({ now_playing_enabled: e.target.checked })
+            }
+          />
+        </label>
+
+        <label className="mt-2 block text-[11px] text-cream/80">
+          Duración toast «Ahora suena» (s)
+          <input
+            type="range"
+            min={2}
+            max={30}
+            step={1}
+            className="mt-1 w-full"
+            value={Math.round((ui.now_playing_show_ms || 5000) / 1000)}
+            disabled={busy}
+            onChange={(e) =>
+              setUi((p) => ({
+                ...p,
+                now_playing_show_ms: Number(e.target.value) * 1000,
+              }))
+            }
+            onMouseUp={(e) =>
+              saveUi({
+                now_playing_show_ms: Number(e.target.value) * 1000,
+              })
+            }
+            onTouchEnd={(e) =>
+              saveUi({
+                now_playing_show_ms: Number(e.target.value) * 1000,
+              })
+            }
+          />
+          <span className="text-amber-200/90">
+            {Math.round((ui.now_playing_show_ms || 5000) / 1000)} s
+          </span>
+        </label>
+
+        <label className="mt-2 block text-[11px] text-cream/80">
+          Máx. antigüedad pista para anunciar (s)
+          <input
+            type="range"
+            min={3}
+            max={60}
+            step={1}
+            className="mt-1 w-full"
+            value={ui.now_playing_max_elapsed_s ?? 12}
+            disabled={busy}
+            onChange={(e) =>
+              setUi((p) => ({
+                ...p,
+                now_playing_max_elapsed_s: Number(e.target.value),
+              }))
+            }
+            onMouseUp={(e) =>
+              saveUi({
+                now_playing_max_elapsed_s: Number(e.target.value),
+              })
+            }
+            onTouchEnd={(e) =>
+              saveUi({
+                now_playing_max_elapsed_s: Number(e.target.value),
+              })
+            }
+          />
+          <span className="text-amber-200/90">
+            {ui.now_playing_max_elapsed_s ?? 12} s
+          </span>
+        </label>
+
+        <label className="mt-2 block text-[11px] text-cream/80">
+          Duración mensajes Chef / ¿Sabías qué? (s)
+          <input
+            type="range"
+            min={3}
+            max={60}
+            step={1}
+            className="mt-1 w-full"
+            value={Math.round((ui.mensajes_duracion_ms || 9000) / 1000)}
+            disabled={busy}
+            onChange={(e) =>
+              setUi((p) => ({
+                ...p,
+                mensajes_duracion_ms: Number(e.target.value) * 1000,
+              }))
+            }
+            onMouseUp={(e) =>
+              saveUi({
+                mensajes_duracion_ms: Number(e.target.value) * 1000,
+              })
+            }
+            onTouchEnd={(e) =>
+              saveUi({
+                mensajes_duracion_ms: Number(e.target.value) * 1000,
+              })
+            }
+          />
+          <span className="text-amber-200/90">
+            {Math.round((ui.mensajes_duracion_ms || 9000) / 1000)} s
+          </span>
+        </label>
+
+        <label className="mt-3 flex items-center justify-between gap-2 text-[11px] text-cream/80">
+          <span>Marquesina si el texto no cabe</span>
+          <input
+            type="checkbox"
+            checked={ui.banner_marquee_enabled !== false}
+            disabled={busy}
+            onChange={(e) =>
+              saveUi({ banner_marquee_enabled: e.target.checked })
+            }
+          />
+        </label>
+
+        <label className="mt-2 block text-[11px] text-cream/80">
+          Velocidad marquesina (px/s)
+          <input
+            type="range"
+            min={15}
+            max={90}
+            step={1}
+            className="mt-1 w-full"
+            value={ui.banner_marquee_speed_px_s ?? 42}
+            disabled={busy || ui.banner_marquee_enabled === false}
+            onChange={(e) =>
+              setUi((p) => ({
+                ...p,
+                banner_marquee_speed_px_s: Number(e.target.value),
+              }))
+            }
+            onMouseUp={(e) =>
+              saveUi({
+                banner_marquee_speed_px_s: Number(e.target.value),
+              })
+            }
+            onTouchEnd={(e) =>
+              saveUi({
+                banner_marquee_speed_px_s: Number(e.target.value),
+              })
+            }
+          />
+          <span className="text-amber-200/90">
+            {ui.banner_marquee_speed_px_s ?? 42} px/s
+          </span>
+        </label>
+
+        {uiSaved && (
+          <p className="mt-2 text-[10px] text-emerald-300/90">{uiSaved}</p>
+        )}
+      </div>
 
       <div className="mx-auto mt-3 max-w-md text-[10px] leading-relaxed text-cream/45">
         <p className="font-semibold text-cream/60">Arranque en el PC servidor:</p>

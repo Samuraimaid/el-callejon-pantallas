@@ -8,6 +8,8 @@ Centro de Control: menú del día + campañas + mensajes dinámicos.
 
 from __future__ import annotations
 
+import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import parse_qs
 
@@ -34,6 +36,42 @@ from app.ws_manager import (
 
 settings = get_settings()
 
+
+async def _ambient_poll_loop() -> None:
+    """Detecta cambios de canción del host aunque no haya admin abierto."""
+    from app.services import ambient_music as amb
+
+    while True:
+        try:
+            await amb.poll_host_for_track_changes()
+        except Exception:
+            pass
+        await asyncio.sleep(2.5)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Hidratar estado de pantallas + master_power desde BD
+    try:
+        from app.db import AsyncSessionLocal
+        from app.services import pantallas as pant_svc
+
+        async with AsyncSessionLocal() as db:
+            await pant_svc.load_from_db(db)
+    except Exception:
+        pass
+
+    task = asyncio.create_task(_ambient_poll_loop())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
+
+
 app = FastAPI(
     title=settings.app_name,
     description=(
@@ -41,6 +79,7 @@ app = FastAPI(
         "menú del día, campañas publicitarias (Barra/VIP) y mensajes dinámicos."
     ),
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 # Imágenes/videos de campañas y menú (misma carpeta que Vite public/images)

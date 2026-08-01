@@ -37,14 +37,25 @@ export function useVideoTurn(tvId, { enabled = true } = {}) {
   useWebSocket("pantallas,all", (ev) => {
     if (!enabled || !ev?.t) return;
     if (ev.t === "vidturn") {
-      if (Number(ev.tv_id) === Number(tvId)) {
+      // stop / otro TV / policy → quitar video local
+      if (ev.stop || ev.tv_id == null) {
+        if (
+          !ev.prev_tv_id ||
+          Number(ev.prev_tv_id) === Number(tvId) ||
+          !ev.tv_id
+        ) {
+          setTurn(null);
+        }
+        return;
+      }
+      if (Number(ev.tv_id) === Number(tvId) && ev.video_url) {
         setTurn({
           tv_id: ev.tv_id,
           video_url: ev.video_url,
           token: ev.token,
         });
       } else {
-        setTurn((t) => (t ? null : t));
+        setTurn(null);
       }
     }
   });

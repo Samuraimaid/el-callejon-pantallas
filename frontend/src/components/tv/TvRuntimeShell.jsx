@@ -99,6 +99,10 @@ export default function TvRuntimeShell({
     return (
       <div className="tv-standby" data-tv={tvId} aria-label="Pantalla en reposo">
         <div className="tv-standby-dot" />
+        <p className="tv-standby-label">
+          TV #{tvId} · En reposo
+          <span>Centro de Control → encender pantalla</span>
+        </p>
       </div>
     );
   }
@@ -152,6 +156,16 @@ export default function TvRuntimeShell({
           detail={sync.detail}
           queueInfo={sync.queueInfo}
           fromCache={sync.fromCache}
+          onRetry={() => sync.resync?.()}
+          onDismiss={
+            sync.blocking
+              ? () => {
+                  /* force show: parent re-renders via hasShownContent on next cycle;
+                     also allow seeing children by treating as degraded via resync path */
+                  sync.resync?.();
+                }
+              : undefined
+          }
         />
       )}
       {renderError && !embed && (
@@ -166,8 +180,12 @@ export default function TvRuntimeShell({
           </button>
         </div>
       )}
-      {/* En embed siempre mostrar contenido; en TV real esperar fin de sync */}
-      {embed || !sync.blocking ? children : null}
+      {/* Siempre montar children si ya hubo contenido o no está bloqueando el 1.er arranque */}
+      {embed || !sync.blocking ? children : (
+        <div className="flex h-full min-h-[50vh] items-center justify-center bg-[#0a0705] text-cream/40">
+          <p className="text-sm">Preparando TV #{tvId}…</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -178,6 +196,16 @@ function EventMediaStage({ item, volumen }) {
   const url = item.media_url?.startsWith("http")
     ? item.media_url
     : item.media_url;
+  const [failed, setFailed] = useState(false);
+
+  if (!url || failed) {
+    return (
+      <div className="tv-event-empty bg-black text-ivory">
+        <p className="font-display text-3xl">Modo Evento</p>
+        <p className="mt-2 text-cream/60">Media no disponible</p>
+      </div>
+    );
+  }
 
   return (
     <div className="tv-event-stage">
@@ -187,6 +215,7 @@ function EventMediaStage({ item, volumen }) {
           alt=""
           className="tv-event-blur-bg"
           aria-hidden
+          onError={() => setFailed(true)}
         />
       )}
       <div className={`tv-event-frame ${vertical ? "is-vertical" : "is-wide"}`}>
@@ -198,9 +227,15 @@ function EventMediaStage({ item, volumen }) {
             loop
             playsInline
             muted={(volumen || 0) <= 0}
+            onError={() => setFailed(true)}
           />
         ) : (
-          <img src={url} alt={item.titulo || ""} className="tv-event-media" />
+          <img
+            src={url}
+            alt={item.titulo || ""}
+            className="tv-event-media"
+            onError={() => setFailed(true)}
+          />
         )}
       </div>
       {item.titulo && (

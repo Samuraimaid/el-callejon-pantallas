@@ -4,7 +4,7 @@
   "description": "Menú y publicidad en Smart TVs — Buffet y Restaurante El Callejón, León",
   "start_url": "/",
   "display": "fullscreen",
-  "display_override": ["fullscreen", "standalone"],
+  "display_override": ["fullscreen", "standalone", "minimal-ui"],
   "orientation": "landscape",
   "background_color": "#5c1308",
   "theme_color": "#c45c26",
@@ -22,5 +22,13 @@
       "type": "image/jpeg",
       "purpose": "any maskable"
     }
+  ],
+  "shortcuts": [
+    { "name": "TV 1 · Comidas", "short_name": "TV1", "url": "/tv/1", "description": "Menú comidas" },
+    { "name": "TV 2 · Complementos", "short_name": "TV2", "url": "/tv/2", "description": "Complementos" },
+    { "name": "TV 3 · Publicidad", "short_name": "TV3", "url": "/tv/3", "description": "Publicidad" },
+    { "name": "TV 4 · Publicidad", "short_name": "TV4", "url": "/tv/4", "description": "Publicidad" },
+    { "name": "TV 5 · Publicidad", "short_name": "TV5", "url": "/tv/5", "description": "Publicidad" },
+    { "name": "TV 6 · Publicidad", "short_name": "TV6", "url": "/tv/6", "description": "Publicidad" }
   ]
 }

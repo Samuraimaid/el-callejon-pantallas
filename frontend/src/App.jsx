@@ -1,11 +1,16 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
+import TvErrorBoundary from "./components/TvErrorBoundary";
 import ControlCenterPage from "./pages/ControlCenterPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
 import PantallaComidasPage from "./pages/PantallaComidasPage";
 import PantallaComplementosPage from "./pages/PantallaComplementosPage";
 import PantallaPublicidadPage from "./pages/PantallaPublicidadPage";
+
+function TvRoute({ children }) {
+  return <TvErrorBoundary>{children}</TvErrorBoundary>;
+}
 
 /**
  * Rutas cortas /tv/1 … /tv/6 pensadas para favoritos de Smart TV.
@@ -28,83 +33,127 @@ export default function App() {
         <Route path="/cajero" element={<Navigate to="/admin" replace />} />
 
         {/* ——— Favoritos Smart TV (URL corta estable) ——— */}
-        <Route path="/tv/1" element={<PantallaComidasPage />} />
-        <Route path="/tv/2" element={<PantallaComplementosPage />} />
+        <Route
+          path="/tv/1"
+          element={
+            <TvRoute>
+              <PantallaComidasPage />
+            </TvRoute>
+          }
+        />
+        <Route
+          path="/tv/2"
+          element={
+            <TvRoute>
+              <PantallaComplementosPage />
+            </TvRoute>
+          }
+        />
         <Route
           path="/tv/3"
           element={
-            <PantallaPublicidadPage
-              zona="TV3"
-              tituloZona="TV #3 · Barra"
-              tvId={3}
-            />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV3"
+                tituloZona="TV #3 · Barra"
+                tvId={3}
+              />
+            </TvRoute>
           }
         />
         <Route
           path="/tv/4"
           element={
-            <PantallaPublicidadPage
-              zona="TV4"
-              tituloZona="TV #4 · Parrilla"
-              tvId={4}
-            />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV4"
+                tituloZona="TV #4 · Parrilla"
+                tvId={4}
+              />
+            </TvRoute>
           }
         />
         <Route
           path="/tv/5"
           element={
-            <PantallaPublicidadPage
-              zona="TV5"
-              tituloZona="TV #5 · VIP Ambiente"
-              tvId={5}
-            />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV5"
+                tituloZona="TV #5 · VIP Ambiente"
+                tvId={5}
+              />
+            </TvRoute>
           }
         />
         <Route
           path="/tv/6"
           element={
-            <PantallaPublicidadPage
-              zona="TV6"
-              tituloZona="TV #6 · VIP Platillos"
-              tvId={6}
-            />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV6"
+                tituloZona="TV #6 · VIP Platillos"
+                tvId={6}
+              />
+            </TvRoute>
           }
         />
 
         {/* Rutas largas (compatibles) */}
-        <Route path="/pantalla/comidas" element={<PantallaComidasPage />} />
+        <Route
+          path="/pantalla/comidas"
+          element={
+            <TvRoute>
+              <PantallaComidasPage />
+            </TvRoute>
+          }
+        />
         <Route
           path="/pantalla/complementos"
-          element={<PantallaComplementosPage />}
+          element={
+            <TvRoute>
+              <PantallaComplementosPage />
+            </TvRoute>
+          }
         />
         <Route
           path="/pantalla/publicidad/tv3"
           element={
-            <PantallaPublicidadPage zona="TV3" tituloZona="TV #3 · Barra" />
+            <TvRoute>
+              <PantallaPublicidadPage zona="TV3" tituloZona="TV #3 · Barra" />
+            </TvRoute>
           }
         />
         <Route
           path="/pantalla/publicidad/tv4"
           element={
-            <PantallaPublicidadPage zona="TV4" tituloZona="TV #4 · Parrilla" />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV4"
+                tituloZona="TV #4 · Parrilla"
+              />
+            </TvRoute>
           }
         />
         <Route
           path="/pantalla/publicidad/tv5"
           element={
-            <PantallaPublicidadPage
-              zona="TV5"
-              tituloZona="TV #5 · VIP Ambiente"
-            />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV5"
+                tituloZona="TV #5 · VIP Ambiente"
+              />
+            </TvRoute>
           }
         />
         <Route
           path="/pantalla/publicidad/tv6"
           element={
-            <PantallaPublicidadPage
-              zona="TV6"
-              tituloZona="TV #6 · VIP Platillos"
-            />
+            <TvRoute>
+              <PantallaPublicidadPage
+                zona="TV6"
+                tituloZona="TV #6 · VIP Platillos"
+              />
+            </TvRoute>
           }
         />
 

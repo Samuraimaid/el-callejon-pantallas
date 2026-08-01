@@ -1,0 +1,10 @@
+{
+  "now_playing_show_ms": 10000,
+  "now_playing_max_elapsed_s": 12,
+  "now_playing_enabled": true,
+  "mensajes_duracion_ms": 9000,
+  "banner_marquee_enabled": true,
+  "banner_marquee_speed_px_s": 30,
+  "pause_on_event": true,
+  "updated_at": 1785620184
+}

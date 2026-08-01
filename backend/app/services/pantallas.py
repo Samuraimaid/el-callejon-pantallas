@@ -210,6 +210,10 @@ async def apply_control(
 
     if master_power is not None:
         _master_power = bool(master_power)
+        try:
+            await _persist_master_power(db, _master_power)
+        except Exception:
+            pass
 
     for i in targets:
         tv = _state[i]
@@ -277,7 +281,27 @@ async def apply_control(
     return get_all_estado()
 
 
+MASTER_POWER_CLAVE = "master_power"
+
+
+async def _persist_master_power(db: AsyncSession, on: bool) -> None:
+    """Guarda master_power en config_sistema (sobrevive reinicios)."""
+    await db.execute(
+        text(
+            """
+            INSERT INTO config_sistema (clave, valor, actualizado_en)
+            VALUES (:c, CAST(:v AS jsonb), NOW())
+            ON CONFLICT (clave) DO UPDATE SET
+                valor = EXCLUDED.valor,
+                actualizado_en = NOW()
+            """
+        ),
+        {"c": MASTER_POWER_CLAVE, "v": json.dumps({"on": bool(on)})},
+    )
+
+
 async def load_from_db(db: AsyncSession) -> None:
+    global _master_power
     _ensure()
     try:
         rows = (
@@ -302,6 +326,29 @@ async def load_from_db(db: AsyncSession) -> None:
                     _state[i]["ruta"] = r["ruta"]
     except Exception:
         pass
+
+    # Master power global
+    try:
+        row = (
+            await db.execute(
+                text(
+                    "SELECT valor FROM config_sistema WHERE clave = :c LIMIT 1"
+                ),
+                {"c": MASTER_POWER_CLAVE},
+            )
+        ).mappings().first()
+        if row and row.get("valor") is not None:
+            val = row["valor"]
+            if isinstance(val, str):
+                val = json.loads(val)
+            if isinstance(val, dict) and "on" in val:
+                _master_power = bool(val["on"])
+            elif isinstance(val, bool):
+                _master_power = val
+    except Exception:
+        pass
+
+    refresh_statuses()
 
 
 # —— Programación de modo evento ——

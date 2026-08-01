@@ -1,5 +1,6 @@
 /**
- * Barra de progreso de carga de campaña del día (fotos en caché local).
+ * Barra de progreso de carga. En error/degraded se auto-oculta
+ * para no dejar la TV negra eterna.
  */
 export default function ContentLoadingOverlay({
   phase,
@@ -10,8 +11,41 @@ export default function ContentLoadingOverlay({
   queueInfo = null,
   fromCache = false,
   tvId,
+  onRetry,
+  onDismiss,
 }) {
   if (phase === "ready" || phase === "idle") return null;
+
+  // error/degraded: barra fina superior, no pantalla negra completa
+  const soft = phase === "error" || phase === "degraded";
+  if (soft) {
+    return (
+      <div
+        className="pointer-events-none fixed left-0 right-0 top-0 z-[200] px-3 pt-3"
+        data-tv-loading={tvId}
+        role="status"
+      >
+        <div className="mx-auto flex max-w-xl items-center gap-2 rounded-xl border border-amber-700/40 bg-black/75 px-3 py-2 text-left text-xs text-amber-100/95 shadow-lg backdrop-blur-sm">
+          <span className="shrink-0">⚠</span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-semibold">{message || "Sincronización en segundo plano"}</p>
+            {detail && (
+              <p className="truncate text-[10px] text-stone-400">{detail}</p>
+            )}
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              className="pointer-events-auto shrink-0 rounded-lg bg-amber-700/90 px-2 py-1 text-[10px] font-bold text-stone-950"
+              onClick={onRetry}
+            >
+              Reintentar
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   const pct = Math.max(0, Math.min(100, Number(progress) || 0));
   const etaLabel =
@@ -25,7 +59,7 @@ export default function ContentLoadingOverlay({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/92 text-ivory"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/88 text-ivory"
       data-tv-loading={tvId}
       role="status"
       aria-live="polite"
@@ -60,7 +94,7 @@ export default function ContentLoadingOverlay({
             Cola de red: posición {queueInfo.position}
             {queueInfo.holder ? ` · TV #${queueInfo.holder} descargando` : ""}
             <span className="mt-1 block text-[11px] text-stone-400">
-              1 TV en línea basta · TV1–2 solo priorizan si están conectadas · offline no bloquea
+              1 TV en línea basta · offline no bloquea
             </span>
           </p>
         )}
@@ -71,10 +105,14 @@ export default function ContentLoadingOverlay({
           </p>
         )}
 
-        {phase === "error" && (
-          <p className="mt-4 text-sm text-rose-300">
-            Si hay red, reintente recargando la página (Ctrl+F5)
-          </p>
+        {onDismiss && (
+          <button
+            type="button"
+            className="tap mt-6 rounded-xl border border-stone-500/60 px-4 py-2 text-sm text-cream/80"
+            onClick={onDismiss}
+          >
+            Ver pantalla de todos modos
+          </button>
         )}
       </div>
     </div>

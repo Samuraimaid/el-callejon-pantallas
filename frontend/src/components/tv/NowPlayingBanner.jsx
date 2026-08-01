@@ -1,12 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { API_URL } from "../../lib/constants";
 import { useWebSocket } from "../../hooks/useWebSocket";
-
-const SHOW_MS = 5000;
-/** Solo toast si la pista empezó hace poco (inicio real, no canción vieja). */
-const MAX_ELAPSED_S = 12;
-/** Tiempos absolutos (ms) de cada intento de verificación con el servidor. */
-const VERIFY_AT = [300, 600, 1000, 1500];
+import { useAmbientUiConfig } from "../../hooks/useAmbientUiConfig";
+import OverflowMarquee from "../OverflowMarquee";
 
 function trackKey(o) {
   if (!o) return "";
@@ -21,16 +17,27 @@ function sleep(ms) {
 
 /**
  * Toast "Ahora suena" (TV #3–#6).
- * Al recibir WS, verifica varias veces con GET /api/ambient/status.
- * Solo muestra la canción que el servidor confirma como actual y reciente.
- * Nunca muestra una pista que ya terminó o lleva mucho tiempo sonando.
+ * - Escucha WS now_playing
+ * - Confirma con /status (sin ser tan estricto como para bloquear el toast)
+ * - Poll de respaldo por si se perdió el WS
  */
 export default function NowPlayingBanner({ enabled = true }) {
+  const { cfg } = useAmbientUiConfig();
+  const showMs = Math.max(2000, Number(cfg.now_playing_show_ms) || 5000);
+  const maxElapsed = Math.max(3, Number(cfg.now_playing_max_elapsed_s) || 20);
+  const featureOn = cfg.now_playing_enabled !== false;
+  const marqueeOn = cfg.banner_marquee_enabled !== false;
+  const marqueeSpeed = Number(cfg.banner_marquee_speed_px_s) || 42;
+
   const [np, setNp] = useState(null);
   const [visible, setVisible] = useState(false);
   const hideTimer = useRef(0);
   const lastTrack = useRef("");
   const seq = useRef(0);
+  const showMsRef = useRef(showMs);
+  const maxElapsedRef = useRef(maxElapsed);
+  showMsRef.current = showMs;
+  maxElapsedRef.current = maxElapsed;
 
   useEffect(() => {
     return () => {
@@ -57,114 +64,117 @@ export default function NowPlayingBanner({ enabled = true }) {
       window.setTimeout(() => {
         if (mySeq === seq.current) setNp(null);
       }, 400);
-    }, SHOW_MS);
+    }, showMsRef.current);
     return true;
   }
 
   async function fetchServerStatus() {
-    const res = await fetch(`${API_URL}/api/ambient/status`, {
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return res.json();
+    try {
+      const res = await fetch(`${API_URL}/api/ambient/status`, {
+        cache: "no-store",
+      });
+      if (!res.ok) return null;
+      return res.json();
+    } catch {
+      return null;
+    }
   }
 
   /**
-   * Confirma con el servidor qué suena de verdad.
-   * - Preferencia: 2 lecturas seguidas de la misma pista fresca.
-   * - Si WS y servidor coinciden en una pista fresca, muestra de inmediato.
-   * - Si WS traía la vieja y el servidor ya cambió, muestra la del servidor.
+   * Tras WS: espera un momento, confirma con status y muestra.
+   * Si status no responde a tiempo, usa el hint del WS (pista fresca).
    */
-  async function verifyWithServer(hintKey) {
+  async function handleNowPlaying(ev) {
     const mySeq = ++seq.current;
-    let prevKey = "";
-    let prevCur = null;
-    let t0 = 0;
+    const hintKey = trackKey(ev);
+    if (!hintKey || hintKey === lastTrack.current) return;
 
-    for (let i = 0; i < VERIFY_AT.length; i++) {
-      await sleep(VERIFY_AT[i] - t0);
-      t0 = VERIFY_AT[i];
+    const maxE = maxElapsedRef.current;
+    if (Number(ev.elapsed_s ?? 0) > maxE) return;
+
+    // Breve espera: el host asienta current tras next/auto-advance
+    await sleep(220);
+    if (mySeq !== seq.current) return;
+
+    // Hasta 3 lecturas de status
+    for (let i = 0; i < 3; i++) {
+      if (i > 0) await sleep(280);
       if (mySeq !== seq.current) return;
 
-      try {
-        const data = await fetchServerStatus();
-        if (mySeq !== seq.current) return;
-        if (!data?.ok || !data.playing || data.paused || !data.current?.title) {
-          prevKey = "";
-          prevCur = null;
-          continue;
-        }
+      const data = await fetchServerStatus();
+      if (mySeq !== seq.current) return;
+      if (!data?.ok || !data.playing || data.paused || !data.current?.title) {
+        continue;
+      }
 
-        const cur = data.current;
-        const key = trackKey(cur);
-        if (!key) continue;
+      const cur = data.current;
+      const key = trackKey(cur);
+      if (!key) continue;
 
-        const elapsed = Number(data.elapsed_s ?? 0);
-        if (elapsed > MAX_ELAPSED_S) {
-          // WS anunció una pista que el servidor ya no considera "inicio"
-          if (hintKey && key === hintKey) return;
-          prevKey = "";
-          prevCur = null;
-          continue;
-        }
-
-        // WS y servidor de acuerdo → confiar
-        if (hintKey && key === hintKey && key !== lastTrack.current) {
-          showToast(cur, mySeq);
-          return;
-        }
-
-        // Dos lecturas iguales y frescas (pista real estable en el servidor)
-        if (key === prevKey && prevCur && key !== lastTrack.current) {
-          showToast(cur, mySeq);
-          return;
-        }
-
-        prevKey = key;
-        prevCur = cur;
-      } catch {
-        /* offline / red */
+      const elapsed = Number(data.elapsed_s ?? 0);
+      // Si el servidor ya va en otra pista fresca, preferir la del servidor
+      if (elapsed <= maxE && key !== lastTrack.current) {
+        showToast(cur, mySeq);
+        return;
       }
     }
 
+    // Fallback: confiar en el evento WS (evita perder el banner)
     if (mySeq !== seq.current) return;
-
-    // Cierre: un último status; solo si es fresco y distinto al último toast
-    try {
-      const data = await fetchServerStatus();
-      if (mySeq !== seq.current) return;
-      if (
-        data?.ok &&
-        data.playing &&
-        !data.paused &&
-        data.current?.title &&
-        Number(data.elapsed_s ?? 0) <= MAX_ELAPSED_S
-      ) {
-        const finalKey = trackKey(data.current);
-        if (finalKey && finalKey !== lastTrack.current) {
-          showToast(data.current, mySeq);
-        }
-      }
-    } catch {
-      /* */
+    if (hintKey !== lastTrack.current && ev.title) {
+      showToast(
+        {
+          title: ev.title,
+          artist: ev.artist,
+          folder: ev.folder,
+          rel: ev.rel,
+          track_id: ev.track_id,
+        },
+        mySeq
+      );
     }
   }
 
-  useWebSocket(enabled ? "pantallas,all" : "off", (ev) => {
+  useWebSocket(enabled && featureOn ? "pantallas,all" : "off", (ev) => {
     if (ev?.t !== "now_playing") return;
     if (!ev.playing || ev.paused || !ev.title) return;
-
-    // Rebroadcast de pista ya avanzada → no toast
-    if (Number(ev.elapsed_s ?? 0) > MAX_ELAPSED_S) return;
-
-    const hintKey = trackKey(ev);
-    if (hintKey && hintKey === lastTrack.current) return;
-
-    // Nueva secuencia cancela la verificación anterior (seq++)
-    void verifyWithServer(hintKey);
+    void handleNowPlaying(ev);
   });
 
-  if (!enabled || !np?.title || !visible) return null;
+  // Respaldo: si el WS se pierde, detectar cambio por poll de status
+  useEffect(() => {
+    if (!enabled || !featureOn) return undefined;
+
+    let alive = true;
+    const tick = async () => {
+      if (!alive) return;
+      const data = await fetchServerStatus();
+      if (!alive || !data?.ok) return;
+      if (!data.playing || data.paused || !data.current?.title) return;
+      const key = trackKey(data.current);
+      if (!key || key === lastTrack.current) return;
+      const elapsed = Number(data.elapsed_s ?? 0);
+      // Solo toast si la pista acaba de empezar
+      if (elapsed > maxElapsedRef.current) {
+        // Recordar sin mostrar (evitar toast viejo al montar)
+        lastTrack.current = key;
+        return;
+      }
+      const mySeq = ++seq.current;
+      showToast(data.current, mySeq);
+    };
+
+    // Primer poll un poco después del mount
+    const t0 = window.setTimeout(tick, 1500);
+    const id = window.setInterval(tick, 5000);
+    return () => {
+      alive = false;
+      window.clearTimeout(t0);
+      window.clearInterval(id);
+    };
+  }, [enabled, featureOn]);
+
+  if (!enabled || !featureOn || !np?.title || !visible) return null;
 
   const line = [np.artist, np.title].filter(Boolean).join(" — ");
 
@@ -179,9 +189,14 @@ export default function NowPlayingBanner({ enabled = true }) {
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-emerald-300/90">
             Ahora suena
           </p>
-          <p className="truncate font-display text-sm leading-snug text-white sm:text-base">
+          <OverflowMarquee
+            className="font-display text-sm leading-snug text-white sm:text-base"
+            enabled={marqueeOn}
+            speedPxS={marqueeSpeed}
+            title={line}
+          >
             {line}
-          </p>
+          </OverflowMarquee>
         </div>
         <span className="shrink-0 text-lg text-emerald-300/90" aria-hidden>
           ♪

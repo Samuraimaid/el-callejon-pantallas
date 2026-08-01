@@ -55,11 +55,30 @@ async def _req(
 
 
 async def get_status() -> dict[str, Any]:
-    global _last_status
+    from app.services import ambient_config as amb_cfg
+
     st = await _req("GET", "/status")
-    if st.get("ok") and st.get("current"):
-        _last_status = st
+    # Importante: NO tocar _last_status aquí antes de maybe_broadcast.
+    # Si se actualiza antes, track_changed siempre es False y nunca hay toast.
+    if st.get("ok"):
         await maybe_broadcast(st)
+    # Siempre adjuntar config de UI/banners (también si host offline)
+    ui = amb_cfg.get_ui_config()
+    st = dict(st) if isinstance(st, dict) else {"ok": False}
+    st["ui"] = ui
+    st["config"] = ui  # alias
+    return st
+
+
+async def poll_host_for_track_changes() -> dict[str, Any] | None:
+    """
+    Llamado por el loop en background del backend.
+    Detecta cambio de canción aunque no haya panel admin abierto.
+    """
+    st = await _req("GET", "/status")
+    if not st.get("ok"):
+        return None
+    await maybe_broadcast(st)
     return st
 
 
@@ -151,10 +170,13 @@ def _track_key(cur: dict | None) -> str:
     return str(cur.get("rel") or cur.get("id") or f"{cur.get('artist')}|{cur.get('title')}")
 
 
-async def broadcast_now_playing(st: dict[str, Any] | None = None) -> None:
+async def broadcast_now_playing(
+    st: dict[str, Any] | None = None, *, force: bool = False
+) -> None:
     global _last_broadcast, _last_status
     if st is None:
-        st = await get_status()
+        # Evitar recursión: leer host sin maybe_broadcast
+        st = await _req("GET", "/status")
     if not st.get("ok"):
         return
     # No anunciar pistas si no está sonando de verdad
@@ -167,7 +189,7 @@ async def broadcast_now_playing(st: dict[str, Any] | None = None) -> None:
         return
     # No rebroadcast de pistas ya avanzadas (evitar toast de canción vieja)
     elapsed = int(st.get("elapsed_s") or 0)
-    if elapsed > 15:
+    if not force and elapsed > 20:
         _last_status = st
         return
     _last_status = st
@@ -200,10 +222,16 @@ async def maybe_broadcast(st: dict[str, Any]) -> None:
         return
     cur = (st or {}).get("current") or {}
     prev = (_last_status or {}).get("current") or {}
-    track_changed = _track_key(cur) != _track_key(prev) and bool(_track_key(cur))
-    started = bool(st.get("playing")) and not bool(_last_status.get("playing"))
-    if (track_changed or started) and st.get("playing") and not st.get("paused"):
-        await broadcast_now_playing(st)
+    prev_key = _track_key(prev)
+    cur_key = _track_key(cur)
+    track_changed = bool(cur_key) and cur_key != prev_key
+    was_playing = bool((_last_status or {}).get("playing")) and not bool(
+        (_last_status or {}).get("paused")
+    )
+    is_playing = bool(st.get("playing")) and not bool(st.get("paused"))
+    started = is_playing and not was_playing
+    if (track_changed or started) and is_playing:
+        await broadcast_now_playing(st, force=True)
     else:
         _last_status = st
 

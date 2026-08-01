@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 
 from app.deps import require_caja
+from app.services import ambient_config as amb_cfg
 from app.services import ambient_music as amb
 
 router = APIRouter(prefix="/api/ambient", tags=["ambient-music"])
@@ -26,10 +27,41 @@ class VolumeIn(BaseModel):
     volume: int = Field(ge=0, le=100)
 
 
+class UiConfigIn(BaseModel):
+    """Configuración de banners / UI del modo ambiente."""
+
+    now_playing_show_ms: int | None = Field(default=None, ge=2000, le=60000)
+    now_playing_max_elapsed_s: int | None = Field(default=None, ge=3, le=120)
+    now_playing_enabled: bool | None = None
+    mensajes_duracion_ms: int | None = Field(default=None, ge=3000, le=120000)
+    banner_marquee_enabled: bool | None = None
+    banner_marquee_speed_px_s: int | None = Field(default=None, ge=15, le=120)
+    pause_on_event: bool | None = None
+
+
 @router.get("/status")
 async def status() -> dict[str, Any]:
-    """Público ligero para banner de TVs (también admin)."""
+    """Público: estado del host + config UI (duraciones de banners, marquesina…)."""
     return await amb.get_status()
+
+
+@router.get("/config")
+async def get_config() -> dict[str, Any]:
+    """Público: solo config de UI/banners del modo ambiente (sin host)."""
+    cfg = amb_cfg.get_ui_config()
+    return {"ok": True, "config": cfg, **cfg}
+
+
+@router.put("/config")
+async def put_config(body: UiConfigIn, _user=Depends(require_caja)) -> dict[str, Any]:
+    """Actualiza config de banners/UI; se propaga a las TVs por WebSocket."""
+    patch = body.model_dump(exclude_none=True)
+    cfg = amb_cfg.update_ui_config(patch)
+    # Espejar pause_on_event al host si viene en el patch
+    if "pause_on_event" in patch:
+        await amb.set_pause_on_event(bool(patch["pause_on_event"]))
+    await amb_cfg.broadcast_ui_config(cfg)
+    return {"ok": True, "config": cfg, **cfg}
 
 
 @router.get("/library")

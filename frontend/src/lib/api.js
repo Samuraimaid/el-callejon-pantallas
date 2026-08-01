@@ -250,6 +250,12 @@ export const api = {
   ambientScan: () => request("/api/ambient/scan", { method: "POST", body: "{}" }),
   ambientBroadcast: () =>
     request("/api/ambient/broadcast", { method: "POST", body: "{}" }),
+  ambientConfig: () => request("/api/ambient/config"),
+  ambientConfigUpdate: (body) =>
+    request("/api/ambient/config", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 
   uploadVideosMulti: async (
     files,

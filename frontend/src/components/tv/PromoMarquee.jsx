@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMensajesMarquesina } from "../../lib/promociones";
+import { useAmbientUiConfig } from "../../hooks/useAmbientUiConfig";
+import OverflowMarquee from "../OverflowMarquee";
 
 /**
  * Marquesina de promos — textos y ritmo vienen de config del operador.
+ * Si un mensaje es más largo que el ancho, se desliza el texto.
  */
 export default function PromoMarquee({
   config = null,
   intervalMs = 5500,
 }) {
+  const { cfg: amb } = useAmbientUiConfig();
+  const marqueeOn = amb.banner_marquee_enabled !== false;
+  const marqueeSpeed = Number(amb.banner_marquee_speed_px_s) || 42;
+
   const [dayKey, setDayKey] = useState(() => new Date().toDateString());
   const [idx, setIdx] = useState(0);
   const [tick, setTick] = useState(0);
@@ -55,7 +62,14 @@ export default function PromoMarquee({
           <span className="promo-marquee-sep" aria-hidden>
             ·
           </span>
-          <span className="promo-marquee-text">{msg.corto}</span>
+          <OverflowMarquee
+            className="promo-marquee-text"
+            enabled={marqueeOn}
+            speedPxS={marqueeSpeed}
+            title={msg.corto}
+          >
+            {msg.corto}
+          </OverflowMarquee>
         </div>
       </div>
       {mensajes.length > 1 && (

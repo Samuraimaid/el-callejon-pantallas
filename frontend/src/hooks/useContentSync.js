@@ -9,14 +9,17 @@ import {
   setManifestMeta,
 } from "../lib/tvMediaCache";
 
+function sleep(ms) {
+  return new Promise((r) => window.setTimeout(r, ms));
+}
+
 /**
- * Sincroniza contenido de la TV con el servidor:
- * - reutiliza caché si version igual (cortes de luz / reinicio)
- * - pide lease exclusivo (1 TV a la vez; prioridad 1–2 solo si están en línea)
- * - descarga assets uno a uno con progreso % y ETA
+ * Sincroniza contenido de la TV con el servidor.
+ * No deja la pantalla negra eterna: en error o cola larga muestra contenido
+ * (caché/API) y reintenta en segundo plano.
  */
 export function useContentSync(tvId, { enabled = true } = {}) {
-  const [phase, setPhase] = useState("idle"); // idle|waiting|downloading|ready|error
+  const [phase, setPhase] = useState("idle"); // idle|waiting|downloading|ready|error|degraded
   const [progress, setProgress] = useState(0);
   const [etaSec, setEtaSec] = useState(null);
   const [message, setMessage] = useState("");
@@ -24,13 +27,22 @@ export function useContentSync(tvId, { enabled = true } = {}) {
   const [version, setVersion] = useState(null);
   const [queueInfo, setQueueInfo] = useState(null);
   const [fromCache, setFromCache] = useState(false);
+  /** true si ya hubo un ciclo ready/degraded — no volver a ocultar children */
+  const [hasShownContent, setHasShownContent] = useState(false);
   const abortRef = useRef(false);
   const leaseRef = useRef(null);
+  const retryTimer = useRef(0);
+
+  const finishVisible = useCallback((nextPhase = "ready") => {
+    setPhase(nextPhase);
+    setHasShownContent(true);
+  }, []);
 
   const sync = useCallback(async () => {
     if (!tvId || !enabled) return;
     abortRef.current = false;
-    setPhase("waiting");
+    // Solo “waiting” bloqueante si aún no se ha mostrado nada
+    setPhase((p) => (p === "ready" || p === "degraded" ? p : "waiting"));
     setProgress(0);
     setEtaSec(null);
     setMessage("Consultando campaña del día…");
@@ -51,16 +63,18 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         for (const a of sample) {
           if (await hasBlob(a.url)) ok += 1;
         }
-        const need = Math.min(sample.length, Math.max(1, Math.ceil(sample.length * 0.7)));
+        const need = Math.min(
+          sample.length,
+          Math.max(1, Math.ceil(sample.length * 0.7))
+        );
         if (assets.length === 0 || ok >= need) {
           setFromCache(true);
           setProgress(100);
-          setPhase("ready");
+          finishVisible("ready");
           setMessage(
             "Contenido en caché — listo (sin cambios; reutilizable tras corte de luz)"
           );
           setDetail(`v${manifest.version} · ${manifest.asset_count} fotos`);
-          // Avisar al servidor: esta TV ya funciona (libera cola TV3–6)
           try {
             const cachedBytes = await estimateCacheBytes(
               assets.map((a) => a.url)
@@ -89,7 +103,7 @@ export function useContentSync(tvId, { enabled = true } = {}) {
           version: manifest.version,
           complete: true,
         });
-        setPhase("ready");
+        finishVisible("ready");
         setProgress(100);
         setMessage("Sin archivos nuevos que descargar");
         try {
@@ -111,23 +125,31 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         return;
       }
 
-      // Esperar lease exclusivo
+      // Lease (máx. ~90 s de espera, no minutos)
       let lease = null;
-      for (let attempt = 0; attempt < 120 && !abortRef.current; attempt++) {
+      const maxAttempts = 40;
+      for (let attempt = 0; attempt < maxAttempts && !abortRef.current; attempt++) {
+        // Tras ~12 s de cola, liberar UI (contenido bajo overlay semitransparente)
+        if (attempt === 6) {
+          setHasShownContent(true);
+          setMessage("Descargando en segundo plano…");
+        }
         const lr = await fetch(`${API_URL}/api/content/lease`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ tv_id: tvId, reason: "daily_sync" }),
         });
-        const data = await lr.json();
+        const data = await lr.json().catch(() => ({}));
         if (data.granted) {
           lease = data;
           leaseRef.current = data.lease_id;
           setQueueInfo(null);
-          setMessage("Canal exclusivo — descargando a máxima velocidad…");
+          setMessage("Canal exclusivo — descargando…");
           break;
         }
-        setPhase("waiting");
+        setPhase((p) =>
+          p === "ready" || p === "degraded" ? p : "waiting"
+        );
         setQueueInfo({
           position: data.queue_position,
           holder: data.holder_tv_id,
@@ -136,10 +158,10 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         setMessage(data.message || "En cola de descarga…");
         setDetail(
           data.holder_tv_id
-            ? `TV #${data.holder_tv_id} usa el canal · reintento ${attempt + 1}`
+            ? `TV #${data.holder_tv_id} usa el canal · ${attempt + 1}`
             : data.menus_status || data.reason || ""
         );
-        // Si solo espera menús y ya deberían estar listos, reintentar más rápido
+        // Renovar lease beat si ya teníamos uno (no aplica)
         const wait =
           data.reason === "priority_menus_only"
             ? 2000
@@ -148,8 +170,10 @@ export function useContentSync(tvId, { enabled = true } = {}) {
       }
 
       if (!lease) {
-        setPhase("error");
-        setMessage("No se obtuvo canal de descarga a tiempo");
+        // No bloquear la TV: mostrar lo que haya y reintentar luego
+        finishVisible("degraded");
+        setMessage("Mostrando contenido disponible · reintento de descarga en breve");
+        setDetail("Sin canal de red exclusivo por ahora");
         return;
       }
 
@@ -165,11 +189,25 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         if (abortRef.current) break;
         const a = assets[i];
         setDetail(`${i + 1}/${assets.length} · ${a.url.split("/").pop()}`);
+
+        // Heartbeat del lease cada ~15 archivos o cada asset pesado
+        if (i > 0 && i % 8 === 0) {
+          try {
+            await fetch(`${API_URL}/api/content/lease`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ tv_id: tvId, reason: "renew" }),
+            });
+          } catch {
+            /* */
+          }
+        }
+
         const assetStart = doneBytes;
         try {
           const result = await downloadAndCache(a.url, {
             etag: a.etag,
-            onProgress: (rec, tot) => {
+            onProgress: (rec) => {
               const cur = assetStart + rec;
               const pct = Math.min(99, Math.round((cur / totalBytes) * 100));
               setProgress(pct);
@@ -193,7 +231,6 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         if (pauseMs > 0) await sleep(pauseMs);
       }
 
-      // Liberar lease
       try {
         await fetch(`${API_URL}/api/content/lease/release`, {
           method: "POST",
@@ -229,21 +266,24 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         assets_fail: fail,
       });
 
-      // Purga lo que no está en el presupuesto actual
       await purgeExcept(assets.map((a) => a.url));
 
       setProgress(100);
       setEtaSec(0);
-      setPhase("ready");
+      finishVisible("ready");
       setMessage(
         fail
           ? `Listo con ${fail} archivo(s) fallido(s)`
           : "Campaña del día cargada en este televisor"
       );
-      setDetail(`${ok} archivos · ${(cachedBytes / 1024 / 1024).toFixed(1)} MB en caché`);
+      setDetail(
+        `${ok} archivos · ${(cachedBytes / 1024 / 1024).toFixed(1)} MB en caché`
+      );
     } catch (e) {
-      setPhase("error");
+      if (abortRef.current) return;
+      finishVisible("error");
       setMessage(e.message || "Error de sincronización");
+      setDetail("Mostrando contenido local si existe · reintento automático");
       if (leaseRef.current) {
         fetch(`${API_URL}/api/content/lease/release`, {
           method: "POST",
@@ -253,12 +293,13 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         leaseRef.current = null;
       }
     }
-  }, [tvId, enabled]);
+  }, [tvId, enabled, finishVisible]);
 
   useEffect(() => {
     sync();
     return () => {
       abortRef.current = true;
+      window.clearTimeout(retryTimer.current);
       if (leaseRef.current) {
         fetch(`${API_URL}/api/content/lease/release`, {
           method: "POST",
@@ -269,8 +310,20 @@ export function useContentSync(tvId, { enabled = true } = {}) {
     };
   }, [sync, tvId]);
 
-  const ready = phase === "ready" || phase === "idle";
-  const blocking = phase === "waiting" || phase === "downloading";
+  // Reintento automático en error/degraded
+  useEffect(() => {
+    if (!enabled) return undefined;
+    if (phase !== "error" && phase !== "degraded") return undefined;
+    retryTimer.current = window.setTimeout(() => {
+      sync();
+    }, 20000);
+    return () => window.clearTimeout(retryTimer.current);
+  }, [phase, enabled, sync]);
+
+  // Solo bloquear (ocultar children) en el primer arranque sin contenido
+  const blocking =
+    !hasShownContent &&
+    (phase === "waiting" || phase === "downloading");
 
   return {
     phase,
@@ -283,10 +336,7 @@ export function useContentSync(tvId, { enabled = true } = {}) {
     fromCache,
     ready: phase === "ready",
     blocking,
+    hasShownContent,
     resync: sync,
   };
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
 }

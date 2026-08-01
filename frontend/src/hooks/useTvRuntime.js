@@ -61,15 +61,19 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
     });
   }, [volumen, powerOn, masterPower]);
 
-  // Cargar control cacheado + estado público
+  // Cargar control: no aplicar power_off de caché hasta confirmar con servidor
+  // (evita flash de pantalla negra al arrancar con caché “apagado”).
   useEffect(() => {
     const cached = cacheGetData(CACHE_KEYS.control);
     if (cached?.tvs?.[String(tvId)]) {
       const t = cached.tvs[String(tvId)];
-      setPowerOn(t.power_on !== false);
+      // Solo volumen/evento de caché; power se asume ON hasta public estado
       setVolumen(Number(t.volumen) ?? 25);
       setModoEvento(!!t.modo_evento);
-      setMasterPower(cached.master_power !== false);
+      if (cached.master_power !== false && t.power_on !== false) {
+        setPowerOn(true);
+        setMasterPower(true);
+      }
     }
     (async () => {
       try {
@@ -85,7 +89,7 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
           setModoEvento(!!p.modo_evento);
         }
       } catch {
-        /* offline — cache only */
+        /* offline — seguir encendido con caché de contenido */
       } finally {
         setCtrlReady(true);
       }
@@ -174,16 +178,22 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
     snapshotBuilder,
   ]);
 
-  // Captura errores de render
+  // Captura errores globales (no sustituye ErrorBoundary de React)
   useEffect(() => {
     const onErr = (ev) => {
       setRenderError(String(ev?.message || "Error de visualización"));
     };
+    const onRej = (ev) => {
+      const msg = String(ev?.reason?.message || ev?.reason || "");
+      if (/abort|fetch|network|Failed to fetch/i.test(msg)) return;
+      setRenderError(msg || "Promise error");
+    };
     window.addEventListener("error", onErr);
-    window.addEventListener("unhandledrejection", (ev) => {
-      setRenderError(String(ev?.reason?.message || ev?.reason || "Promise error"));
-    });
-    return () => window.removeEventListener("error", onErr);
+    window.addEventListener("unhandledrejection", onRej);
+    return () => {
+      window.removeEventListener("error", onErr);
+      window.removeEventListener("unhandledrejection", onRej);
+    };
   }, []);
 
   const displayOn = powerOn && masterPower;

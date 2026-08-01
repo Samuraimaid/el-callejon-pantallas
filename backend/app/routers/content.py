@@ -112,4 +112,4 @@ async def video_turn(
 
 @router.post("/video-done")
 async def video_done(body: VideoDoneIn) -> dict[str, Any]:
-    return cd.video_done(body.tv_id, body.token)
+    return await cd.video_done(body.tv_id, body.token)
