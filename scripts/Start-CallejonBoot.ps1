@@ -49,12 +49,28 @@ Log "Root: $Root"
 # ---------------------------------------------------------------------------
 # 1) MUSICA PRIMERO (no depende de Docker) — evita retraso de reproduccion
 # ---------------------------------------------------------------------------
-Log ">>> Arrancando ambient_host_player (prioridad musica)..."
+Log ">>> Arrancando ambient_host_player (prioridad musica + autoplay)..."
 try {
-    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "default"
+    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "auto"
     Log "Ambient host: OK"
 } catch {
     Log "WARN ambient: $_"
+}
+
+# Vigilante en segundo plano (relanza player si cae; una sola instancia)
+$watchPs1 = Join-Path $ScriptDir "Watch-AmbientHost.ps1"
+if (Test-Path $watchPs1) {
+    try {
+        Start-Process -FilePath "powershell.exe" -ArgumentList @(
+            "-NoProfile", "-ExecutionPolicy", "Bypass", "-WindowStyle", "Minimized",
+            "-File", $watchPs1,
+            "-ProjectRoot", $Root,
+            "-AutoPlay", "default"
+        ) -WindowStyle Minimized
+        Log "Ambient watch: lanzado (keep-alive)"
+    } catch {
+        Log "WARN ambient watch: $_"
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -126,7 +142,7 @@ if ($dockerOk) {
 # Reconfirmar musica (por si el host cayo o no autoplay)
 Log "Reconfirmando musica ambiente..."
 try {
-    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "default"
+    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "auto"
 } catch {
     Log "WARN ambient recheck: $_"
 }

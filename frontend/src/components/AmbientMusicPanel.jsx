@@ -30,10 +30,15 @@ export default function AmbientMusicPanel() {
       if (s.folders) setFolders(s.folders);
       const cfg = s.ui || s.config;
       if (cfg) setUi((prev) => ({ ...prev, ...AMBIENT_UI_DEFAULTS, ...cfg }));
-      setErr(s.offline ? s.error || "Host offline" : "");
+      setErr(
+        s.offline
+          ? s.error ||
+              "Reproductor reiniciándose en el PC… espere unos segundos"
+          : ""
+      );
     } catch (e) {
       setErr(e.message || "Sin conexión al reproductor");
-      setSt({ ok: false, offline: true });
+      setSt({ ok: false, offline: true, recovering: true });
     }
   }, []);
 
@@ -89,7 +94,7 @@ export default function AmbientMusicPanel() {
   const lcd = cur
     ? `${cur.artist || "—"} — ${cur.title || "—"}`
     : st?.offline
-      ? "HOST OFFLINE · ejecute ambient_host_player.py"
+      ? "RECONECTANDO · el PC reintenta el reproductor solo"
       : "El Callejón · Ambiente listo";
   const cover = cur?.cover_url || cur?.album_art || null;
 
@@ -528,6 +533,38 @@ export default function AmbientMusicPanel() {
           y dentro de <code className="text-lime-400/80">/api/ambient/status</code> →{" "}
           <code className="text-lime-400/80">ui</code>.
         </p>
+
+        <label className="mt-3 flex items-center justify-between gap-2 text-[11px] text-cream/80">
+          <span>
+            Autoplay al iniciar el sistema
+            <span className="mt-0.5 block text-[10px] font-normal text-cream/45">
+              Por defecto off. API: GET/PUT /api/ambient/boot-autoplay
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={!!ui.autoplay_on_boot}
+            disabled={busy}
+            onChange={(e) => saveUi({ autoplay_on_boot: e.target.checked })}
+          />
+        </label>
+
+        <label className="mt-3 flex items-center justify-between gap-2 text-[11px] text-cream/80">
+          <span>
+            Modo lite TVs #3–#6
+            <span className="mt-0.5 block text-[10px] font-normal text-cream/45">
+              Imágenes fijas sin efectos de transición
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={!!ui.publicidad_lite_mode}
+            disabled={busy}
+            onChange={(e) =>
+              saveUi({ publicidad_lite_mode: e.target.checked })
+            }
+          />
+        </label>
 
         <label className="mt-3 flex items-center justify-between gap-2 text-[11px] text-cream/80">
           <span>Mostrar «Ahora suena»</span>

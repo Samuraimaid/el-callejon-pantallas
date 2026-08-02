@@ -16,6 +16,21 @@ DEFAULT_HOST = os.environ.get("AMBIENT_HOST_URL", "http://host.docker.internal:8
 _last_status: dict[str, Any] = {}
 _last_broadcast = 0.0
 
+# Autoplay solo si config autoplay_on_boot=true (default false)
+_need_autoplay: bool = False
+_last_ensure_ts: float = 0.0
+_ENSURE_COOLDOWN_S = 20.0
+_AUTOPLAY_MODE = (os.environ.get("AMBIENT_AUTOPLAY") or "default").strip() or "default"
+
+
+def _autoplay_on_boot_enabled() -> bool:
+    try:
+        from app.services import ambient_config as amb_cfg
+
+        return bool(amb_cfg.get_ui_config().get("autoplay_on_boot"))
+    except Exception:
+        return False
+
 
 def host_url() -> str:
     return (os.environ.get("AMBIENT_HOST_URL") or DEFAULT_HOST).rstrip("/")
@@ -47,11 +62,104 @@ async def _req(
             "offline": True,
             "error": (
                 "Reproductor host no disponible. "
-                "En el PC Windows ejecute: python scripts/ambient_host_player.py"
+                "El vigilante del PC lo reintentara en segundos "
+                "(Watch-AmbientHost / Start-AmbientHost). "
+                "Si persiste: ejecute scripts\\Start-AmbientHost.ps1"
             ),
             "detail": str(e),
             "host": host_url(),
+            "recovering": True,
         }
+
+
+async def ensure_playing_if_needed(
+    st: dict[str, Any] | None = None,
+    *,
+    force: bool = False,
+) -> dict[str, Any] | None:
+    """
+    Si el host esta online y no suena (y no esta en pausa), pide autoplay.
+
+    - force=True: panel admin / ensure-play (siempre intenta).
+    - force=False: solo si autoplay_on_boot=true en /api/ambient/config
+      (por defecto NO arranca musica sola).
+    No pelea con pausa manual del operador.
+    """
+    global _need_autoplay, _last_ensure_ts
+
+    if st is None:
+        st = await _req("GET", "/status")
+
+    boot_ok = _autoplay_on_boot_enabled()
+
+    if not st or st.get("offline") or not st.get("ok"):
+        # Host caido: solo reintentar autoplay al volver si esta habilitado
+        _need_autoplay = bool(boot_ok or force)
+        return st
+
+    if st.get("playing"):
+        _need_autoplay = False
+        return st
+
+    if st.get("paused"):
+        # Operador en pausa: no forzar
+        _need_autoplay = False
+        return st
+
+    if not force:
+        if not boot_ok:
+            _need_autoplay = False
+            return st
+        if not _need_autoplay:
+            # Primera oportunidad tras boot con flag activo
+            _need_autoplay = True
+
+    if not force and not _need_autoplay:
+        return st
+
+    now = time.time()
+    if not force and (now - _last_ensure_ts) < _ENSURE_COOLDOWN_S:
+        return st
+
+    _last_ensure_ts = now
+    mode = _AUTOPLAY_MODE
+    # Preferir endpoint unificado del host
+    res = await _req("POST", "/ensure-play", {"mode": mode}, timeout=12.0)
+    if res.get("offline") or (
+        not res.get("ok") and res.get("error", "").startswith("host HTTP")
+    ):
+        # Host viejo sin /ensure-play → fallback
+        likes_pl = await _req("GET", "/playlists", timeout=5.0)
+        likes = likes_pl.get("likes") if isinstance(likes_pl, dict) else None
+        if likes:
+            res = await _req(
+                "POST",
+                "/playlist/play",
+                {"name": "likes", "shuffle": True},
+                timeout=12.0,
+            )
+        else:
+            await _req("POST", "/mode", {"mode": "all_shuffle"}, timeout=8.0)
+            res = await _req("POST", "/play", {"folder": ""}, timeout=8.0)
+
+    if res.get("ok") and res.get("playing"):
+        _need_autoplay = False
+        # Fuerza banner "Ahora suena" al arrancar / recuperar host
+        try:
+            await broadcast_now_playing(res, force=True)
+        except Exception:
+            try:
+                await maybe_broadcast(res)
+            except Exception:
+                pass
+        return res
+
+    # Si respondio ok pero aun no playing (buffer), no spamear
+    if res.get("ok"):
+        _need_autoplay = False
+        return res
+
+    return st
 
 
 async def get_status() -> dict[str, Any]:
@@ -59,6 +167,14 @@ async def get_status() -> dict[str, Any]:
     from app.services import ambient_config as amb_cfg
 
     st = await _req("GET", "/status")
+    # Tras offline o arranque: intentar autoplay sin que el operador pulse Play
+    try:
+        ensured = await ensure_playing_if_needed(st)
+        if ensured and ensured.get("ok"):
+            st = ensured
+    except Exception:
+        pass
+
     # Importante: NO tocar _last_status aquí antes de maybe_broadcast.
     if st.get("ok"):
         await maybe_broadcast(st)
@@ -72,6 +188,8 @@ async def get_status() -> dict[str, Any]:
     ui = amb_cfg.get_ui_config()
     st["ui"] = ui
     st["config"] = ui
+    if st.get("offline"):
+        st["recovering"] = True
     return st
 
 
@@ -79,9 +197,16 @@ async def poll_host_for_track_changes() -> dict[str, Any] | None:
     """
     Llamado por el loop en background del backend.
     Detecta cambio de canción aunque no haya panel admin abierto.
+    Tambien reintenta autoplay tras caida del host.
     """
     st = await _req("GET", "/status")
-    if not st.get("ok"):
+    try:
+        st2 = await ensure_playing_if_needed(st)
+        if st2 and st2.get("ok"):
+            st = st2
+    except Exception:
+        pass
+    if not st or not st.get("ok"):
         return None
     await maybe_broadcast(st)
     return st
@@ -346,7 +471,9 @@ async def maybe_broadcast(st: dict[str, Any]) -> None:
     )
     is_playing = bool(st.get("playing")) and not bool(st.get("paused"))
     started = is_playing and not was_playing
-    if (track_changed or started) and is_playing:
+    # Primera vez que vemos una pista en esta sesion de backend
+    first_track = is_playing and bool(cur_key) and not prev_key
+    if (track_changed or started or first_track) and is_playing:
         await broadcast_now_playing(st, force=True)
     else:
         _last_status = st

@@ -4,6 +4,7 @@ import FicoshaBanner from "../components/tv/FicoshaBanner";
 import NowPlayingBanner from "../components/tv/NowPlayingBanner";
 import TvFullscreenChrome from "../components/tv/TvFullscreenChrome";
 import TvRuntimeShell from "../components/tv/TvRuntimeShell";
+import { useAmbientUiConfig } from "../hooks/useAmbientUiConfig";
 import { useVideoTurn } from "../hooks/useVideoTurn";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { API_URL } from "../lib/api";
@@ -44,6 +45,9 @@ export default function PantallaPublicidadPage({
   const tvId = tvIdProp || TV_BY_ZONA[zona] || 3;
   const cacheKey = CACHE_KEYS.campana(zona);
   const cached = cacheGetData(cacheKey);
+  const { cfg: ambientCfg } = useAmbientUiConfig();
+  /** Modo lite: imagenes fijas, sin kenburns ni fades de transición */
+  const liteMode = !!ambientCfg?.publicidad_lite_mode;
 
   const [campana, setCampana] = useState(cached || null);
   const [index, setIndex] = useState(0);
@@ -115,6 +119,17 @@ export default function PantallaPublicidadPage({
 
   useEffect(() => {
     if (!slides.length || hasVideoTurn) return undefined;
+
+    // Modo lite: cambio de imagen directo, sin fade ni efectos
+    if (liteMode) {
+      setActiveEffect("none");
+      setVisible(true);
+      const id = setInterval(() => {
+        setIndex((i) => (i + 1) % slides.length);
+      }, duration);
+      return () => clearInterval(id);
+    }
+
     const pickEffect = () => {
       if (randomFx) {
         return ALL_EFFECTS[Math.floor(Math.random() * ALL_EFFECTS.length)];
@@ -139,6 +154,7 @@ export default function PantallaPublicidadPage({
     randomFx,
     campana?.efecto_visual,
     hasVideoTurn,
+    liteMode,
   ]);
 
   const snapshotExtra = useCallback(() => {
@@ -194,8 +210,10 @@ export default function PantallaPublicidadPage({
     const slideTam = slide.tamano_texto || tamano;
     const titleClass = fontTitleClass(slideTam);
     const subClass = fontSubClass(slideTam);
-    const textAnim = textAnimClass(slide.animacion_texto || "fade-in-up", visible);
-    const imgFx = imageEffectClass(activeEffect, visible);
+    const textAnim = liteMode
+      ? "opacity-100"
+      : textAnimClass(slide.animacion_texto || "fade-in-up", visible);
+    const imgFx = liteMode ? "" : imageEffectClass(activeEffect, visible);
 
     return (
       <div
@@ -250,17 +268,17 @@ export default function PantallaPublicidadPage({
         {slides.map((s, i) => (
           <div
             key={`${s.id || i}-${s.imagen_url}`}
-            className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-              i === index && !hasVideoTurn ? "opacity-100" : "opacity-0"
-            }`}
+            className={`absolute inset-0 ${
+              liteMode ? "" : "transition-opacity duration-700 ease-in-out"
+            } ${i === index && !hasVideoTurn ? "opacity-100" : "opacity-0"}`}
             aria-hidden={i !== index || hasVideoTurn}
           >
             <MediaCover
               url={s.imagen_url}
               active={i === index && !hasVideoTurn}
-              imgFx={imgFx}
+              imgFx={liteMode ? "" : imgFx}
             />
-            {i === index && activeEffect === "persiana" && (
+            {i === index && !liteMode && activeEffect === "persiana" && (
               <div
                 className={`pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0_18px,rgba(0,0,0,0.55)_18px_22px)] transition-opacity duration-700 ${
                   visible ? "opacity-0" : "opacity-100"
@@ -432,6 +450,7 @@ function textAnimClass(anim, visible) {
 
 function imageEffectClass(efecto, active) {
   if (!active) return "";
+  if (!efecto || efecto === "none" || efecto === "lite") return "";
   if (efecto === "zoom-in") return "kenburns";
   if (efecto === "scale-soft")
     return "transition-transform duration-[7000ms] scale-105";

@@ -123,7 +123,22 @@ async def heartbeat(
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
-    return {"ok": True, "pantalla": tv}
+    # La TV debe re-sincronizar control desde el servidor (autoridad),
+    # no desde su propio snapshot (evita quedar atrapada en modo evento).
+    st = pant_svc.get_all_estado()
+    master = st.get("master_power", True)
+    p = next((x for x in st.get("pantallas") or [] if x.get("id") == tv_id), None) or tv
+    # power_on = flag individual de la TV (sin master); la TV combina powerOn && masterPower
+    return {
+        "ok": True,
+        "pantalla": p,
+        "control": {
+            "master_power": bool(master),
+            "power_on": bool(p.get("power_on", True)),
+            "volumen": int(p.get("volumen") if p.get("volumen") is not None else 25),
+            "modo_evento": bool(p.get("modo_evento")),
+        },
+    }
 
 
 @router.post("/control")

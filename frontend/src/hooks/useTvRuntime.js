@@ -157,6 +157,40 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
           }),
         });
         if (!res.ok) throw new Error(`HB ${res.status}`);
+        // Servidor manda: re-sincronizar modo evento / power (no confiar solo en WS)
+        const data = await res.json().catch(() => null);
+        const ctrl = data?.control;
+        if (ctrl && alive) {
+          if (typeof ctrl.modo_evento === "boolean") {
+            setModoEvento(!!ctrl.modo_evento);
+          }
+          if (typeof ctrl.master_power === "boolean") {
+            setMasterPower(ctrl.master_power !== false);
+          }
+          if (typeof ctrl.power_on === "boolean") {
+            setPowerOn(ctrl.power_on !== false);
+          }
+          if (ctrl.volumen != null && Number.isFinite(Number(ctrl.volumen))) {
+            setVolumen(Number(ctrl.volumen));
+          }
+          try {
+            const prev = cacheGetData(CACHE_KEYS.control) || {};
+            const tvs = { ...(prev.tvs || {}) };
+            tvs[String(tvId)] = {
+              ...(tvs[String(tvId)] || {}),
+              power_on: ctrl.power_on !== false,
+              volumen: ctrl.volumen,
+              modo_evento: !!ctrl.modo_evento,
+            };
+            cacheSet(CACHE_KEYS.control, {
+              ...prev,
+              master_power: ctrl.master_power !== false,
+              tvs,
+            });
+          } catch {
+            /* */
+          }
+        }
       } catch {
         /* TV sigue con cache */
       }

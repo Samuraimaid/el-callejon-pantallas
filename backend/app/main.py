@@ -38,8 +38,15 @@ settings = get_settings()
 
 
 async def _ambient_poll_loop() -> None:
-    """Detecta cambios de canción del host aunque no haya admin abierto."""
+    """Detecta cambios de canción del host y reintenta autoplay si hace falta."""
     from app.services import ambient_music as amb
+
+    # Autoplay al arrancar solo si autoplay_on_boot=true (default: no)
+    await asyncio.sleep(3.0)
+    try:
+        await amb.ensure_playing_if_needed(force=False)
+    except Exception:
+        pass
 
     while True:
         try:

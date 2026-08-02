@@ -296,6 +296,12 @@ export function useContentSync(tvId, { enabled = true } = {}) {
   }, [tvId, enabled, finishVisible]);
 
   useEffect(() => {
+    if (!enabled) {
+      // Menú TV u offline: no bloquear UI
+      setPhase("ready");
+      setHasShownContent(true);
+      return undefined;
+    }
     sync();
     return () => {
       abortRef.current = true;
@@ -308,7 +314,7 @@ export function useContentSync(tvId, { enabled = true } = {}) {
         }).catch(() => {});
       }
     };
-  }, [sync, tvId]);
+  }, [sync, tvId, enabled]);
 
   // Reintento automático en error/degraded
   useEffect(() => {

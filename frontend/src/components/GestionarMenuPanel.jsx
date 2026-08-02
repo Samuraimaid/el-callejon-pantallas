@@ -19,6 +19,34 @@ const GROUPS = [
 
 const DELETE_DOUBLE_MS = 900;
 
+/** 0=dom … 6=sáb (igual que promos y Date.getDay()) */
+const DAYS = [
+  { v: 0, l: "Do" },
+  { v: 1, l: "Lu" },
+  { v: 2, l: "Ma" },
+  { v: 3, l: "Mi" },
+  { v: 4, l: "Ju" },
+  { v: 5, l: "Vi" },
+  { v: 6, l: "Sa" },
+];
+
+function normalizeDias(raw) {
+  if (raw == null) return null;
+  if (!Array.isArray(raw) || raw.length === 0) return null;
+  const out = [];
+  for (const d of raw) {
+    const n = Number(d);
+    if (Number.isInteger(n) && n >= 0 && n <= 6 && !out.includes(n)) out.push(n);
+  }
+  out.sort((a, b) => a - b);
+  return out.length ? out : null;
+}
+
+function diasKey(dias) {
+  const n = normalizeDias(dias);
+  return n == null ? "all" : n.join(",");
+}
+
 function toDraft(p) {
   const nombre = p.nombre || p.n || "";
   const ilimitado =
@@ -30,6 +58,7 @@ function toDraft(p) {
     numRaw === null || numRaw === undefined || numRaw === ""
       ? ""
       : Number(numRaw);
+  const dias_semana = normalizeDias(p.dias_semana ?? p.dias);
   return {
     id: p.id,
     codigo: p.codigo || p.c,
@@ -41,6 +70,7 @@ function toDraft(p) {
     es_ilimitado: ilimitado,
     destacado,
     numero_combo,
+    dias_semana,
     imgV: p.imgV || p.v || null,
     _nombre: nombre,
     _stock: Number(p.stock_disponible ?? p.s ?? 0),
@@ -49,6 +79,7 @@ function toDraft(p) {
     _es_ilimitado: ilimitado,
     _destacado: destacado,
     _numero_combo: numero_combo,
+    _dias_semana: dias_semana,
   };
 }
 
@@ -60,7 +91,8 @@ function isDirty(row) {
     Boolean(row.activo) !== Boolean(row._activo) ||
     Boolean(row.es_ilimitado) !== Boolean(row._es_ilimitado) ||
     Boolean(row.destacado) !== Boolean(row._destacado) ||
-    String(row.numero_combo ?? "") !== String(row._numero_combo ?? "")
+    String(row.numero_combo ?? "") !== String(row._numero_combo ?? "") ||
+    diasKey(row.dias_semana) !== diasKey(row._dias_semana)
   );
 }
 
@@ -72,6 +104,7 @@ const emptyCreateForm = () => ({
   es_ilimitado: false,
   destacado: false,
   numero_combo: "",
+  dias_semana: null,
 });
 
 /**
@@ -181,6 +214,15 @@ export default function GestionarMenuPanel({
               if (n >= 1 && n <= 12) body.numero_combo = n;
             }
           }
+          if (diasKey(row.dias_semana) !== diasKey(row._dias_semana)) {
+            const d = normalizeDias(row.dias_semana);
+            if (d == null) {
+              body.clear_dias_semana = true;
+              body.dias_semana = null;
+            } else {
+              body.dias_semana = d;
+            }
+          }
           await api.patchProducto(row.id, body);
           ok += 1;
         } catch (e) {
@@ -226,6 +268,8 @@ export default function GestionarMenuPanel({
       };
       const nCombo = parseInt(createForm.numero_combo, 10);
       if (nCombo >= 1 && nCombo <= 12) payload.numero_combo = nCombo;
+      const dCreate = normalizeDias(createForm.dias_semana);
+      if (dCreate != null) payload.dias_semana = dCreate;
       const created = await api.createProducto(payload);
       setShowCreate(false);
       setCreateForm(emptyCreateForm());
@@ -612,6 +656,60 @@ export default function GestionarMenuPanel({
                     {deletingId === row.id ? "…" : armed ? "✓?" : "🗑️"}
                   </button>
                 </div>
+
+                {/* Dias de la semana en pantallas (null = todos) */}
+                <div className="col-span-12 mt-1 border-t border-stone-800/80 pt-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="mr-1 text-[10px] uppercase tracking-wide text-stone-500">
+                      Días en TV
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => updateRow(row.id, { dias_semana: null })}
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        row.dias_semana == null
+                          ? "bg-amber-500/30 text-amber-100"
+                          : "bg-stone-800 text-cream/60"
+                      }`}
+                    >
+                      Todos
+                    </button>
+                    {DAYS.map((d) => {
+                      const sel =
+                        Array.isArray(row.dias_semana) &&
+                        row.dias_semana.includes(d.v);
+                      return (
+                        <button
+                          key={d.v}
+                          type="button"
+                          onClick={() => {
+                            const cur = Array.isArray(row.dias_semana)
+                              ? [...row.dias_semana]
+                              : null;
+                            if (cur == null) {
+                              updateRow(row.id, { dias_semana: [d.v] });
+                              return;
+                            }
+                            const has = cur.includes(d.v);
+                            const next = has
+                              ? cur.filter((x) => x !== d.v)
+                              : [...cur, d.v].sort((a, b) => a - b);
+                            updateRow(row.id, {
+                              dias_semana: next.length ? next : null,
+                            });
+                          }}
+                          className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                            sel
+                              ? "bg-emerald-600/40 text-emerald-100"
+                              : "bg-stone-800 text-cream/55"
+                          }`}
+                        >
+                          {d.l}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
               </li>
             );
           })}
@@ -844,6 +942,64 @@ export default function GestionarMenuPanel({
                   }`}
                 />
               </button>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-stone-700 bg-stone-900/80 px-3 py-3">
+              <p className="text-sm font-semibold text-stone-100">
+                Días en pantallas de menú
+              </p>
+              <p className="text-[11px] text-stone-500">
+                Como las promociones: «Todos» o días concretos
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCreateForm((f) => ({ ...f, dias_semana: null }))
+                  }
+                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                    createForm.dias_semana == null
+                      ? "bg-amber-500/30 text-amber-100"
+                      : "bg-stone-800 text-cream/60"
+                  }`}
+                >
+                  Todos
+                </button>
+                {DAYS.map((d) => {
+                  const sel =
+                    Array.isArray(createForm.dias_semana) &&
+                    createForm.dias_semana.includes(d.v);
+                  return (
+                    <button
+                      key={d.v}
+                      type="button"
+                      onClick={() => {
+                        setCreateForm((f) => {
+                          const cur = Array.isArray(f.dias_semana)
+                            ? [...f.dias_semana]
+                            : null;
+                          if (cur == null) return { ...f, dias_semana: [d.v] };
+                          const has = cur.includes(d.v);
+                          const next = has
+                            ? cur.filter((x) => x !== d.v)
+                            : [...cur, d.v].sort((a, b) => a - b);
+                          return {
+                            ...f,
+                            dias_semana: next.length ? next : null,
+                          };
+                        });
+                      }}
+                      className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                        sel
+                          ? "bg-emerald-600/40 text-emerald-100"
+                          : "bg-stone-800 text-cream/55"
+                      }`}
+                    >
+                      {d.l}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="mt-5 flex gap-2">

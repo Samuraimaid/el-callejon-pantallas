@@ -10,6 +10,10 @@ export const AMBIENT_UI_DEFAULTS = {
   banner_marquee_enabled: true,
   banner_marquee_speed_px_s: 42,
   pause_on_event: true,
+  /** Musica al iniciar el PC/servidor (default: no) */
+  autoplay_on_boot: false,
+  /** TVs #3–#6: imagenes fijas sin efectos de transicion */
+  publicidad_lite_mode: false,
 };
 
 /**

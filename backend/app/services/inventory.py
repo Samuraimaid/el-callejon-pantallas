@@ -82,8 +82,53 @@ SELECT_COLS = f"""
     COALESCE(es_ilimitado, FALSE) AS es_ilimitado,
     COALESCE(destacado, FALSE) AS destacado,
     numero_combo,
-    unidad, activo, orden_display
+    unidad, activo, orden_display,
+    dias_semana
 """
+
+
+def normalize_dias_semana(raw: Any) -> list[int] | None:
+    """
+    null / [] / omitido → None (todos los días).
+    Lista de 0–6 (domingo–sábado) como promos del menú board.
+    """
+    if raw is None:
+        return None
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s or s.lower() in ("null", "todos", "all", "none"):
+            return None
+        try:
+            import json as _json
+
+            raw = _json.loads(s)
+        except Exception:
+            return None
+    if not isinstance(raw, (list, tuple)):
+        return None
+    cleaned: list[int] = []
+    for d in raw:
+        try:
+            n = int(d)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= n <= 6 and n not in cleaned:
+            cleaned.append(n)
+    cleaned.sort()
+    return cleaned if cleaned else None
+
+
+def producto_visible_hoy(dias: list[int] | None, weekday: int | None = None) -> bool:
+    """True si el producto debe mostrarse hoy en pantallas."""
+    if dias is None or (isinstance(dias, list) and len(dias) == 0):
+        return True
+    if weekday is None:
+        from datetime import datetime
+
+        weekday = datetime.now().weekday()  # Python: 0=lunes … 6=domingo
+        # Convertir a JS getDay(): 0=domingo … 6=sábado
+        weekday = (weekday + 1) % 7
+    return int(weekday) in {int(d) for d in dias}
 
 
 def normalize_tipo(raw: str | None) -> str:
@@ -182,10 +227,14 @@ async def list_productos_compact(
     tipo: str | None = None,
     solo_activos: bool = True,
     para_pantalla: bool = False,
+    filtrar_dia: bool = False,
+    weekday: int | None = None,
 ) -> list[dict[str, Any]]:
     """
     Catálogo para cliente ligero.
-    para_pantalla=True → claves mínimas (id, c, n, pr, s, a, tp, inf).
+    para_pantalla=True → claves mínimas (id, c, n, pr, s, a, tp, inf, dias).
+    filtrar_dia=True → solo productos visibles hoy (dias_semana null = todos).
+    weekday: 0=dom … 6=sab (JS). Si None y filtrar_dia, usa hoy local.
     """
     sql = f"""
         SELECT {SELECT_COLS}
@@ -203,10 +252,12 @@ async def list_productos_compact(
     result = await db.execute(text(sql), params)
     rows = []
     for r in result.mappings().all():
-        if para_pantalla:
-            rows.append(_map_compact(r))
-        else:
-            rows.append(_map_producto(r))
+        item = _map_compact(r) if para_pantalla else _map_producto(r)
+        if filtrar_dia:
+            dias = item.get("dias") if para_pantalla else item.get("dias_semana")
+            if not producto_visible_hoy(dias, weekday):
+                continue
+        rows.append(item)
     return rows
 
 
@@ -223,6 +274,9 @@ async def update_producto(
     destacado: bool | None = None,
     numero_combo: int | None = None,
     clear_numero_combo: bool = False,
+    dias_semana: list[int] | None = None,
+    clear_dias_semana: bool = False,
+    set_dias_semana: bool = False,
 ) -> dict[str, Any]:
     """Actualiza producto y notifica pantallas de menú al instante."""
     prod = await get_producto(db, producto_id=producto_id)
@@ -255,6 +309,19 @@ async def update_producto(
             raise HTTPException(400, "numero_combo debe estar entre 1 y 12")
         sets.append("numero_combo = :numero_combo")
         params["numero_combo"] = int(numero_combo)
+
+    # Dias de pantalla: null = todos los dias
+    if clear_dias_semana:
+        sets.append("dias_semana = NULL")
+    elif set_dias_semana:
+        norm = normalize_dias_semana(dias_semana)
+        if norm is None:
+            sets.append("dias_semana = NULL")
+        else:
+            import json as _json
+
+            sets.append("dias_semana = CAST(:dias_semana AS jsonb)")
+            params["dias_semana"] = _json.dumps(norm)
 
     # Stock: si queda/se marca ilimitado, no se fuerza a cero en ventas
     will_unlimited = (
@@ -313,8 +380,11 @@ async def create_producto(
     numero_combo: int | None = None,
     descripcion: str | None = None,
     codigo: str | None = None,
+    dias_semana: list[int] | None = None,
 ) -> dict[str, Any]:
     """Crea producto, genera código si no se envía, notifica TVs (t=+)."""
+    import json as _json
+
     nombre = (nombre or "").strip()
     if not nombre or len(nombre) > 160:
         raise HTTPException(400, "nombre requerido (máx. 160 caracteres)")
@@ -336,6 +406,7 @@ async def create_producto(
 
     unidad = UNIDAD_BY_TIPO.get(tipo, "und")
     stock = 0 if es_ilimitado else int(stock_disponible)
+    dias_norm = normalize_dias_semana(dias_semana)
 
     result = await db.execute(
         text(
@@ -356,12 +427,13 @@ async def create_producto(
                 codigo, nombre, tipo, descripcion, precio_unitario,
                 stock_disponible, stock_minimo, es_ilimitado,
                 destacado, numero_combo,
-                unidad, activo, orden_display
+                unidad, activo, orden_display, dias_semana
             ) VALUES (
                 :codigo, :nombre, CAST(:tipo AS {TIPO_ENUM}), :descripcion, :precio,
                 :stock, 0, :es_ilimitado,
                 :destacado, :numero_combo,
-                :unidad, :activo, :orden
+                :unidad, :activo, :orden,
+                CASE WHEN :dias_json IS NULL THEN NULL ELSE CAST(:dias_json AS jsonb) END
             )
             RETURNING {SELECT_COLS}
             """
@@ -379,6 +451,7 @@ async def create_producto(
             "unidad": unidad,
             "activo": bool(activo),
             "orden": next_ord,
+            "dias_json": _json.dumps(dias_norm) if dias_norm is not None else None,
         },
     )
     row = result.mappings().first()
@@ -490,6 +563,13 @@ async def _broadcast_product(updated: dict[str, Any]) -> None:
         await ws_manager.publish(CHANNEL_ADMIN, z)
 
 
+def _dias_from_row(row: Any) -> list[int] | None:
+    try:
+        return normalize_dias_semana(row.get("dias_semana"))
+    except Exception:
+        return None
+
+
 def _map_compact(row: Any) -> dict[str, Any]:
     unlimited = bool(row.get("es_ilimitado"))
     out: dict[str, Any] = {
@@ -505,6 +585,9 @@ def _map_compact(row: Any) -> dict[str, Any]:
     }
     if row.get("numero_combo") is not None:
         out["num"] = int(row["numero_combo"])
+    dias = _dias_from_row(row)
+    # null = todos los días; array = solo esos días (0=dom … 6=sáb)
+    out["dias"] = dias
     return out
 
 
@@ -526,4 +609,6 @@ def _map_producto(row: Any) -> dict[str, Any]:
         "unidad": row["unidad"],
         "activo": bool(row["activo"]),
         "orden_display": int(row.get("orden_display") or 0),
+        "dias_semana": _dias_from_row(row),
+        "dias": _dias_from_row(row),
     }

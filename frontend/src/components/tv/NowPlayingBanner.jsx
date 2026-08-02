@@ -46,9 +46,10 @@ export default function NowPlayingBanner({ enabled = true }) {
     };
   }, []);
 
-  function showToast(cur, mySeq) {
+  function showToast(cur, mySeq, { force = false } = {}) {
     const key = trackKey(cur);
-    if (!key || key === lastTrack.current) return false;
+    if (!key) return false;
+    if (!force && key === lastTrack.current) return false;
     lastTrack.current = key;
 
     setNp({
@@ -88,18 +89,20 @@ export default function NowPlayingBanner({ enabled = true }) {
   async function handleNowPlaying(ev) {
     const mySeq = ++seq.current;
     const hintKey = trackKey(ev);
-    if (!hintKey || hintKey === lastTrack.current) return;
+    if (!hintKey) return;
 
-    const maxE = maxElapsedRef.current;
-    if (Number(ev.elapsed_s ?? 0) > maxE) return;
+    const maxE = Math.max(maxElapsedRef.current, 45);
+    const elapsedHint = Number(ev.elapsed_s ?? 0);
+    // Pistas muy viejas no muestran toast (salvo force del backend con elapsed bajo)
+    if (elapsedHint > maxE && hintKey === lastTrack.current) return;
 
     // Breve espera: el host asienta current tras next/auto-advance
-    await sleep(220);
+    await sleep(180);
     if (mySeq !== seq.current) return;
 
     // Hasta 3 lecturas de status
     for (let i = 0; i < 3; i++) {
-      if (i > 0) await sleep(280);
+      if (i > 0) await sleep(220);
       if (mySeq !== seq.current) return;
 
       const data = await fetchServerStatus();
@@ -113,7 +116,8 @@ export default function NowPlayingBanner({ enabled = true }) {
       if (!key) continue;
 
       const elapsed = Number(data.elapsed_s ?? 0);
-      if (elapsed <= maxE && key !== lastTrack.current) {
+      // Cambio de pista: mostrar aunque el poll lleve unos segundos
+      if (key !== lastTrack.current && elapsed <= maxE) {
         showToast(
           {
             ...cur,
@@ -127,7 +131,7 @@ export default function NowPlayingBanner({ enabled = true }) {
 
     // Fallback: confiar en el evento WS (evita perder el banner)
     if (mySeq !== seq.current) return;
-    if (hintKey !== lastTrack.current && ev.title) {
+    if (ev.title && hintKey !== lastTrack.current && elapsedHint <= maxE) {
       showToast(
         {
           title: ev.title,
@@ -159,11 +163,16 @@ export default function NowPlayingBanner({ enabled = true }) {
       if (!alive || !data?.ok) return;
       if (!data.playing || data.paused || !data.current?.title) return;
       const key = trackKey(data.current);
-      if (!key || key === lastTrack.current) return;
+      if (!key) return;
       const elapsed = Number(data.elapsed_s ?? 0);
-      // Solo toast si la pista acaba de empezar
-      if (elapsed > maxElapsedRef.current) {
-        // Recordar sin mostrar (evitar toast viejo al montar)
+      const maxE = Math.max(maxElapsedRef.current, 45);
+
+      // Misma pista ya anunciada
+      if (key === lastTrack.current) return;
+
+      // Pista nueva o TV recien conectada al inicio de cancion
+      if (elapsed > maxE) {
+        // Canción ya avanzada: recordar para no spam, sin toast
         lastTrack.current = key;
         return;
       }
@@ -171,9 +180,9 @@ export default function NowPlayingBanner({ enabled = true }) {
       showToast(data.current, mySeq);
     };
 
-    // Primer poll un poco después del mount
-    const t0 = window.setTimeout(tick, 1500);
-    const id = window.setInterval(tick, 5000);
+    // Primer poll pronto (banner al conectar la TV con musica ya sonando)
+    const t0 = window.setTimeout(tick, 800);
+    const id = window.setInterval(tick, 3500);
     return () => {
       alive = false;
       window.clearTimeout(t0);

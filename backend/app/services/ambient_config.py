@@ -31,6 +31,10 @@ DEFAULTS: dict[str, Any] = {
     "banner_marquee_speed_px_s": 42,
     # Pausar música en modo evento (espejo de host; también se controla ahí)
     "pause_on_event": True,
+    # Al encender el PC / levantar backend: iniciar musica sola (default NO)
+    "autoplay_on_boot": False,
+    # TVs #3–#6: imagenes fijas sin efectos de transicion (modo lite)
+    "publicidad_lite_mode": False,
     # Metadatos
     "updated_at": None,
 }
@@ -44,6 +48,8 @@ EDITABLE = {
     "banner_marquee_enabled",
     "banner_marquee_speed_px_s",
     "pause_on_event",
+    "autoplay_on_boot",
+    "publicidad_lite_mode",
 }
 
 
@@ -105,6 +111,12 @@ def sanitize(raw: dict[str, Any] | None) -> dict[str, Any]:
     )
     base["pause_on_event"] = _clamp_bool(
         raw.get("pause_on_event"), DEFAULTS["pause_on_event"]
+    )
+    base["autoplay_on_boot"] = _clamp_bool(
+        raw.get("autoplay_on_boot"), DEFAULTS["autoplay_on_boot"]
+    )
+    base["publicidad_lite_mode"] = _clamp_bool(
+        raw.get("publicidad_lite_mode"), DEFAULTS["publicidad_lite_mode"]
     )
     if raw.get("updated_at") is not None:
         base["updated_at"] = raw.get("updated_at")

@@ -787,7 +787,7 @@ export default function PublicidadAdminPanel({ onSaved }) {
 
               <Toggle
                 label="Efectos aleatorios"
-                hint="Ignora el efecto fijo; 1 de 10 al azar"
+                hint="Ignora el efecto fijo; 1 de 10 al azar. Si el sistema tiene modo lite global (Ambiente), las TVs #3–#6 no usan efectos."
                 on={!!campana.efectos_aleatorios}
                 onToggle={() =>
                   setCampana((c) => ({

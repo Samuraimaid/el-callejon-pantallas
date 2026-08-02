@@ -15,12 +15,14 @@ y controla este servicio (o VLC si está instalado).
 """
 from __future__ import annotations
 
+import atexit
 import argparse
 import hashlib
 import json
 import os
 import random
 import re
+import socket
 import subprocess
 import sys
 import threading
@@ -34,6 +36,10 @@ from pathlib import Path
 AUDIO_EXT = {".mp3", ".MP3", ".m4a", ".flac", ".wav", ".ogg", ".wma"}
 _INVALID_FS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 
+# Una sola instancia del host + limpieza de audio huerfano (VLC)
+_INSTANCE_MUTEX = None
+_INSTANCE_MUTEX_HANDLE = None
+
 
 def find_vlc() -> str | None:
     candidates = [
@@ -45,6 +51,208 @@ def find_vlc() -> str | None:
         if c and Path(c).is_file():
             return c
     return None
+
+
+def _win_taskkill_pid(pid: int) -> None:
+    if not pid or sys.platform != "win32":
+        return
+    try:
+        subprocess.run(
+            ["taskkill", "/F", "/T", "/PID", str(pid)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=8,
+            check=False,
+        )
+    except Exception:
+        pass
+
+
+def kill_orphan_vlc() -> int:
+    """Mata procesos VLC huerfanos (audio residual al cerrar python)."""
+    if sys.platform != "win32":
+        return 0
+    n = 0
+    try:
+        r = subprocess.run(
+            ["tasklist", "/FI", "IMAGENAME eq vlc.exe", "/FO", "CSV", "/NH"],
+            capture_output=True,
+            text=True,
+            timeout=8,
+            check=False,
+        )
+        if "vlc.exe" in (r.stdout or "").lower():
+            subprocess.run(
+                ["taskkill", "/F", "/IM", "vlc.exe", "/T"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+                check=False,
+            )
+            n = 1
+    except Exception:
+        pass
+    return n
+
+
+def kill_other_ambient_python(exclude_pid: int | None = None) -> int:
+    """Mata otras instancias de ambient_host_player.py (no la actual)."""
+    if sys.platform != "win32":
+        return 0
+    me = exclude_pid if exclude_pid is not None else os.getpid()
+    killed = 0
+    try:
+        # wmic deprecado: usar PowerShell CIM
+        ps = (
+            "Get-CimInstance Win32_Process -Filter \"Name='python.exe' OR Name='pythonw.exe' "
+            "OR Name='py.exe'\" | "
+            "Where-Object { $_.CommandLine -and $_.CommandLine -match 'ambient_host_player' } | "
+            "Select-Object -ExpandProperty ProcessId"
+        )
+        r = subprocess.run(
+            [
+                "powershell",
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-Command",
+                ps,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+            check=False,
+        )
+        for line in (r.stdout or "").splitlines():
+            line = line.strip()
+            if not line.isdigit():
+                continue
+            pid = int(line)
+            if pid == me:
+                continue
+            _win_taskkill_pid(pid)
+            killed += 1
+    except Exception:
+        pass
+    return killed
+
+
+def port_is_free(host: str, port: int) -> bool:
+    bind_host = "0.0.0.0" if host in ("0.0.0.0", "", "::") else host
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            s.bind((bind_host if bind_host != "0.0.0.0" else "0.0.0.0", port))
+        return True
+    except OSError:
+        return False
+
+
+def health_ok(port: int) -> bool:
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{port}/health", timeout=1.5
+        ) as r:
+            data = json.loads(r.read().decode("utf-8", errors="replace"))
+            return bool(data.get("ok"))
+    except Exception:
+        return False
+
+
+def acquire_single_instance(port: int) -> bool:
+    """
+    Mutex global Windows: solo un ambient_host_player.
+    Si ya hay instancia sana en :port, sale sin lanzar otra.
+    Si hay basura (puerto ocupado / python muerto + VLC vivo), limpia y toma el control.
+    """
+    global _INSTANCE_MUTEX_HANDLE
+    if sys.platform == "win32":
+        try:
+            import ctypes
+            from ctypes import wintypes
+
+            kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+            kernel32.CreateMutexW.argtypes = [
+                wintypes.LPVOID,
+                wintypes.BOOL,
+                wintypes.LPCWSTR,
+            ]
+            kernel32.CreateMutexW.restype = wintypes.HANDLE
+            name = f"Global\\ElCallejonAmbientHost-{port}"
+            handle = kernel32.CreateMutexW(None, False, name)
+            ERROR_ALREADY_EXISTS = 183
+            err = ctypes.get_last_error()
+            if handle and err == ERROR_ALREADY_EXISTS:
+                # Otra instancia (o zombie de mutex): si health OK, ceder
+                if health_ok(port):
+                    print(
+                        "  single-instance: ya hay ambient_host sano en :%s — saliendo"
+                        % port
+                    )
+                    return False
+                # Mutex vivo pero API muerta: limpiar huerfanos y reintentar
+                print("  single-instance: mutex ocupado sin health — limpiando huerfanos")
+                kill_other_ambient_python(os.getpid())
+                kill_orphan_vlc()
+                time.sleep(0.6)
+                if health_ok(port):
+                    print("  single-instance: host revivio — saliendo")
+                    return False
+                # Forzar: cerrar el handle no libera el otro proceso; matar pythons otra vez
+                kill_other_ambient_python(os.getpid())
+                kill_orphan_vlc()
+                time.sleep(0.4)
+            _INSTANCE_MUTEX_HANDLE = handle
+        except Exception as e:
+            print("  single-instance mutex warn:", e, file=sys.stderr)
+
+    if health_ok(port):
+        print("  single-instance: :%s ya responde — no duplicar" % port)
+        return False
+
+    if not port_is_free("0.0.0.0", port):
+        print("  single-instance: puerto %s ocupado sin health — matando huerfanos" % port)
+        kill_other_ambient_python(os.getpid())
+        kill_orphan_vlc()
+        time.sleep(0.8)
+        if health_ok(port):
+            return False
+        if not port_is_free("0.0.0.0", port):
+            # Ultimo intento agresivo
+            kill_other_ambient_python(os.getpid())
+            kill_orphan_vlc()
+            time.sleep(1.0)
+            if not port_is_free("0.0.0.0", port) and not health_ok(port):
+                print(
+                    "  ERROR: no se pudo liberar el puerto %s" % port,
+                    file=sys.stderr,
+                )
+                return False
+
+    # Limpieza preventiva de VLC huerfano de sesiones anteriores
+    kill_orphan_vlc()
+    return True
+
+
+def release_single_instance() -> None:
+    global _INSTANCE_MUTEX_HANDLE
+    try:
+        if PLAYER is not None:
+            try:
+                PLAYER.stop()
+            except Exception:
+                pass
+    except Exception:
+        pass
+    kill_orphan_vlc()
+    if sys.platform == "win32" and _INSTANCE_MUTEX_HANDLE:
+        try:
+            import ctypes
+
+            ctypes.WinDLL("kernel32").CloseHandle(_INSTANCE_MUTEX_HANDLE)
+        except Exception:
+            pass
+        _INSTANCE_MUTEX_HANDLE = None
 
 
 def find_winamp() -> str | None:
@@ -620,18 +828,51 @@ class AmbientPlayer:
         }
 
     def _kill_proc(self) -> None:
-        if self.proc and self.proc.poll() is None:
-            try:
-                self.proc.terminate()
-                self.proc.wait(timeout=2)
-            except Exception:
-                try:
-                    self.proc.kill()
-                except Exception:
-                    pass
+        """Detiene el motor de audio (VLC/PowerShell) y su arbol de procesos."""
+        proc = self.proc
         self.proc = None
+        if not proc:
+            return
+        pid = getattr(proc, "pid", None)
+        if pid and sys.platform == "win32":
+            _win_taskkill_pid(pid)
+            try:
+                proc.wait(timeout=1)
+            except Exception:
+                pass
+            return
+        try:
+            if proc.poll() is None:
+                proc.terminate()
+                proc.wait(timeout=2)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+
+    def shutdown(self) -> None:
+        """Cierre limpio: para musica y mata VLC huerfano."""
+        try:
+            self.stop()
+        except Exception:
+            pass
+        self._stop_flag.set()
+        self._kill_proc()
+        kill_orphan_vlc()
 
     def _start_process(self, path: str) -> subprocess.Popen:
+        # Antes de un nuevo audio, no dejar VLC viejo colgado
+        if sys.platform == "win32" and self.vlc:
+            # solo matar si no tenemos proc propio vivo (evita carrera)
+            if not self.proc or self.proc.poll() is not None:
+                pass  # _kill_proc ya limpio el propio; huerfanos globales en takeover
+        creation = 0
+        if sys.platform == "win32":
+            creation = subprocess.CREATE_NO_WINDOW
+            # Nuevo grupo de procesos para poder matar el arbol con taskkill /T
+            creation |= getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0x00000200)
+
         if self.vlc:
             return subprocess.Popen(
                 [
@@ -646,7 +887,7 @@ class AmbientPlayer:
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+                creationflags=creation,
             )
         # Windows Media Player via PowerShell (default audio device: BT or jack)
         if sys.platform == "win32":
@@ -680,7 +921,7 @@ $p.Close()
                 ],
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,
-                creationflags=subprocess.CREATE_NO_WINDOW,
+                creationflags=creation if sys.platform == "win32" else 0,
             )
         raise RuntimeError("No hay motor de audio (instale VLC)")
 
@@ -1082,6 +1323,53 @@ $p.Close()
             return self.status()
         return self.status()
 
+    def ensure_play(self, mode: str = "default") -> dict:
+        """
+        Arranca musica si no esta sonando.
+        Respeta pausa del usuario (no reanuda automatico).
+        mode: default|likes|all_shuffle|off
+        """
+        with self.lock:
+            if self.playing and not self.paused:
+                return self.status()
+            if self.paused:
+                st = self.status()
+                st["ensured"] = False
+                st["reason"] = "paused_by_user"
+                return st
+
+        mode = (mode or "default").strip().lower()
+        if mode in ("0", "off", "false", "no", "none"):
+            st = self.status()
+            st["ensured"] = False
+            st["reason"] = "autoplay_off"
+            return st
+
+        try:
+            if mode in ("default", "auto", "1", "true", "yes", ""):
+                if self.likes:
+                    st = self.play_user_playlist("likes", shuffle=True)
+                else:
+                    self.set_play_mode("all_shuffle")
+                    st = self.play(folder="")
+            elif mode in ("likes", "me_gusta", "favorites"):
+                st = self.play_user_playlist("likes", shuffle=True)
+                if not st.get("ok") and st.get("error") == "lista vacia":
+                    self.set_play_mode("all_shuffle")
+                    st = self.play(folder="")
+            elif mode in ("all_shuffle", "shuffle", "all"):
+                self.set_play_mode("all_shuffle")
+                st = self.play(folder="")
+            else:
+                self.set_play_mode("all_shuffle")
+                st = self.play(folder="")
+            if isinstance(st, dict):
+                st["ensured"] = True
+                st["ensure_mode"] = mode
+            return st
+        except Exception as e:
+            return {"ok": False, "error": str(e), "ensured": False}
+
 
 PLAYER: AmbientPlayer | None = None
 
@@ -1235,6 +1523,11 @@ class Handler(BaseHTTPRequestHandler):
                     shuffle=bool(body.get("shuffle", True)),
                 ),
             )
+        if path in ("/ensure-play", "/ensure_play", "/autoplay"):
+            return self._json(
+                200,
+                PLAYER.ensure_play(str(body.get("mode") or "default")),
+            )
         return self._json(404, {"ok": False, "error": "not found"})
 
 
@@ -1249,15 +1542,26 @@ def main() -> int:
     ap.add_argument("--host", default="0.0.0.0")
     ap.add_argument(
         "--autoplay",
-        default=os.environ.get("AMBIENT_AUTOPLAY", ""),
-        help="likes | all_shuffle | default (likes si hay, sino all_shuffle) | off",
+        # Default off: no musica sola (activar con --autoplay default o config autoplay_on_boot)
+        default=os.environ.get("AMBIENT_AUTOPLAY", "off"),
+        help="off | likes | all_shuffle | default (likes si hay, sino all_shuffle)",
     )
     args = ap.parse_args()
+
+    print("Ambient host player")
+    print("  pid   :", os.getpid())
+    print("  music :", args.music)
+    print("  port  :", args.port)
+
+    # 1) Instancia unica ANTES de reproducir (evita 2 canciones a la vez)
+    if not acquire_single_instance(args.port):
+        return 0
+
+    atexit.register(release_single_instance)
+
     root = Path(args.music)
     PLAYER = AmbientPlayer(root)
     info = PLAYER.scan()
-    print("Ambient host player")
-    print("  music :", root)
     print("  tracks:", info.get("count"))
     print("  folders:", ", ".join(info.get("folders") or []))
     print("  engine:", info.get("engine"))
@@ -1265,41 +1569,54 @@ def main() -> int:
     print("  listen: http://127.0.0.1:%s" % args.port)
     print("  jack/BT: use Windows default playback device")
 
-    # Arranque autonomo de musica
-    ap_mode = (args.autoplay or "").strip().lower()
-    if ap_mode and ap_mode not in ("0", "off", "false", "no", "none"):
+    # 2) Bind HTTP PRIMERO (si falla, no dejar VLC sonando huerfano)
+    try:
+        httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    except OSError as e:
+        print("  ERROR bind :%s — %s" % (args.port, e), file=sys.stderr)
+        kill_other_ambient_python(os.getpid())
+        kill_orphan_vlc()
+        time.sleep(0.5)
         try:
-            if ap_mode in ("default", "auto", "1", "true", "yes"):
-                if PLAYER.likes:
-                    st = PLAYER.play_user_playlist("likes", shuffle=True)
-                    print("  autoplay: Me gusta (shuffle)", st.get("playlist_len"))
-                else:
-                    st = PLAYER.set_play_mode("all_shuffle")
-                    st = PLAYER.play(folder="")
-                    print("  autoplay: shuffle todas las carpetas")
-            elif ap_mode in ("likes", "me_gusta", "favorites"):
-                st = PLAYER.play_user_playlist("likes", shuffle=True)
-                if not st.get("ok") and st.get("error") == "lista vacia":
-                    PLAYER.set_play_mode("all_shuffle")
-                    PLAYER.play(folder="")
-                    print("  autoplay: likes vacia -> shuffle todas")
-                else:
-                    print("  autoplay: Me gusta")
-            elif ap_mode in ("all_shuffle", "shuffle", "all"):
-                PLAYER.set_play_mode("all_shuffle")
-                PLAYER.play(folder="")
-                print("  autoplay: shuffle todas")
-            else:
-                print("  autoplay: modo desconocido", ap_mode)
+            httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+        except OSError as e2:
+            print("  ERROR bind reintento:", e2, file=sys.stderr)
+            release_single_instance()
+            return 1
+
+    # 3) Autoplay solo cuando el puerto ya es nuestro (default: off)
+    ap_mode = (args.autoplay if args.autoplay is not None else "off")
+    ap_mode = str(ap_mode).strip().lower() or "off"
+    if ap_mode not in ("0", "off", "false", "no", "none"):
+        try:
+            st = PLAYER.ensure_play(ap_mode)
+            print(
+                "  autoplay:",
+                ap_mode,
+                "playing=" + str(st.get("playing")),
+                "playlist_len=" + str(st.get("playlist_len")),
+            )
         except Exception as e:
             print("  autoplay error:", e, file=sys.stderr)
+    else:
+        print("  autoplay: off")
 
-    httpd = ThreadingHTTPServer((args.host, args.port), Handler)
+    print("  LISTO (una sola instancia)")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
         print("bye")
-        PLAYER.stop()
+    finally:
+        try:
+            httpd.server_close()
+        except Exception:
+            pass
+        if PLAYER is not None:
+            try:
+                PLAYER.shutdown()
+            except Exception:
+                pass
+        release_single_instance()
     return 0
 
 

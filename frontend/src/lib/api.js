@@ -234,6 +234,26 @@ export const api = {
 
   // —— Música ambiente (host Winamp-like → amplificador) ——
   ambientStatus: () => request("/api/ambient/status"),
+  ambientConfig: () => request("/api/ambient/config"),
+  ambientConfigUpdate: (body) =>
+    request("/api/ambient/config", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  /** Autoplay al iniciar el sistema (default false) */
+  ambientBootAutoplay: () => request("/api/ambient/boot-autoplay"),
+  ambientBootAutoplaySet: (autoplay_on_boot) =>
+    request("/api/ambient/boot-autoplay", {
+      method: "PUT",
+      body: JSON.stringify({ autoplay_on_boot: !!autoplay_on_boot }),
+    }),
+  /** Modo lite TV #3–#6 (imagenes fijas sin efectos) */
+  publicidadLite: () => request("/api/ambient/publicidad-lite"),
+  publicidadLiteSet: (lite) =>
+    request("/api/ambient/publicidad-lite", {
+      method: "PUT",
+      body: JSON.stringify({ publicidad_lite_mode: !!lite, lite_mode: !!lite }),
+    }),
   ambientLibrary: (folder) =>
     request(
       `/api/ambient/library${folder ? `?folder=${encodeURIComponent(folder)}` : ""}`
@@ -312,12 +332,6 @@ export const api = {
     }),
   ambientBroadcast: () =>
     request("/api/ambient/broadcast", { method: "POST", body: "{}" }),
-  ambientConfig: () => request("/api/ambient/config"),
-  ambientConfigUpdate: (body) =>
-    request("/api/ambient/config", {
-      method: "PUT",
-      body: JSON.stringify(body),
-    }),
 
   uploadVideosMulti: async (
     files,

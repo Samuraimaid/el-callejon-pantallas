@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
-import { setSession } from "../lib/auth";
 import { CACHE_KEYS, cacheGetData, cacheSet } from "../lib/tvCache";
 import { useWebSocket } from "./useWebSocket";
 
@@ -56,38 +55,45 @@ export function useMenuTv() {
 
   const reloadMenu = useCallback(async () => {
     try {
+      // Endpoint público: no requiere PIN/JWT (TVs no pueden loguearse)
       const data = await api.menu();
       const m = data.menu || { ...EMPTY_MENU };
       setMenu(m);
       persist(m);
       setFromCache(false);
+      setReady(true);
       return m;
     } catch (e) {
-      console.error(e);
-      // mantener cache
+      console.error("[useMenuTv] menu", e);
+      // mantener cache local si existe
+      if (cacheGetData(CACHE_KEYS.menu)?.menu) {
+        setFromCache(true);
+      }
+      setReady(true);
       return null;
     }
   }, [persist]);
 
   const bootstrap = useCallback(async () => {
-    try {
-      const login = await api.login("pantallas", "1234");
-      setSession(login.access_token, login.usuario);
-      await reloadMenu();
-    } catch (e) {
-      console.error(e);
-      // sin red: si hay cache, listo
-      if (cacheGetData(CACHE_KEYS.menu)?.menu) {
-        setFromCache(true);
-      }
-    } finally {
-      setReady(true);
-    }
+    // Antes se hacía login pantallas/1234: con auth solo-PIN y bloqueo
+    // de UA de TV eso fallaba y las pantallas 1–2 quedaban sin menú.
+    await reloadMenu();
   }, [reloadMenu]);
 
   useEffect(() => {
     bootstrap();
-  }, [bootstrap]);
+    // Reintento periódico por si el backend aún arrancaba
+    const t1 = window.setTimeout(() => {
+      reloadMenu();
+    }, 8000);
+    const t2 = window.setInterval(() => {
+      reloadMenu();
+    }, 60000);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearInterval(t2);
+    };
+  }, [bootstrap, reloadMenu]);
 
   const applyProductEvent = useCallback(
     (ev) => {

@@ -193,10 +193,50 @@ export default function MonitoreoPantallasPanel() {
   }, [contentStatus, liveTvId]);
 
   useWebSocket("admin,pantallas", (ev) => {
-    if (ev?.t === "hb" || ev?.t === "ctrl") load();
+    // ctrl: aplicar al instante sin round-trip load_from_db (evita parpadeo del switch)
+    if (ev?.t === "ctrl" && ev.tvs) {
+      setData((prev) => {
+        const pantallas = (prev.pantallas || EMPTY.pantallas).map((p) => {
+          const t = ev.tvs[String(p.id)];
+          if (!t) return p;
+          return {
+            ...p,
+            power_on: t.power_on !== false,
+            volumen: t.volumen ?? p.volumen,
+            modo_evento: !!t.modo_evento,
+          };
+        });
+        return {
+          ...prev,
+          master_power: ev.master_power !== false,
+          pantallas,
+        };
+      });
+      return;
+    }
+    // hb: refresco suave (no cada heartbeat forzar reload completo)
+    if (ev?.t === "hb") {
+      /* el interval de 5s ya recarga estado */
+    }
   });
 
   async function sendControl(body) {
+    // Optimistic UI: el switch no debe volver a "normal" por un reload viejo
+    if (body && typeof body.modo_evento === "boolean") {
+      const next = !!body.modo_evento;
+      setData((prev) => {
+        const pantallas = (prev.pantallas || EMPTY.pantallas).map((p) => {
+          if (body.all_tvs || body.tv_id == null || p.id === body.tv_id) {
+            return { ...p, modo_evento: next };
+          }
+          return p;
+        });
+        return { ...prev, pantallas };
+      });
+    }
+    if (body && typeof body.master_power === "boolean") {
+      setData((prev) => ({ ...prev, master_power: !!body.master_power }));
+    }
     try {
       const st = await api.controlPantallas(body);
       setData(st);
@@ -204,6 +244,8 @@ export default function MonitoreoPantallasPanel() {
       window.setTimeout(() => setMsg(""), 1200);
     } catch (e) {
       setErr(e.message || "Error de control");
+      // Re-sync real si fallo
+      load();
     }
   }
 

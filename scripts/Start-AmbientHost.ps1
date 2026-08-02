@@ -10,7 +10,8 @@
 #>
 param(
     [string]$ProjectRoot = "",
-    [string]$AutoPlay = "default",
+    # off = no musica al arrancar (default). default|likes|all_shuffle = autoplay
+    [string]$AutoPlay = "off",
     [int]$Port = 8788
 )
 
@@ -40,30 +41,69 @@ function Test-AmbientUp {
     }
 }
 
-function Test-AmbientPlaying {
+function Get-AmbientStatusObj {
     try {
-        $r = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/status" -TimeoutSec 3
-        return [bool]$r.playing
+        return Invoke-RestMethod -Uri "http://127.0.0.1:$Port/status" -TimeoutSec 3
     } catch {
-        return $false
+        return $null
     }
 }
 
+function Test-AmbientPlaying {
+    $r = Get-AmbientStatusObj
+    return [bool]($r -and $r.playing)
+}
+
+function Resolve-AutoPlayMode {
+    param([string]$Requested)
+    $m = if ($Requested) { $Requested.ToLower() } else { "off" }
+    if ($m -in @("auto", "config", "from-api", "from_api")) {
+        try {
+            $c = Invoke-RestMethod -Uri "http://127.0.0.1:8000/api/ambient/boot-autoplay" -TimeoutSec 3
+            if ($c.autoplay_on_boot -or $c.enabled) { return "default" }
+            return "off"
+        } catch {
+            return "off"
+        }
+    }
+    return $m
+}
+
 function Ensure-AutoPlay {
-    if (Test-AmbientPlaying) {
+    $mode = Resolve-AutoPlayMode $AutoPlay
+    if ($mode -in @("0", "off", "false", "no", "none", "")) {
+        ALog "Autoplay desactivado (no se inicia musica sola)"
+        return
+    }
+    $st = Get-AmbientStatusObj
+    if ($st -and $st.playing) {
         ALog "Musica ya sonando"
         return
     }
-    ALog "Forzando autoplay ($AutoPlay)..."
+    if ($st -and $st.paused) {
+        ALog "Host en pausa (usuario) - no se fuerza autoplay"
+        return
+    }
+    ALog "Forzando autoplay ($mode)..."
     try {
+        # Endpoint unificado del player (si existe)
+        try {
+            $body = (@{ mode = $mode } | ConvertTo-Json -Compress)
+            $r = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/ensure-play" -Method POST `
+                -ContentType "application/json" -Body $body -TimeoutSec 12
+            if ($r -and $r.ok -ne $false) {
+                ALog "Autoplay via /ensure-play"
+                return
+            }
+        } catch { }
+
         $likes = @()
         try {
             $pl = Invoke-RestMethod -Uri "http://127.0.0.1:$Port/playlists" -TimeoutSec 5
             $likes = @($pl.likes)
         } catch { }
 
-        $mode = $AutoPlay.ToLower()
-        if ($mode -in @("default", "auto", "1", "true", "yes")) {
+        if ($mode -in @("default", "1", "true", "yes")) {
             if ($likes.Count -gt 0) {
                 Invoke-RestMethod -Uri "http://127.0.0.1:$Port/playlist/play" -Method POST `
                     -ContentType "application/json" -Body '{"name":"likes","shuffle":true}' -TimeoutSec 10 | Out-Null
@@ -89,9 +129,9 @@ function Ensure-AutoPlay {
     }
 }
 
-# Ya esta el servicio?
+# Ya esta el servicio sano? -> NO lanzar otra ventana python
 if (Test-AmbientUp) {
-    ALog "ambient_host ya responde en :$Port"
+    ALog "ambient_host ya responde en :$Port (instancia unica - no se lanza otro)"
     Ensure-AutoPlay
     exit 0
 }
@@ -104,9 +144,37 @@ if (-not (Test-Path $Music)) {
     New-Item -ItemType Directory -Force -Path $Music | Out-Null
 }
 
-$py = Get-PythonExe
+# Puerto/API caidos pero VLC o python viejo siguen: limpiar antes de un solo relanzamiento
+try {
+    if (Get-Command Stop-AmbientOrphans -ErrorAction SilentlyContinue) {
+        $clean = Stop-AmbientOrphans -Port $Port
+        if ($clean.killed) {
+            ALog "Limpieza huerfanos: python=$($clean.python) vlc=$($clean.vlc)"
+        }
+    }
+} catch {
+    ALog "WARN limpieza huerfanos: $_"
+}
+
+# Tras limpiar, si otro proceso ya levanto el host, no duplicar
+Start-Sleep -Milliseconds 500
+if (Test-AmbientUp) {
+    ALog "ambient_host volvio tras limpieza - no se duplica"
+    Ensure-AutoPlay
+    exit 0
+}
+
+$py = $null
+try {
+    if (Get-Command Ensure-Python -ErrorAction SilentlyContinue) {
+        $py = Ensure-Python -Quiet
+    }
+} catch { }
 if (-not $py) {
-    ALog "ERROR: Python no encontrado. Instale Python 3 y reintente."
+    try { $py = Get-PythonExe } catch { $py = $null }
+}
+if (-not $py) {
+    ALog "ERROR: Python no encontrado. Instale Python 3 y reintente (o ejecute INSTALLAR.bat)."
     exit 1
 }
 
@@ -131,14 +199,15 @@ try {
     ALog "WARN: no se pudo verificar mutagen: $_"
 }
 
-ALog "Iniciando ambient_host_player.py (python=$py autoplay=$AutoPlay)"
+$bootMode = Resolve-AutoPlayMode $AutoPlay
+ALog "Iniciando UN solo ambient_host_player.py (python=$py autoplay=$bootMode)"
 
-# Lanzar proceso persistente (ventana minimizada, no se cierra al terminar este script)
+# Lanzar proceso persistente (ventana minimizada; el propio .py evita duplicados)
 $argList = @(
     $scriptPy,
     "--music", $Music,
     "--port", "$Port",
-    "--autoplay", $AutoPlay
+    "--autoplay", $bootMode
 )
 
 if ($py -eq "py") {

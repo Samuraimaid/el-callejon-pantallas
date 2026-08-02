@@ -4,6 +4,7 @@ import { CACHE_KEYS, cacheGetData, cacheSet } from "../../lib/tvCache";
 import { isTvEmbedMode } from "../../lib/tvEmbed";
 import { useContentSync } from "../../hooks/useContentSync";
 import { useTvRuntime } from "../../hooks/useTvRuntime";
+import { useWebSocket } from "../../hooks/useWebSocket";
 import ContentLoadingOverlay from "./ContentLoadingOverlay";
 import EventTemplateStage from "./EventTemplateStage";
 
@@ -32,9 +33,12 @@ export default function TvRuntimeShell({
   const { powerOn, volumen, modoEvento, standby, renderError, setRenderError } =
     useTvRuntime(tvId, { snapshotBuilder });
 
-  // Preview del Centro de Control: no competir por lease ni bloquear la vista
+  // Preview del Centro de Control: no competir por lease ni bloquear la vista.
+  // TVs #1–#2 son menú en vivo (API + WS); no deben bloquearse por cola de
+  // descarga de campañas (diseñada sobre todo para publicidad #3–#6).
+  const isMenuTv = tvId === 1 || tvId === 2;
   const sync = useContentSync(tvId, {
-    enabled: !embed && !standby && !modoEvento,
+    enabled: !embed && !standby && !modoEvento && !isMenuTv,
   });
 
   const [eventoItems, setEventoItems] = useState(
@@ -44,30 +48,83 @@ export default function TvRuntimeShell({
   const [eventTemplate, setEventTemplate] = useState(
     () => cacheGetData(CACHE_KEYS.eventoPlantilla) || null
   );
+  /** Incrementar para forzar recarga de plantilla/media (cambio cumpleaños→boda, etc.) */
+  const [evtRev, setEvtRev] = useState(0);
 
-  useEffect(() => {
-    (async () => {
+  const loadEventoContent = useCallback(async (hintTemplate = null) => {
+    // Plantilla: preferir payload WS si viene completo
+    if (hintTemplate && hintTemplate.id) {
+      setEventTemplate(hintTemplate);
+      cacheSet(CACHE_KEYS.eventoPlantilla, hintTemplate);
+    } else {
       try {
-        const res = await fetch(`${API_URL}/api/pantallas/evento/media`);
-        if (!res.ok) return;
+        const res = await fetch(
+          `${API_URL}/api/pantallas/evento/plantillas/activa?_=${Date.now()}`,
+          { cache: "no-store" }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const tpl = data.template || null;
+          setEventTemplate(tpl);
+          cacheSet(CACHE_KEYS.eventoPlantilla, tpl);
+        }
+      } catch {
+        /* cache */
+      }
+    }
+    // Media del evento (imagenes de la plantilla aplicada)
+    try {
+      const res = await fetch(
+        `${API_URL}/api/pantallas/evento/media?_=${Date.now()}`,
+        { cache: "no-store" }
+      );
+      if (res.ok) {
         const data = await res.json();
         const items = data.items || [];
         setEventoItems(items);
         cacheSet(CACHE_KEYS.evento, { items });
-      } catch {
-        /* cache */
+        setEvtIdx(0);
       }
-      try {
-        const res = await fetch(`${API_URL}/api/pantallas/evento/plantillas/activa`);
-        if (!res.ok) return;
-        const data = await res.json();
-        setEventTemplate(data.template || null);
-        cacheSet(CACHE_KEYS.eventoPlantilla, data.template || null);
-      } catch {
-        /* cache */
+    } catch {
+      /* cache */
+    }
+  }, []);
+
+  // Al entrar/salir de modo evento o al cambiar plantilla (evtRev)
+  useEffect(() => {
+    if (standby) return undefined;
+    if (!modoEvento && evtRev === 0) {
+      // primera carga en modo normal: no obligatorio, pero al activar evento sí
+    }
+    if (modoEvento || evtRev > 0) {
+      void loadEventoContent();
+    }
+  }, [modoEvento, evtRev, standby, loadEventoContent]);
+
+  // WebSocket: cambio de plantilla (cumpleaños → boda) sin salir de modo evento
+  useWebSocket(embed ? "" : "pantallas,all", (ev) => {
+    if (!ev?.t) return;
+    if (ev.t === "evt_tpl") {
+      // Actualizar al instante con el template del mensaje si viene
+      if (ev.template) {
+        setEventTemplate(ev.template);
+        cacheSet(CACHE_KEYS.eventoPlantilla, ev.template);
+      } else if (ev.template_id == null) {
+        setEventTemplate(null);
+        cacheSet(CACHE_KEYS.eventoPlantilla, null);
       }
-    })();
-  }, [modoEvento]);
+      setEvtIdx(0);
+      setEvtRev((n) => n + 1);
+      // Refetch media + plantilla (cache-bust)
+      void loadEventoContent(ev.template || null);
+      return;
+    }
+    // Media de evento subida o regenerada
+    if (ev.t === "evt_media" || ev.t === "evento_media") {
+      setEvtRev((n) => n + 1);
+      void loadEventoContent();
+    }
+  });
 
   useEffect(() => {
     if (!modoEvento || eventoItems.length <= 1) return undefined;
@@ -79,7 +136,13 @@ export default function TvRuntimeShell({
       setEvtIdx((i) => (i + 1) % eventoItems.length);
     }, ms);
     return () => window.clearInterval(id);
-  }, [modoEvento, eventoItems.length, eventTemplate?.duracion_slide_ms]);
+  }, [
+    modoEvento,
+    eventoItems.length,
+    eventTemplate?.duracion_slide_ms,
+    eventTemplate?.id,
+    evtRev,
+  ]);
 
   // Volumen en videos del evento
   useEffect(() => {
@@ -112,6 +175,7 @@ export default function TvRuntimeShell({
       const item = eventoItems[evtIdx % Math.max(1, eventoItems.length)];
       return (
         <EventTemplateStage
+          key={`evt-tpl-${eventTemplate.id || "x"}-${evtRev}`}
           template={eventTemplate}
           item={item}
           volumen={volumen}
@@ -132,6 +196,7 @@ export default function TvRuntimeShell({
     }
     return (
       <EventMediaStage
+        key={`evt-media-${item.id || item.media_url || evtIdx}-${evtRev}`}
         item={item}
         volumen={volumen}
         key={item.id || item.media_url}

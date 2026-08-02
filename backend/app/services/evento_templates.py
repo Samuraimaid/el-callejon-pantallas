@@ -296,15 +296,32 @@ async def apply_template(
         await pant_svc.apply_control(db, all_tvs=True, modo_evento=True)
 
     active = await get_active_template(db)
+    # Incluir revision para que las TVs invaliden cache aunque el id se repita
+    rev = int(__import__("time").time())
     msg = {
         "t": "evt_tpl",
         "template_id": tpl["id"],
         "template": active,
+        "rev": rev,
+        "force_reload": True,
+        "ts": rev,
     }
     await ws_manager.publish(CHANNEL_PANTALLAS, msg)
     await ws_manager.publish(CHANNEL_ADMIN, msg)
     await ws_manager.publish(CHANNEL_ALL, msg)
-    return {"ok": True, "template": active}
+    # Segundo aviso corto: media ya visible en API (algunas TVs se pierden el 1º)
+    try:
+        await ws_manager.publish(
+            CHANNEL_PANTALLAS,
+            {"t": "evt_media", "template_id": tpl["id"], "rev": rev, "ts": rev},
+        )
+        await ws_manager.publish(
+            CHANNEL_ALL,
+            {"t": "evt_media", "template_id": tpl["id"], "rev": rev, "ts": rev},
+        )
+    except Exception:
+        pass
+    return {"ok": True, "template": active, "rev": rev}
 
 
 async def clear_active_template(db: AsyncSession) -> dict[str, Any]:
@@ -312,6 +329,14 @@ async def clear_active_template(db: AsyncSession) -> dict[str, Any]:
         text("DELETE FROM config_sistema WHERE clave = 'evento_plantilla_activa'")
     )
     await db.commit()
-    await ws_manager.publish(CHANNEL_PANTALLAS, {"t": "evt_tpl", "template_id": None})
-    await ws_manager.publish(CHANNEL_ADMIN, {"t": "evt_tpl", "template_id": None})
+    msg = {
+        "t": "evt_tpl",
+        "template_id": None,
+        "template": None,
+        "force_reload": True,
+        "ts": int(__import__("time").time()),
+    }
+    await ws_manager.publish(CHANNEL_PANTALLAS, msg)
+    await ws_manager.publish(CHANNEL_ADMIN, msg)
+    await ws_manager.publish(CHANNEL_ALL, msg)
     return {"ok": True}

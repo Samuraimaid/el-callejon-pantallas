@@ -37,12 +37,42 @@ class UiConfigIn(BaseModel):
     banner_marquee_enabled: bool | None = None
     banner_marquee_speed_px_s: int | None = Field(default=None, ge=15, le=120)
     pause_on_event: bool | None = None
+    # Musica al iniciar el sistema (default false)
+    autoplay_on_boot: bool | None = None
+    # TVs publicidad #3–#6: sin efectos de transición
+    publicidad_lite_mode: bool | None = None
+
+
+class BootAutoplayIn(BaseModel):
+    """Solo flag de autoplay al arrancar el PC / backend."""
+
+    autoplay_on_boot: bool = False
+
+
+class PublicidadLiteIn(BaseModel):
+    """Modo lite en pantallas de publicidad TV #3–#6."""
+
+    publicidad_lite_mode: bool = False
+    # Alias corto
+    lite_mode: bool | None = None
 
 
 @router.get("/status")
 async def status() -> dict[str, Any]:
-    """Público: estado del host + config UI (duraciones de banners, marquesina…)."""
+    """Público: estado del host + config UI (duraciones de banners, marquesina…).
+
+    Autoplay al arrancar solo si autoplay_on_boot=true en config.
+    """
     return await amb.get_status()
+
+
+@router.post("/ensure-play")
+async def ensure_play(_user=Depends(require_caja)) -> dict[str, Any]:
+    """Fuerza autoplay en el host (Me gusta o shuffle), ignora autoplay_on_boot."""
+    st = await amb.ensure_playing_if_needed(force=True)
+    if st is None:
+        return {"ok": False, "error": "sin respuesta del host"}
+    return st
 
 
 @router.get("/config")
@@ -62,6 +92,80 @@ async def put_config(body: UiConfigIn, _user=Depends(require_caja)) -> dict[str,
         await amb.set_pause_on_event(bool(patch["pause_on_event"]))
     await amb_cfg.broadcast_ui_config(cfg)
     return {"ok": True, "config": cfg, **cfg}
+
+
+@router.get("/boot-autoplay")
+async def get_boot_autoplay() -> dict[str, Any]:
+    """
+    Público: si la música debe iniciar sola al encender el sistema.
+    Por defecto false (no autoplay).
+    """
+    cfg = amb_cfg.get_ui_config()
+    on = bool(cfg.get("autoplay_on_boot"))
+    return {
+        "ok": True,
+        "autoplay_on_boot": on,
+        "enabled": on,
+        "message": (
+            "La musica arrancara sola al iniciar el PC/servidor"
+            if on
+            else "La musica NO arranca sola; use Play en el panel o active autoplay_on_boot"
+        ),
+    }
+
+
+@router.put("/boot-autoplay")
+async def put_boot_autoplay(
+    body: BootAutoplayIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    """Activa/desactiva autoplay al iniciar el sistema (requiere sesion admin)."""
+    cfg = amb_cfg.update_ui_config({"autoplay_on_boot": bool(body.autoplay_on_boot)})
+    await amb_cfg.broadcast_ui_config(cfg)
+    on = bool(cfg.get("autoplay_on_boot"))
+    return {
+        "ok": True,
+        "autoplay_on_boot": on,
+        "enabled": on,
+        "config": cfg,
+        "message": "Autoplay al arranque ACTIVADO" if on else "Autoplay al arranque DESACTIVADO",
+    }
+
+
+@router.get("/publicidad-lite")
+async def get_publicidad_lite() -> dict[str, Any]:
+    """Público (TVs): modo lite = imagenes fijas sin efectos de transición."""
+    cfg = amb_cfg.get_ui_config()
+    lite = bool(cfg.get("publicidad_lite_mode"))
+    return {
+        "ok": True,
+        "publicidad_lite_mode": lite,
+        "lite_mode": lite,
+        "message": (
+            "TVs #3-#6 en modo lite (sin transiciones)"
+            if lite
+            else "TVs #3-#6 en modo completo (con efectos)"
+        ),
+    }
+
+
+@router.put("/publicidad-lite")
+async def put_publicidad_lite(
+    body: PublicidadLiteIn, _user=Depends(require_caja)
+) -> dict[str, Any]:
+    """Activa/desactiva modo lite en publicidad TV #3–#6."""
+    lite = body.publicidad_lite_mode
+    if body.lite_mode is not None:
+        lite = bool(body.lite_mode)
+    cfg = amb_cfg.update_ui_config({"publicidad_lite_mode": bool(lite)})
+    await amb_cfg.broadcast_ui_config(cfg)
+    on = bool(cfg.get("publicidad_lite_mode"))
+    return {
+        "ok": True,
+        "publicidad_lite_mode": on,
+        "lite_mode": on,
+        "config": cfg,
+        "message": "Modo lite ACTIVADO" if on else "Modo lite DESACTIVADO",
+    }
 
 
 @router.get("/library")

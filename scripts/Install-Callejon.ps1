@@ -87,53 +87,71 @@ function Show-Dep([string]$name, [bool]$ok, [string]$detail) {
     if ($ok) { Write-Ok "$name - $detail" } else { Write-Warn "$name - $detail" }
 }
 Show-Dep "PowerShell" $true $PSVersionTable.PSVersion.ToString()
-Show-Dep "winget" ([bool](Get-WingetPath)) $(if (Get-WingetPath) { "OK" } else { "no encontrado" })
+$wingetOk = [bool](Get-WingetPath)
+Show-Dep "winget" $wingetOk $(if ($wingetOk) { "OK" } else { "no encontrado (necesario para autoinstalar deps)" })
 
-if (Test-CommandExists "docker") {
-    $dv = (docker --version 2>$null | Out-String).Trim()
-    Show-Dep "Docker" $true $dv
-    docker compose version 2>$null | Out-Null
-    Show-Dep "Compose" ($LASTEXITCODE -eq 0) $(if ($LASTEXITCODE -eq 0) { "plugin OK" } else { "falta" })
-} else {
-    Show-Dep "Docker" $false "no instalado"
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+try {
+    if (Test-CommandExists "docker") {
+        $dv = (docker --version 2>$null | Out-String).Trim()
+        if (-not $dv) { $dv = "detectado" }
+        Show-Dep "Docker" $true $dv
+        docker compose version 2>$null | Out-Null
+        Show-Dep "Compose" ($LASTEXITCODE -eq 0) $(if ($LASTEXITCODE -eq 0) { "plugin OK" } else { "falta" })
+    } else {
+        Show-Dep "Docker" $false "no instalado (se instalara)"
+    }
+} catch {
+    Show-Dep "Docker" $false "error al detectar: $_"
+} finally {
+    $ErrorActionPreference = $prevEap
 }
 
-$py = Get-PythonExe
-Show-Dep "Python" ([bool]$py) $(if ($py) { "$py" } else { "se intentara instalar" })
+# Deteccion segura: el alias de Microsoft Store ya no tumba el instalador
+$pyProbe = $null
+try { $pyProbe = Get-PythonExe } catch { $pyProbe = $null }
+Show-Dep "Python" ([bool]$pyProbe) $(if ($pyProbe) { "$pyProbe" } else { "se instalara automaticamente" })
 
-# ---------- 3. Instalar Python si falta ----------
+# ---------- 3. Instalar Python si falta (a prueba de fallos) ----------
 Write-Step "3/9 Python + mutagen (musica / ID3)"
-if (-not $py) {
-    Write-Host "  Instalando Python 3.12 con winget..."
-    $null = Install-WingetPackage -Id "Python.Python.3.12" -Name "Python 3.12"
-    $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" +
-                [System.Environment]::GetEnvironmentVariable("Path", "User")
-    $py = Get-PythonExe
+$py = $null
+try {
+    $py = Ensure-Python
+} catch {
+    Write-Warn "Ensure-Python: $_"
+    try { $py = Get-PythonExe } catch { $py = $null }
 }
+
 if ($py) {
     Write-Ok "Python: $py"
     try {
-        if ($py -eq "py") {
-            & py -3 -m pip install --user mutagen -q 2>$null
-        } elseif ($py -eq "python") {
-            & python -m pip install --user mutagen -q 2>$null
+        if (Install-PythonPackage -PythonExe $py -Package "mutagen") {
+            Write-Ok "mutagen (metadatos MP3 + caratulas)"
         } else {
-            & $py -m pip install --user mutagen -q 2>$null
+            Write-Warn "mutagen no se pudo instalar (Scan+normalizar puede quedar limitado)"
         }
-        Write-Ok "mutagen (metadatos MP3 + caratulas)"
     } catch {
         Write-Warn "mutagen: $_ (Scan+normalizar puede quedar limitado)"
     }
 } else {
-    Write-Warn "Sin Python: la musica ambiente no arrancara hasta instalarlo"
+    Write-Warn "Sin Python: la musica ambiente no arrancara hasta instalarlo."
+    Write-Warn "El resto de la instalacion (Docker/POS) CONTINUA."
 }
 
 # ---------- 4. Docker ----------
 Write-Step "4/9 Docker Desktop"
 if (-not $SkipDockerInstall) {
-    if (-not (Test-CommandExists "docker")) {
+    $dockerPresent = $false
+    try { $dockerPresent = Test-CommandExists "docker" } catch { $dockerPresent = $false }
+    if (-not $dockerPresent) {
         Write-Host "  Instalando Docker Desktop (puede pedir reinicio)..."
-        $null = Install-WingetPackage -Id "Docker.DockerDesktop" -Name "Docker Desktop"
+        try {
+            $null = Install-WingetPackage -Id "Docker.DockerDesktop" -Name "Docker Desktop"
+        } catch {
+            Write-Warn "Instalacion Docker: $_"
+        }
+        Update-SessionPath
         Write-Warn "Si Docker se instalo ahora: complete WSL2, REINICIE Windows"
         Write-Warn "Luego ejecute de nuevo INSTALLAR.bat"
     }
@@ -197,30 +215,46 @@ foreach ($d in @("Music", "frontend\public\images", "frontend\public\images\cove
 
 # ---------- 7. Musica YA (antes/paralelo a Docker build) ----------
 Write-Step "7/9 Reproductor ambiente (musica host)"
+$ensurePs1Install = Join-Path $ScriptDir "Ensure-AmbientRunning.ps1"
 try {
-    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "default"
-    Write-Ok "ambient_host en :8788 con autoplay"
+    if (Test-Path $ensurePs1Install) {
+        & $ensurePs1Install -ProjectRoot $Root -AutoPlay "auto"
+    } else {
+        & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "auto"
+    }
+    Write-Ok "ambient_host ensure ejecutado (:8788 + watch)"
 } catch {
-    Write-Warn "Ambient: $_ (puede iniciar despues del reinicio)"
+    Write-Warn "Ambient: $_ (Register-Autostart / INICIAR_MUSICA.bat al final)"
 }
 
 # ---------- 8. Stack Docker ----------
 Write-Step "8/9 Contenedores (db + backend + frontend)"
 Push-Location $Root
+$composeOk = $false
+$prevComposeEap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
 try {
     if ($NoBuild) {
         docker compose up -d
     } else {
         docker compose up -d --build
     }
-    if ($LASTEXITCODE -ne 0) {
+    if ($LASTEXITCODE -eq 0) {
+        $composeOk = $true
+    } else {
         Write-Fail "docker compose fallo (codigo $LASTEXITCODE)"
         Write-Host "  Revise: docker compose logs" -ForegroundColor Yellow
         exit 1
     }
+} catch {
+    Write-Fail "docker compose error: $_"
+    Write-Host "  Revise: docker compose logs" -ForegroundColor Yellow
+    exit 1
 } finally {
+    $ErrorActionPreference = $prevComposeEap
     Pop-Location
 }
+if (-not $composeOk) { exit 1 }
 
 Write-Step "Esperando salud de servicios..."
 if (Wait-HttpOk -Url "http://127.0.0.1:8000/health" -TimeoutSec 300) {
@@ -246,7 +280,7 @@ if (Test-Path $migDir) {
 
 # Reconfirmar musica
 try {
-    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "default"
+    & (Join-Path $ScriptDir "Start-AmbientHost.ps1") -ProjectRoot $Root -AutoPlay "auto"
 } catch { }
 
 # ---------- 9. Hub + autostart + backup ----------
@@ -264,34 +298,19 @@ try {
 }
 
 if (-not $SkipAutostart) {
-    Write-Host "  Registrando arranque al encender el PC..."
+    Write-Host "  Registrando arranque al encender el PC (musica a prueba de fallos)..."
     try {
-        # Sin prompt interactivo: registrar directo
-        $bootPs1 = Join-Path $Root "scripts\Start-CallejonBoot.ps1"
-        $ambientPs1 = Join-Path $Root "scripts\Start-AmbientHost.ps1"
-        $taskBoot = "ElCallejon-Boot"
-        $taskAmbient = "ElCallejon-Ambient"
-
-        function Reg-Task($Name, $Argument, $Delay) {
-            $action = New-ScheduledTaskAction -Execute "powershell.exe" -Argument $Argument -WorkingDirectory $Root
-            $trigger = New-ScheduledTaskTrigger -AtLogOn
-            $trigger.Delay = $Delay
-            $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -StartWhenAvailable `
-                -ExecutionTimeLimit (New-TimeSpan -Hours 2) -RestartCount 3 -RestartInterval (New-TimeSpan -Minutes 1)
-            $principal = New-ScheduledTaskPrincipal -UserId $env:USERNAME -LogonType Interactive -RunLevel Highest
-            Register-ScheduledTask -TaskName $Name -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
+        $regPs1 = Join-Path $ScriptDir "Register-Autostart.ps1"
+        $regArgs = @{
+            ProjectRoot = $Root
+            StartNow    = $true
+            NoPrompt    = $true
         }
-
-        $argAmb = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$ambientPs1`" -ProjectRoot `"$Root`" -AutoPlay default"
-        Reg-Task $taskAmbient $argAmb "PT10S"
-
-        $nb = if ($NoBrowser) { " -NoBrowser" } else { "" }
-        $argBoot = "-NoProfile -ExecutionPolicy Bypass -WindowStyle Minimized -File `"$bootPs1`" -NoElevate -ProjectRoot `"$Root`"$nb"
-        Reg-Task $taskBoot $argBoot "PT20S"
-
-        Write-Ok "Autostart: $taskAmbient (T+10s musica) + $taskBoot (T+20s stack)"
+        if ($NoBrowser) { $regArgs["NoBrowser"] = $true }
+        & $regPs1 @regArgs
+        Write-Ok "Autostart: Watch + pulso 2 min + carpeta Inicio + Boot Docker"
     } catch {
-        Write-Warn "Autostart: $_ - ejecute manualmente Register-Autostart.bat"
+        Write-Warn "Autostart: $_ - ejecute INICIAR_MUSICA.bat o Register-Autostart.bat"
     }
 }
 

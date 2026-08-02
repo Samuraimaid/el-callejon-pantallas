@@ -49,7 +49,7 @@ export default function AmbientMiniPlayer() {
   const line = cur
     ? [cur.artist, cur.title].filter(Boolean).join(" — ")
     : st?.offline
-      ? "Ambiente offline"
+      ? "Ambiente reconectando…"
       : "Ambiente";
   const cover = cur?.cover_url || cur?.album_art || null;
   const liked = !!st?.liked;

@@ -43,6 +43,8 @@ class ProductoCreate(BaseModel):
         max_length=30,
         description="Opcional; si falta se genera PLT-… / CAF-… etc.",
     )
+    # 0=dom … 6=sab; null = todos los dias (como promos)
+    dias_semana: list[int] | None = None
 
 
 class ProductoPatch(BaseModel):
@@ -56,6 +58,9 @@ class ProductoPatch(BaseModel):
     # null explícito limpia el número; omitir = no cambiar
     numero_combo: int | None = Field(default=None, ge=1, le=12)
     clear_numero_combo: bool = False
+    # Dias de semana en pantallas: 0=dom … 6=sab; null/[] = todos
+    dias_semana: list[int] | None = None
+    clear_dias_semana: bool = False
 
 
 @router.post("")
@@ -83,6 +88,7 @@ async def crear(
         numero_combo=body.numero_combo,
         descripcion=body.descripcion,
         codigo=body.codigo,
+        dias_semana=body.dias_semana,
     )
 
 
@@ -108,14 +114,17 @@ async def listar(
 @router.get("/menu")
 async def menu_agrupado(
     db: AsyncSession = Depends(get_db),
-    _user: CurrentUser = Depends(require_operacion),
 ):
     """
     Menú agrupado para TVs #1 (comidas) y #2 (complementos).
-    Precios y stock resueltos en servidor.
+
+    Público (sin JWT): las Smart TVs no pueden hacer login PIN
+    (bloqueado en /api/auth) y deben leer el menú del día.
+    Mutaciones siguen protegidas en POST/PATCH/DELETE.
     """
+    # Solo productos activos y visibles HOY (dias_semana null = todos los dias)
     all_p = await inventory.list_productos_compact(
-        db, solo_activos=True, para_pantalla=True
+        db, solo_activos=True, para_pantalla=True, filtrar_dia=True
     )
     groups = {
         "platillos": [],
@@ -139,9 +148,15 @@ async def menu_agrupado(
             groups["licores"].append(p)
         elif tp == "cafe":
             groups["cafes"].append(p)
+    from datetime import datetime
+
+    # weekday JS: 0=dom … 6=sab
+    js_day = (datetime.now().weekday() + 1) % 7
     return {
         "menu": groups,
         "conteos": {k: len(v) for k, v in groups.items()},
+        "weekday": js_day,
+        "filtro_dia": True,
     }
 
 
@@ -161,7 +176,10 @@ async def actualizar(
     db: AsyncSession = Depends(get_db),
     _user: Annotated[CurrentUser, Depends(require_caja)] = ...,
 ):
-    """Cambia precio, stock o activo → push WS inmediato a TVs de menú."""
+    """Cambia precio, stock, dias de pantalla o activo → push WS a TVs de menú."""
+    # Detectar si el cliente envio dias_semana (incluso null = todos los dias)
+    raw = body.model_dump(exclude_unset=True)
+    set_dias = "dias_semana" in raw or body.clear_dias_semana
     return await inventory.update_producto(
         db,
         producto_id,
@@ -174,6 +192,9 @@ async def actualizar(
         destacado=body.destacado,
         numero_combo=body.numero_combo,
         clear_numero_combo=body.clear_numero_combo,
+        dias_semana=body.dias_semana,
+        clear_dias_semana=body.clear_dias_semana,
+        set_dias_semana=set_dias and not body.clear_dias_semana,
     )
 
 

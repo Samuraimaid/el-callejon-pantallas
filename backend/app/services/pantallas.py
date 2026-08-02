@@ -80,6 +80,18 @@ def _compute_estado(tv: dict[str, Any]) -> str:
     return "online"
 
 
+def _estado_for_db(estado: str) -> str:
+    """
+    pantallas_estado.estado CHECK no incluye 'off' (solo online/weak/offline/error/standby).
+    Mapear 'off' -> 'offline' evita que el UPDATE falle y revierta modo_evento.
+    """
+    e = str(estado or "offline")
+    if e == "off":
+        return "offline"
+    allowed = {"online", "weak", "offline", "error", "standby"}
+    return e if e in allowed else "offline"
+
+
 def _apply_idle_off(tv: dict[str, Any]) -> None:
     """
     Si lleva >3 min sin heartbeat: modo off, limpia snapshot/thumb
@@ -276,6 +288,7 @@ async def apply_control(
         if modo_evento is not None:
             tv["modo_evento"] = bool(modo_evento)
         tv["estado"] = _compute_estado(tv)
+        # Persistir control sin 'estado' invalido: el CHECK de BD no acepta 'off'
         try:
             await db.execute(
                 text(
@@ -291,14 +304,39 @@ async def apply_control(
                 ),
                 {
                     "id": i,
-                    "power_on": tv["power_on"],
-                    "volumen": tv["volumen"],
-                    "modo_evento": tv["modo_evento"],
-                    "estado": tv["estado"],
+                    "power_on": bool(tv["power_on"]),
+                    "volumen": int(tv["volumen"]),
+                    "modo_evento": bool(tv["modo_evento"]),
+                    "estado": _estado_for_db(tv["estado"]),
                 },
             )
         except Exception:
-            pass
+            # No abortar la transaccion entera: reintentar solo flags de control
+            try:
+                await db.rollback()
+                await db.execute(
+                    text(
+                        """
+                        UPDATE pantallas_estado
+                        SET power_on = :power_on,
+                            volumen = :volumen,
+                            modo_evento = :modo_evento,
+                            actualizado_en = NOW()
+                        WHERE id = :id
+                        """
+                    ),
+                    {
+                        "id": i,
+                        "power_on": bool(tv["power_on"]),
+                        "volumen": int(tv["volumen"]),
+                        "modo_evento": bool(tv["modo_evento"]),
+                    },
+                )
+            except Exception:
+                try:
+                    await db.rollback()
+                except Exception:
+                    pass
 
     # Música ambiente: pausa opcional al entrar en modo evento
     if modo_evento is not None:
@@ -312,7 +350,38 @@ async def apply_control(
     try:
         await db.commit()
     except Exception:
-        await db.rollback()
+        try:
+            await db.rollback()
+        except Exception:
+            pass
+        # Reintento final: solo modo_evento / power / volumen (sin estado)
+        try:
+            for i in targets:
+                tv = _state[i]
+                await db.execute(
+                    text(
+                        """
+                        UPDATE pantallas_estado
+                        SET power_on = :power_on,
+                            volumen = :volumen,
+                            modo_evento = :modo_evento,
+                            actualizado_en = NOW()
+                        WHERE id = :id
+                        """
+                    ),
+                    {
+                        "id": i,
+                        "power_on": bool(tv["power_on"]),
+                        "volumen": int(tv["volumen"]),
+                        "modo_evento": bool(tv["modo_evento"]),
+                    },
+                )
+            await db.commit()
+        except Exception:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
 
     payload = {
         "t": "ctrl",
@@ -321,7 +390,7 @@ async def apply_control(
             str(i): {
                 "power_on": bool(_state[i]["power_on"] and _master_power),
                 "volumen": _state[i]["volumen"],
-                "modo_evento": _state[i]["modo_evento"],
+                "modo_evento": bool(_state[i]["modo_evento"]),
             }
             for i in range(1, 7)
         },
