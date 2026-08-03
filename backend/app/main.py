@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.routers import (
     ambient,
     auth,
+    backup,
     config_pantallas,
     content,
     health,
@@ -44,6 +45,8 @@ async def _ambient_poll_loop() -> None:
     # Autoplay al arrancar solo si autoplay_on_boot=true (default: no)
     await asyncio.sleep(3.0)
     try:
+        if getattr(amb, "_autoplay_on_boot_enabled", lambda: False)():
+            amb._need_autoplay = True
         await amb.ensure_playing_if_needed(force=False)
     except Exception:
         pass
@@ -123,6 +126,7 @@ app.include_router(config_pantallas.router)
 app.include_router(pantallas.router)
 app.include_router(content.router)
 app.include_router(ambient.router)
+app.include_router(backup.router)
 
 
 def _detect_lan_ips() -> list[str]:

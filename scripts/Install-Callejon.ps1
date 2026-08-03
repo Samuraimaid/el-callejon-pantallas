@@ -314,8 +314,26 @@ if (-not $SkipAutostart) {
     }
 }
 
+# Docker Desktop auto-update 16:00 (antes del apagado tipico 17:00)
+try {
+    $regDock = Join-Path $Root "scripts\Register-DockerUpdate.ps1"
+    if (Test-Path $regDock) {
+        & $regDock -NoElevate -ProjectRoot $Root -Time "16:00"
+        Write-Ok "Docker Desktop: revision/actualizacion diaria 16:00"
+    }
+} catch {
+    Write-Warn "Docker update schedule: $_"
+}
+
 if (-not $SkipWeeklyBackup) {
     try {
+        # Diario 15:30 (configurable en panel Respaldos /api/backup/config)
+        $regDaily = Join-Path $Root "scripts\Register-DailyBackup.ps1"
+        if (Test-Path $regDaily) {
+            & $regDaily -NoElevate -ProjectRoot $Root -FromConfig
+            Write-Ok "Backup diario + worker API (default 15:30, panel Respaldos)"
+        }
+        # Snapshot limpio semanal (opcional, domingo 03:00)
         $snapPs1 = Join-Path $Root "scripts\Snapshot-Callejon.ps1"
         $dest = Join-Path $Root "snapshots\weekly"
         New-Item -ItemType Directory -Force -Path $dest | Out-Null
@@ -325,9 +343,9 @@ if (-not $SkipWeeklyBackup) {
         $settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries -StartWhenAvailable
         $principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" -LogonType ServiceAccount -RunLevel Highest
         Register-ScheduledTask -TaskName "ElCallejon-WeeklySnapshot" -Action $action -Trigger $trigger -Settings $settings -Principal $principal -Force | Out-Null
-        Write-Ok "Backup semanal: domingo 03:00 -> snapshots\weekly"
+        Write-Ok "Snapshot semanal limpio: domingo 03:00 -> snapshots\weekly"
     } catch {
-        Write-Warn "Backup semanal: $_"
+        Write-Warn "Backup: $_"
     }
 }
 

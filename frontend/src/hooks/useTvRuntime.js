@@ -22,6 +22,21 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
   const [renderError, setRenderError] = useState(null);
   const pingStart = useRef(0);
   const audioRef = useRef(null);
+  // Estado actual para heartbeat sin recrear el interval
+  const stateRef = useRef({
+    powerOn: true,
+    masterPower: true,
+    volumen: 25,
+    modoEvento: false,
+    renderError: null,
+  });
+  stateRef.current = {
+    powerOn,
+    masterPower,
+    volumen,
+    modoEvento,
+    renderError,
+  };
 
   // Audio silencioso para controlar "volumen" HTML5 (gain)
   useEffect(() => {
@@ -133,18 +148,19 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
       } catch (e) {
         snap = { err: String(e?.message || e) };
       }
+      const st = stateRef.current;
       const body = {
         latencia_ms: undefined,
         snapshot: {
           ...snap,
           path: window.location.pathname,
-          power_on: powerOn && masterPower,
-          volumen,
-          modo_evento: modoEvento,
+          power_on: st.powerOn && st.masterPower,
+          volumen: st.volumen,
+          modo_evento: st.modoEvento,
           ts: Date.now(),
         },
-        error_msg: renderError || undefined,
-        clear_error: !renderError,
+        error_msg: st.renderError || undefined,
+        clear_error: !st.renderError,
       };
       try {
         const tSend = performance.now();
@@ -196,21 +212,16 @@ export function useTvRuntime(tvId, { snapshotBuilder } = {}) {
       }
     };
 
+    // Refs para no recrear el interval cada vez que cambia power/evento
+    // (evita tormentas de heartbeats al togglear modo evento)
     beat();
     const id = window.setInterval(beat, 4000);
     return () => {
       alive = false;
       window.clearInterval(id);
     };
-  }, [
-    tvId,
-    powerOn,
-    masterPower,
-    volumen,
-    modoEvento,
-    renderError,
-    snapshotBuilder,
-  ]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshot/control via closure + server control re-sync
+  }, [tvId, embed, snapshotBuilder]);
 
   // Captura errores globales (no sustituye ErrorBoundary de React)
   useEffect(() => {

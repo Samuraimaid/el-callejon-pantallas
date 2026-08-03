@@ -106,16 +106,14 @@ async def ensure_playing_if_needed(
         _need_autoplay = False
         return st
 
+    # Sin force: solo si el flag de arranque/recuperacion esta activo
+    # (no re-lanzar musica cada poll si el operador la detuvo a mano)
     if not force:
         if not boot_ok:
             _need_autoplay = False
             return st
         if not _need_autoplay:
-            # Primera oportunidad tras boot con flag activo
-            _need_autoplay = True
-
-    if not force and not _need_autoplay:
-        return st
+            return st
 
     now = time.time()
     if not force and (now - _last_ensure_ts) < _ENSURE_COOLDOWN_S:

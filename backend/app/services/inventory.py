@@ -120,7 +120,16 @@ def normalize_dias_semana(raw: Any) -> list[int] | None:
 
 def producto_visible_hoy(dias: list[int] | None, weekday: int | None = None) -> bool:
     """True si el producto debe mostrarse hoy en pantallas."""
-    if dias is None or (isinstance(dias, list) and len(dias) == 0):
+    if dias is None:
+        return True
+    if isinstance(dias, list) and len(dias) == 0:
+        return True
+    try:
+        dias_set = {int(d) for d in dias}
+    except (TypeError, ValueError):
+        return True
+    # 7 dias = todos
+    if len(dias_set) >= 7:
         return True
     if weekday is None:
         from datetime import datetime
@@ -128,7 +137,7 @@ def producto_visible_hoy(dias: list[int] | None, weekday: int | None = None) -> 
         weekday = datetime.now().weekday()  # Python: 0=lunes … 6=domingo
         # Convertir a JS getDay(): 0=domingo … 6=sábado
         weekday = (weekday + 1) % 7
-    return int(weekday) in {int(d) for d in dias}
+    return int(weekday) in dias_set
 
 
 def normalize_tipo(raw: str | None) -> str:

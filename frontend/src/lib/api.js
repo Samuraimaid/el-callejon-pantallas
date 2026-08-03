@@ -333,6 +333,28 @@ export const api = {
   ambientBroadcast: () =>
     request("/api/ambient/broadcast", { method: "POST", body: "{}" }),
 
+  // —— Respaldos automáticos ——
+  backupConfig: () => request("/api/backup/config"),
+  backupConfigUpdate: (body) =>
+    request("/api/backup/config", {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  backupStatus: () => request("/api/backup/status"),
+  backupHistory: (limit = 20) =>
+    request(`/api/backup/history?limit=${limit}`),
+  backupRun: (body = {}) =>
+    request("/api/backup/run", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  backupRunContent: () =>
+    request("/api/backup/run/content", { method: "POST", body: "{}" }),
+  backupRunFull: () =>
+    request("/api/backup/run/full", { method: "POST", body: "{}" }),
+  backupRunMigrate: () =>
+    request("/api/backup/run/migrate", { method: "POST", body: "{}" }),
+
   uploadVideosMulti: async (
     files,
     { zonas = ["TV3"], perfil = "restaurante_diario", append = true, modo_evento = "" } = {}

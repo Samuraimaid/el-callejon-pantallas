@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import GestionarMenuPanel from "../components/GestionarMenuPanel";
 import Logo from "../components/Logo";
 import MenuBoardConfigPanel from "../components/MenuBoardConfigPanel";
+import BackupPanel from "../components/BackupPanel";
 import MonitoreoPantallasPanel from "../components/MonitoreoPantallasPanel";
 import PublicidadAdminPanel from "../components/PublicidadAdminPanel";
 import AmbientMusicPanel from "../components/AmbientMusicPanel";
@@ -16,6 +17,7 @@ const TABS = [
   { id: "board", label: "Diseño TV1–2", short: "Diseño", icon: "🖼️" },
   { id: "publicidad", label: "Campañas", short: "Ads", icon: "📺" },
   { id: "ambient", label: "Ambiente", short: "Música", icon: "♪" },
+  { id: "backup", label: "Respaldos", short: "Backup", icon: "💾" },
 ];
 
 /**
@@ -158,6 +160,7 @@ export default function ControlCenterPage() {
         {tab === "board" && <MenuBoardConfigPanel />}
         {tab === "publicidad" && <PublicidadAdminPanel />}
         {tab === "ambient" && <AmbientMusicPanel />}
+        {tab === "backup" && <BackupPanel />}
       </main>
     </div>
   );
