@@ -32,8 +32,10 @@ export function sortMenuItems(list) {
 
 export function displayNumber(p, fallbackIndex) {
   const n = p?.num ?? p?.numero_combo;
-  if (n != null && n !== "") return Number(n);
-  return fallbackIndex + 1;
+  const num =
+    n != null && n !== "" ? Number(n) : Number(fallbackIndex) + 1;
+  // Prefijo # para que no se confunda con cantidad (ej. "#4" no "4 platos")
+  return `#${num}`;
 }
 
 /** Contorno de texto legible sobre fotos claras/oscuras */
