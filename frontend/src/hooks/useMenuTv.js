@@ -33,6 +33,7 @@ function mergeProduct(p, ev) {
     dst: ev.dst !== undefined ? ev.dst : p.dst,
     num: ev.num !== undefined ? ev.num : p.num,
     img: ev.u ?? p.img,
+    imgCard: ev.uc ?? p.imgCard,
     imgV: ev.v ?? p.imgV,
   };
 }

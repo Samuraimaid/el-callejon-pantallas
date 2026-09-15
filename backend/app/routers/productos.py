@@ -280,6 +280,7 @@ async def subir_imagen(
         codigo=prod["codigo"],
         url=meta["url"],
         version=meta["version"],
+        url_card=meta.get("url_card"),
     )
     await ws_manager.publish(CHANNEL_PANTALLAS, payload)
     await ws_manager.publish(CHANNEL_ADMIN, payload)
@@ -288,7 +289,21 @@ async def subir_imagen(
         "ok": True,
         "producto_id": prod["id"],
         "codigo": prod["codigo"],
+        "url": meta["url"],
+        "url_card": meta.get("url_card"),
         "imagen_url": meta["url"],
         "imagen_url_card": meta.get("url_card"),
         "version": meta["version"],
+        "v": meta["version"],
     }
+
+@router.post("/sincronizar")
+async def sincronizar_pantallas(_user: CurrentUser = Depends(require_caja)):
+    """Emite una señal WebSocket a todas las TVs para recargar y sincronizar el menú de inmediato."""
+    import time
+
+    ver = int(time.time())
+    payload = {"t": "p_reload", "v": ver}
+    await ws_manager.publish(CHANNEL_PANTALLAS, payload)
+    await ws_manager.publish(CHANNEL_ADMIN, payload)
+    return {"ok": True, "v": ver, "mensaje": "Pantallas sincronizadas"}

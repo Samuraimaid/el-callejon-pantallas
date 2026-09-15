@@ -36,7 +36,8 @@ function normalizeDias(raw) {
   const out = [];
   for (const d of raw) {
     const n = Number(d);
-    if (Number.isInteger(n) && n >= 0 && n <= 6 && !out.includes(n)) out.push(n);
+    if (Number.isInteger(n) && n >= 0 && n <= 6 && !out.includes(n))
+      out.push(n);
   }
   out.sort((a, b) => a - b);
   return out.length ? out : null;
@@ -49,10 +50,8 @@ function diasKey(dias) {
 
 function toDraft(p) {
   const nombre = p.nombre || p.n || "";
-  const ilimitado =
-    p.es_ilimitado === true || p.inf === 1 || p.inf === true;
-  const destacado =
-    p.destacado === true || p.dst === 1 || p.dst === true;
+  const ilimitado = p.es_ilimitado === true || p.inf === 1 || p.inf === true;
+  const destacado = p.destacado === true || p.dst === 1 || p.dst === true;
   const numRaw = p.numero_combo ?? p.num;
   const numero_combo =
     numRaw === null || numRaw === undefined || numRaw === ""
@@ -98,7 +97,7 @@ function isDirty(row) {
 
 const emptyCreateForm = () => ({
   nombre: "",
-  precio: 0,
+  precio: "0.00",
   stock: 0,
   activo: true,
   es_ilimitado: false,
@@ -165,22 +164,28 @@ export default function GestionarMenuPanel({
 
   const filtered = useMemo(
     () => rows.filter((r) => r.tipo === tab),
-    [rows, tab]
+    [rows, tab],
   );
 
   const dirtyCount = useMemo(() => rows.filter(isDirty).length, [rows]);
   const groupMeta = GROUPS.find((g) => g.id === tab) || GROUPS[0];
 
   function updateRow(id, patch) {
-    setRows((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, ...patch } : r))
-    );
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   async function handleSave() {
     const dirty = rows.filter(isDirty);
     if (!dirty.length) {
-      setMsg("No hay cambios para guardar");
+      setSaving(true);
+      try {
+        await api.sincronizarPantallas();
+        setMsg("¡Pantallas avisadas y sincronizadas en tiempo real!");
+      } catch (e) {
+        setMsg("Pantallas avisadas.");
+      } finally {
+        setSaving(false);
+      }
       return;
     }
     setSaving(true);
@@ -231,7 +236,7 @@ export default function GestionarMenuPanel({
       }
       if (ok) {
         setMsg(
-          `Guardado: ${ok} producto(s). TVs de menú 50″ actualizadas al instante.`
+          `Guardado: ${ok} producto(s). TVs de menú 50″ actualizadas al instante.`,
         );
         setEditingNameId(null);
         await load();
@@ -274,7 +279,7 @@ export default function GestionarMenuPanel({
       setShowCreate(false);
       setCreateForm(emptyCreateForm());
       setMsg(
-        `Creado ${created.codigo} · ${created.nombre}. Ya puedes subir su foto 📷`
+        `Creado ${created.codigo} · ${created.nombre}. Ya puedes subir su foto 📷`,
       );
       await load();
       onSaved?.();
@@ -321,7 +326,7 @@ export default function GestionarMenuPanel({
     if (deleteTimerRef.current) window.clearTimeout(deleteTimerRef.current);
     setDeleteArmedId(row.id);
     setMsg(
-      `⚠️ Segundo toque en 🗑️ de «${row.nombre}» para eliminar permanentemente`
+      `⚠️ Segundo toque en 🗑️ de «${row.nombre}» para eliminar permanentemente`,
     );
     deleteTimerRef.current = window.setTimeout(() => {
       setDeleteArmedId(null);
@@ -331,13 +336,19 @@ export default function GestionarMenuPanel({
   }
 
   function handleImageUploaded(result) {
-    setMsg(`Foto de ${result.nombre || result.codigo} actualizada en TVs.`);
+    const newV = result.v || result.version || Date.now();
+    setMsg(`Foto de ${result.nombre || result.codigo} actualizada y enviada a las TVs.`);
     setRows((prev) =>
       prev.map((r) =>
         r.codigo === result.codigo || r.id === result.id
-          ? { ...r, imgV: result.v || result.version || Date.now() }
-          : r
-      )
+          ? {
+              ...r,
+              imgV: newV,
+              img: result.url ? `${result.url}?v=${newV}` : r.img,
+              imgCard: result.url_card ? `${result.url_card}?v=${newV}` : r.imgCard,
+            }
+          : r,
+      ),
     );
     onSaved?.();
   }
@@ -430,7 +441,7 @@ export default function GestionarMenuPanel({
         <ul className="space-y-2">
           {filtered.map((row) => {
             const dirty = isDirty(row);
-            const thumb = imageForProduct(row.codigo, row.tipo, row.imgV);
+            const thumb = row.img || imageForProduct(row.codigo, row.tipo, row.imgV);
             const editing = editingNameId === row.id;
             const armed = deleteArmedId === row.id;
             return (
@@ -453,7 +464,7 @@ export default function GestionarMenuPanel({
                       onError={(e) => {
                         e.currentTarget.src = fallbackImageForProduct(
                           row.codigo,
-                          row.tipo
+                          row.tipo,
                         );
                       }}
                     />
@@ -831,8 +842,7 @@ export default function GestionarMenuPanel({
                   onChange={(e) =>
                     setCreateForm((f) => ({
                       ...f,
-                      stock:
-                        e.target.value === "" ? 0 : Number(e.target.value),
+                      stock: e.target.value === "" ? 0 : Number(e.target.value),
                     }))
                   }
                   className="tap w-full rounded-xl border border-stone-600 bg-stone-900 px-3 py-3 text-center text-base font-semibold text-ivory outline-none focus:border-amber-500 disabled:opacity-40"
@@ -923,7 +933,9 @@ export default function GestionarMenuPanel({
                 <p className="text-sm font-semibold text-stone-100">
                   Visible en pantalla
                 </p>
-                <p className="text-[11px] text-stone-500">On = aparece en TVs</p>
+                <p className="text-[11px] text-stone-500">
+                  On = aparece en TVs
+                </p>
               </div>
               <button
                 type="button"

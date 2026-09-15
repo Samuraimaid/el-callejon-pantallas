@@ -152,14 +152,18 @@ def evt_image(
     codigo: str,
     url: str,
     version: int,
+    url_card: str | None = None,
 ) -> dict[str, Any]:
-    return {
+    out: dict[str, Any] = {
         "t": "img",
         "id": product_id,
         "c": codigo,
         "u": url,
         "v": version,
     }
+    if url_card:
+        out["uc"] = url_card
+    return out
 
 
 def evt_product_created(

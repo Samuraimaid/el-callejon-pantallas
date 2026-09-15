@@ -55,6 +55,7 @@ export const api = {
 
   // —— Menú del día (TVs 50" + Centro de Control) ——
   menu: () => request("/api/productos/menu"),
+  sincronizarPantallas: () => request("/api/productos/sincronizar", { method: "POST" }),
   productos: (opts = {}) => {
     const q = new URLSearchParams();
     if (opts.tipo) q.set("tipo", opts.tipo);
