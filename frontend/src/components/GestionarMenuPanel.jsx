@@ -58,6 +58,7 @@ function toDraft(p) {
       ? ""
       : Number(numRaw);
   const dias_semana = normalizeDias(p.dias_semana ?? p.dias);
+  const imgVersion = p.imgV || p.v || Date.now();
   return {
     id: p.id,
     codigo: p.codigo || p.c,
@@ -70,7 +71,7 @@ function toDraft(p) {
     destacado,
     numero_combo,
     dias_semana,
-    imgV: p.imgV || p.v || null,
+    imgV: imgVersion,
     _nombre: nombre,
     _stock: Number(p.stock_disponible ?? p.s ?? 0),
     _precio: Number(p.precio_unitario ?? p.pr ?? 0),
@@ -339,16 +340,19 @@ export default function GestionarMenuPanel({
     const newV = result.v || result.version || Date.now();
     setMsg(`Foto de ${result.nombre || result.codigo} actualizada y enviada a las TVs.`);
     setRows((prev) =>
-      prev.map((r) =>
-        r.codigo === result.codigo || r.id === result.id
-          ? {
-              ...r,
-              imgV: newV,
-              img: result.url ? `${result.url}?v=${newV}` : r.img,
-              imgCard: result.url_card ? `${result.url_card}?v=${newV}` : r.imgCard,
-            }
-          : r,
-      ),
+      prev.map((r) => {
+        if (r.codigo === result.codigo || r.id === result.id) {
+          const heroUrl = imageForProduct(r.codigo, r.tipo, newV);
+          const cardUrl = imageForProductCard(r.codigo, r.tipo, newV);
+          return {
+            ...r,
+            imgV: newV,
+            img: heroUrl,
+            imgCard: cardUrl,
+          };
+        }
+        return r;
+      }),
     );
     onSaved?.();
   }
@@ -762,10 +766,14 @@ export default function GestionarMenuPanel({
             <button
               type="button"
               onClick={handleSave}
-              disabled={saving || dirtyCount === 0}
+              disabled={saving}
               className="tap rounded-xl bg-gradient-to-r from-amber-500 to-orange-700 px-6 py-3 text-sm font-bold text-stone-950 disabled:opacity-40"
             >
-              {saving ? "Guardando…" : "Guardar y avisar pantallas"}
+              {saving
+                ? "Guardando..."
+                : dirtyCount > 0
+                  ? `Guardar cambios (${dirtyCount}) y avisar pantallas`
+                  : "Avisar y sincronizar pantallas"}
             </button>
           </div>
         </div>
