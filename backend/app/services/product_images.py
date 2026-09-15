@@ -19,6 +19,35 @@ from app.config import get_settings
 BEBIDAS_TIPOS = frozenset({"bebida_jugo", "bebida_soda", "cafe", "licor"})
 EXTRA_TIPOS = frozenset({"extra"})
 
+LEGACY_ALIASES: dict[str, list[str]] = {
+    "PLT-CORDON": ["cordon-bleu"],
+    "PLT-CANELON": ["canelones"],
+    "PLT-LASANA": ["relleno"],
+    "PLT-CARNE-ASA": ["carne-asada"],
+    "PLT-CHULETA": ["lomo-cerdo"],
+    "PLT-BISTEC": ["churrasco"],
+    "PLT-COSTILLA": ["costilla-bbq"],
+    "PLT-PESCADO": ["pescado-frito"],
+    "PLT-CAMARONES": ["camarones-ajillo"],
+}
+
+
+def save_alias_copies(tipo: str, codigo: str, jpeg: bytes, role: str = "hero") -> None:
+    aliases = LEGACY_ALIASES.get(str(codigo).upper(), [])
+    if not aliases:
+        return
+    settings = get_settings()
+    root = Path(settings.image_root)
+    folder = root / image_subdir(tipo)
+    folder.mkdir(parents=True, exist_ok=True)
+    suffix = "-card.jpg" if role == "card" else ".jpg"
+    for alias in aliases:
+        try:
+            (folder / f"{alias}{suffix}").write_bytes(jpeg)
+        except Exception:
+            pass
+
+
 
 def image_subdir(tipo: str) -> str:
     if tipo in BEBIDAS_TIPOS:
@@ -116,6 +145,7 @@ async def save_product_image(
 
     dest = absolute_path(tipo, codigo, role=role)
     dest.write_bytes(jpeg)
+    save_alias_copies(tipo, codigo, jpeg, role=role)
 
     version = int(time.time())
     url = public_url(tipo, codigo, version, role=role)

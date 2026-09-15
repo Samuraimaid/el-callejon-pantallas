@@ -252,6 +252,8 @@ async def subir_imagen(
         dest = absolute_path(prod["tipo"], prod["codigo"], role="hero")
         dest.parent.mkdir(parents=True, exist_ok=True)
         dest.write_bytes(jpeg)
+        from app.services.product_images import save_alias_copies
+        save_alias_copies(prod["tipo"], prod["codigo"], jpeg, role="hero")
         ver = int(time.time())
         card_url = None
         if card_raw:
@@ -259,6 +261,7 @@ async def subir_imagen(
             jpeg_c = process_image(card_raw, remove_bg=False, max_side=1200)
             dest_c = absolute_path(prod["tipo"], prod["codigo"], role="card")
             dest_c.write_bytes(jpeg_c)
+            save_alias_copies(prod["tipo"], prod["codigo"], jpeg_c, role="card")
             card_url = public_url(prod["tipo"], prod["codigo"], ver, role="card")
         return {
             "url": public_url(prod["tipo"], prod["codigo"], ver, role="hero"),

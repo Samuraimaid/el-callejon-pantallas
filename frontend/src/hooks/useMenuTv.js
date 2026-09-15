@@ -58,8 +58,22 @@ export function useMenuTv() {
       // Endpoint público: no requiere PIN/JWT (TVs no pueden loguearse)
       const data = await api.menu();
       const m = data.menu || { ...EMPTY_MENU };
-      setMenu(m);
-      persist(m);
+      setMenu((prev) => {
+        const merged = { ...m };
+        for (const key of Object.keys(merged)) {
+          const prevList = prev[key] || [];
+          merged[key] = (merged[key] || []).map((newP) => {
+            const oldP = prevList.find((x) => x.id === newP.id || x.c === newP.c);
+            return {
+              ...newP,
+              img: newP.img || oldP?.img,
+              imgV: newP.imgV || oldP?.imgV,
+            };
+          });
+        }
+        persist(merged);
+        return merged;
+      });
       setFromCache(false);
       setReady(true);
       return m;
@@ -153,7 +167,7 @@ export function useMenuTv() {
       if (ev.t === "h") setWsStatus("on");
       if (ev.t === "p" || ev.t === "z" || ev.t === "img" || ev.t === "+" || ev.t === "-") {
         applyProductEvent(ev);
-        if (ev.t === "img" || ev.t === "+" || ev.t === "-") {
+        if (ev.t === "+" || ev.t === "-") {
           // recarga ligera para URLs de imagen nuevas
           reloadMenu();
         }
