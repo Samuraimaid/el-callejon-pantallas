@@ -25,6 +25,22 @@ export default function LandingPage() {
 
   const t = useMemo(() => TRANSLATIONS[lang] || TRANSLATIONS.es, [lang]);
 
+  const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Título dinámico por idioma para visitantes y turistas
+  useEffect(() => {
+    const titles = {
+      es: "Buffet y Restaurante El Callejón · León, Nicaragua",
+      en: "Buffet & Restaurant El Callejón · León, Nicaragua",
+      fr: "Buffet & Restaurant El Callejón · León, Nicaragua",
+      it: "Buffet e Ristorante El Callejón · León, Nicaragua",
+      de: "Buffet & Restaurant El Callejón · León, Nicaragua",
+      pt: "Buffet e Restaurante El Callejón · León, Nicaragua",
+    };
+    document.title = titles[lang] || titles.es;
+  }, [lang]);
+
+  // Carga de datos de configuración del landing
   useEffect(() => {
     let cancelled = false;
     async function loadData() {
@@ -44,6 +60,14 @@ export default function LandingPage() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // Carga diferida del iframe de Google Maps (evita que el navegador mantenga el spinner de carga en la pestaña)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setMapLoaded(true);
+    }, 1200);
+    return () => clearTimeout(timer);
   }, []);
 
   const info = config?.info_general || {
@@ -109,38 +133,48 @@ export default function LandingPage() {
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  // Inyección de Schema.org en el <head> para Google Maps & SEO
+  useEffect(() => {
+    const scriptId = "ld-json-restaurant";
+    let script = document.getElementById(scriptId);
+    if (!script) {
+      script = document.createElement("script");
+      script.id = scriptId;
+      script.type = "application/ld+json";
+      document.head.appendChild(script);
+    }
+    script.textContent = JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "Restaurant",
+      name: info.nombre,
+      image: window.location.origin + (info.logo_url || "/images/logo_callejon_catalog.jpg"),
+      telephone: info.telefono,
+      email: info.email,
+      address: {
+        "@type": "PostalAddress",
+        streetAddress: "Supermercados La Colonia, 2½ al Oeste",
+        addressLocality: "León",
+        addressRegion: "León",
+        addressCountry: "NI",
+      },
+      geo: {
+        "@type": "GeoCoordinates",
+        latitude: "12.43787",
+        longitude: "-86.87804",
+      },
+      url: window.location.href,
+      servesCuisine: ["Nicaraguan", "Buffet", "Barbecue", "Latin American"],
+      priceRange: "$$",
+      openingHours: "Tu,We,Th,Fr,Sa,Su 08:00-15:00",
+    });
+    return () => {
+      const el = document.getElementById(scriptId);
+      if (el) el.remove();
+    };
+  }, [info]);
+
   return (
     <div className="min-h-screen bg-[#110f0d] text-[#fbf8f2] font-sans antialiased selection:bg-[#e8c56a] selection:text-[#110f0d]">
-      {/* Schema.org Microdata para Google Maps & Search */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "Restaurant",
-            name: info.nombre,
-            image: info.logo_url,
-            telephone: info.telefono,
-            email: info.email,
-            address: {
-              "@type": "PostalAddress",
-              streetAddress: "Supermercados La Colonia, 2½ al Oeste",
-              addressLocality: "León",
-              addressRegion: "León",
-              addressCountry: "NI",
-            },
-            geo: {
-              "@type": "GeoCoordinates",
-              latitude: "12.43787",
-              longitude: "-86.87804",
-            },
-            url: window.location.href,
-            servesCuisine: ["Nicaraguan", "Buffet", "Barbecue", "Latin American"],
-            priceRange: "$$",
-            openingHours: "Tu,We,Th,Fr,Sa,Su 08:00-15:00",
-          }),
-        }}
-      />
 
       {/* NAVBAR */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-[#181411]/90 border-b border-[#e8c56a]/20 transition-all">
@@ -151,7 +185,7 @@ export default function LandingPage() {
               alt={info.nombre}
               className="h-12 w-12 rounded-full border border-[#e8c56a]/40 object-cover shadow-md group-hover:scale-105 transition-transform"
               onError={(e) => {
-                e.target.style.display = "none";
+                e.currentTarget.src = "/logo-el-callejon.jpg";
               }}
             />
             <div>
@@ -770,18 +804,35 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Mapa Interactivo */}
+            {/* Mapa Interactivo con carga diferida anti-bloqueo */}
             <div className="lg:col-span-7 h-96 rounded-3xl overflow-hidden border-2 border-[#e8c56a]/30 shadow-2xl shadow-black/80 relative">
-              <iframe
-                title="Mapa de Ubicación El Callejón"
-                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3893.3824040986915!2d-86.88022862415174!3d12.437869987826315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8f711e1f74ec5d09%3A0x8e8749e7987258b3!2sSupermercado%20La%20Colonia%20Le%C3%B3n!5e0!3m2!1ses!2sni!4v1710540000000!5m2!1ses!2sni"
-                width="100%"
-                height="100%"
-                style={{ border: 0, filter: "brightness(0.9) contrast(1.1)" }}
-                allowFullScreen=""
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-              />
+              {mapLoaded ? (
+                <iframe
+                  title="Mapa de Ubicación El Callejón"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3893.3824040986915!2d-86.88022862415174!3d12.437869987826315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8f711e1f74ec5d09%3A0x8e8749e7987258b3!2sSupermercado%20La%20Colonia%20Le%C3%B3n!5e0!3m2!1ses!2sni!4v1710540000000!5m2!1ses!2sni"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0, filter: "brightness(0.9) contrast(1.1)" }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              ) : (
+                <div className="w-full h-full bg-[#18130f] flex flex-col items-center justify-center p-6 text-center">
+                  <span className="text-4xl mb-3 animate-bounce">📍</span>
+                  <p className="font-bold text-base text-[#fbf8f2] mb-1">Buffet y Restaurante El Callejón</p>
+                  <p className="text-xs text-[#a89b8c] max-w-sm mb-4">
+                    Supermercados La Colonia, 2½ al Oeste, León, Nicaragua
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setMapLoaded(true)}
+                    className="px-6 py-2.5 rounded-full bg-[#e8c56a] text-black font-bold text-xs hover:bg-[#f3d996] transition-all shadow-lg shadow-[#e8c56a]/20"
+                  >
+                    🗺️ Ver Mapa Interactivo
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -795,6 +846,9 @@ export default function LandingPage() {
               src={info.logo_url || "/images/logo_callejon_catalog.jpg"}
               alt={info.nombre}
               className="h-8 w-8 rounded-full border border-[#e8c56a]/30 object-cover"
+              onError={(e) => {
+                e.currentTarget.src = "/logo-el-callejon.jpg";
+              }}
             />
             <div>
               <p className="font-bold text-[#fbf8f2]">{info.nombre}</p>
