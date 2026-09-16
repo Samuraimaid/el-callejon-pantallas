@@ -29,10 +29,12 @@ DEFAULT_LANDING_CONFIG: dict[str, Any] = {
         "whatsapp": "+505 8512 1494",
         "whatsapp_raw": "50585121494",
         "email": "reservaciones.elcallejon@gmail.com",
-        "direccion": "Supermercados La Colonia, 2½ al Oeste, León, Nicaragua",
+        "direccion": "Supermercado La Colonia, 2 ½ C abajo, León 21000, Nicaragua",
         "ciudad": "León, Nicaragua",
         "horarios_texto": "Martes a Domingo: 8:00 a. m. – 3:00 p. m. (Atención a eventos privados en horario extendido)",
-        "google_maps_url": "https://maps.google.com/?q=Supermercados+La+Colonia+Leon+Nicaragua",
+        "google_maps_url": "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99",
+        "google_maps_embed_url": "https://maps.google.com/maps?cid=9352514101869817184&output=embed",
+        "waze_url": "https://waze.com/ul?q=Buffet+y+Restaurante+El+Callej%C3%B3n+Leon",
         "facebook_url": "https://www.facebook.com/search/top?q=Buffet%20y%20Restaurante%20El%20Callej%C3%B3n",
         "logo_url": "/images/logo_callejon_catalog.jpg",
         "descripcion_larga": (
@@ -274,9 +276,10 @@ async def update_landing_config(db: AsyncSession, data: dict[str, Any]) -> dict[
         text(
             """
             INSERT INTO config_sistema (clave, valor, actualizado_en)
-            VALUES (:c, :v::jsonb, NOW())
-            ON CONFLICT (clave) DO UPDATE
-            SET valor = EXCLUDED.valor, actualizado_en = NOW()
+            VALUES (:c, CAST(:v AS jsonb), NOW())
+            ON CONFLICT (clave) DO UPDATE SET
+                valor = EXCLUDED.valor,
+                actualizado_en = NOW()
             """
         ),
         {"c": CLAVE_LANDING, "v": json_str},

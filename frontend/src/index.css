@@ -29,10 +29,9 @@
   --color-ink: #1a120c;
 }
 
-html,
-body,
-#root {
-  height: 100%;
+html {
+  min-height: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -40,7 +39,22 @@ body {
   background: #5c1308;
   color: var(--color-ivory);
   margin: 0;
-  overflow: hidden;
+  min-height: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100%;
+}
+
+/* Pantallas Smart TV: bloqueo de scroll restringido únicamente a televisores */
+.tv-fullscreen-lock {
+  height: 100vh;
+  max-height: 100vh;
+  width: 100vw;
+  max-width: 100vw;
+  overflow: hidden !important;
+  touch-action: none;
 }
 
 .font-display {

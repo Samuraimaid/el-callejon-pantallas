@@ -40,6 +40,32 @@ export default function LandingPage() {
     document.title = titles[lang] || titles.es;
   }, [lang]);
 
+  // Asegurar scroll nativo fluido en toda la página (mouse, táctil, teclado)
+  useEffect(() => {
+    document.documentElement.style.overflowY = "auto";
+    document.documentElement.style.height = "auto";
+    document.body.style.overflowY = "auto";
+    document.body.style.height = "auto";
+    const rootEl = document.getElementById("root");
+    if (rootEl) {
+      rootEl.style.height = "auto";
+      rootEl.style.minHeight = "100vh";
+      rootEl.style.overflow = "visible";
+    }
+
+    return () => {
+      document.documentElement.style.overflowY = "";
+      document.documentElement.style.height = "";
+      document.body.style.overflowY = "";
+      document.body.style.height = "";
+      if (rootEl) {
+        rootEl.style.height = "";
+        rootEl.style.minHeight = "";
+        rootEl.style.overflow = "";
+      }
+    };
+  }, []);
+
   // Carga de datos de configuración del landing
   useEffect(() => {
     let cancelled = false;
@@ -78,9 +104,11 @@ export default function LandingPage() {
     whatsapp: "+505 8512 1494",
     whatsapp_raw: "50585121494",
     email: "reservaciones.elcallejon@gmail.com",
-    direccion: "Supermercados La Colonia, 2½ al Oeste, León, Nicaragua",
+    direccion: "Supermercado La Colonia, 2 ½ C abajo, León 21000, Nicaragua",
     horarios_texto: "Martes a Domingo: 8:00 a. m. – 3:00 p. m.",
-    google_maps_url: "https://maps.google.com/?q=Supermercados+La+Colonia+Leon+Nicaragua",
+    google_maps_url: "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99",
+    google_maps_embed_url: "https://maps.google.com/maps?cid=9352514101869817184&output=embed",
+    waze_url: "https://waze.com/ul?q=Buffet+y+Restaurante+El+Callej%C3%B3n+Leon",
     logo_url: "/images/logo_callejon_catalog.jpg",
   };
 
@@ -152,17 +180,14 @@ export default function LandingPage() {
       email: info.email,
       address: {
         "@type": "PostalAddress",
-        streetAddress: "Supermercados La Colonia, 2½ al Oeste",
+        streetAddress: "Supermercado La Colonia, 2 ½ C abajo",
         addressLocality: "León",
         addressRegion: "León",
+        postalCode: "21000",
         addressCountry: "NI",
       },
-      geo: {
-        "@type": "GeoCoordinates",
-        latitude: "12.43787",
-        longitude: "-86.87804",
-      },
-      url: window.location.href,
+      hasMap: "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99",
+      url: "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99",
       servesCuisine: ["Nicaraguan", "Buffet", "Barbecue", "Latin American"],
       priceRange: "$$",
       openingHours: "Tu,We,Th,Fr,Sa,Su 08:00-15:00",
@@ -322,7 +347,7 @@ export default function LandingPage() {
               🎉 {t.hero.btn_eventos}
             </a>
             <a
-              href={info.google_maps_url || "https://maps.google.com/?q=Supermercados+La+Colonia+Leon+Nicaragua"}
+              href={info.google_maps_url || "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99"}
               target="_blank"
               rel="noopener noreferrer"
               className="px-7 py-3.5 rounded-full bg-[#1e2329] border border-blue-400/40 text-blue-300 font-semibold text-sm tracking-wide hover:bg-blue-900/30 transition-all flex items-center gap-2"
@@ -782,7 +807,7 @@ export default function LandingPage() {
               {/* Botones de Navegación GPS */}
               <div className="flex flex-wrap gap-3 pt-2">
                 <a
-                  href={info.google_maps_url || "https://maps.google.com/?q=Supermercados+La+Colonia+Leon+Nicaragua"}
+                  href={info.google_maps_url || "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-transform hover:scale-105"
@@ -793,7 +818,7 @@ export default function LandingPage() {
                   <span>{t.location.btn_open_maps}</span>
                 </a>
                 <a
-                  href="https://waze.com/ul?q=Supermercados+La+Colonia+Leon+Nicaragua"
+                  href={info.waze_url || "https://waze.com/ul?q=Buffet+y+Restaurante+El+Callej%C3%B3n+Leon"}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3 px-4 rounded-xl bg-[#33ccff] hover:bg-[#2bb8e6] text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#33ccff]/20 transition-transform hover:scale-105"
@@ -809,7 +834,7 @@ export default function LandingPage() {
               {mapLoaded ? (
                 <iframe
                   title="Mapa de Ubicación El Callejón"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3893.3824040986915!2d-86.88022862415174!3d12.437869987826315!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x8f711e1f74ec5d09%3A0x8e8749e7987258b3!2sSupermercado%20La%20Colonia%20Le%C3%B3n!5e0!3m2!1ses!2sni!4v1710540000000!5m2!1ses!2sni"
+                  src={info.google_maps_embed_url || "https://maps.google.com/maps?cid=9352514101869817184&output=embed"}
                   width="100%"
                   height="100%"
                   style={{ border: 0, filter: "brightness(0.9) contrast(1.1)" }}
@@ -820,9 +845,9 @@ export default function LandingPage() {
               ) : (
                 <div className="w-full h-full bg-[#18130f] flex flex-col items-center justify-center p-6 text-center">
                   <span className="text-4xl mb-3 animate-bounce">📍</span>
-                  <p className="font-bold text-base text-[#fbf8f2] mb-1">Buffet y Restaurante El Callejón</p>
+                  <p className="font-bold text-base text-[#fbf8f2] mb-1">{info.nombre}</p>
                   <p className="text-xs text-[#a89b8c] max-w-sm mb-4">
-                    Supermercados La Colonia, 2½ al Oeste, León, Nicaragua
+                    {info.direccion}
                   </p>
                   <button
                     type="button"

@@ -12,7 +12,11 @@ import PantallaComplementosPage from "./pages/PantallaComplementosPage";
 import PantallaPublicidadPage from "./pages/PantallaPublicidadPage";
 
 function TvRoute({ children }) {
-  return <TvErrorBoundary>{children}</TvErrorBoundary>;
+  return (
+    <TvErrorBoundary>
+      <div className="tv-fullscreen-lock">{children}</div>
+    </TvErrorBoundary>
+  );
 }
 
 /**
