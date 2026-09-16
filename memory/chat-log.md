@@ -216,4 +216,12 @@
   - Se verificó el bundle activo `/assets/index-zmSuot8l.js`: `setShowPrices` eliminado al 100%.
   - La página `/restaurante` carga limpia y correctamente en producción.
 
+### [2026-09-16 14:32:00] Despliegue de la Versión Auditada y Blindada a Producción
+- **Compilación Cloud Build:** ID `ba842697-0b57-42fc-ab2e-b8cd6352ee95` (exitoso en 44s).
+- **Despliegue Cloud Run:** Revisión activa **`callejon-frontend-00022-lr5`** sirviendo 100% de tráfico.
+- **Validación en Vivo:**
+  - Las 15 rutas del frontend responden `200 OK`.
+  - Todos los accesos probados en vivo y funcionales.
+
+
 
