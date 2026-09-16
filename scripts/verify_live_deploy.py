@@ -26,7 +26,7 @@ def verify_live():
         print(f"  Has body overflow:hidden: {has_body_hidden}")
         print(f"  Has tv-fullscreen-lock: {has_tv_lock}")
 
-    # Check JS content to verify maps URL
+    # Check JS content to verify maps URL and security
     for js_rel in js_files:
         js_url = f"https://callejon-frontend-836176703716.us-central1.run.app{js_rel}"
         js_content = urllib.request.urlopen(js_url).read().decode('utf-8')
@@ -35,6 +35,8 @@ def verify_live():
         has_cid = "9352514101869817184" in js_content
         print(f"  Contains user Google Maps short URL: {has_maps_url}")
         print(f"  Contains restaurant CID: {has_cid}")
+        has_landing_admin_link = "admin_link" in js_content
+        print(f"  Landing references admin_link in render: {has_landing_admin_link}")
 
 if __name__ == "__main__":
     verify_live()
