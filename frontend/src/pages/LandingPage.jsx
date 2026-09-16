@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from "react";
-import { Link } from "react-router-dom";
 import {
   SUPPORTED_LANGUAGES,
   TRANSLATIONS,
@@ -1027,14 +1026,17 @@ export default function LandingPage() {
 
           <p className="text-stone-300 font-medium">{t.footer.rights}</p>
 
-          <div className="flex items-center gap-4 text-xs font-bold text-amber-400">
-            <Link to="/login" className="hover:text-amber-300 transition-colors underline">
-              {t.nav.admin_link}
-            </Link>
-            <span className="text-stone-500">·</span>
-            <Link to="/" className="hover:text-amber-300 transition-colors">
-              Pantallas TV
-            </Link>
+          <div className="flex items-center gap-3 text-xs font-semibold text-amber-300/80">
+            <span>📍 León, Nicaragua</span>
+            <span className="text-stone-600">·</span>
+            <a
+              href={`https://wa.me/${info.whatsapp_raw || "50585121494"}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-white transition-colors"
+            >
+              WhatsApp
+            </a>
           </div>
         </div>
       </footer>
