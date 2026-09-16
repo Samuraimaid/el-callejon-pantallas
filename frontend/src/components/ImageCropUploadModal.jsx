@@ -52,6 +52,7 @@ export default function ImageCropUploadModal({
   onClose,
   onUploaded,
   customUpload,
+  onCaptureProductImage,
 }) {
   const [src, setSrc] = useState(null);
   const [filteredSrc, setFilteredSrc] = useState(null);
@@ -181,6 +182,17 @@ export default function ImageCropUploadModal({
   }
 
   async function doUpload(hero, card) {
+    if (onCaptureProductImage) {
+      const previewUrl = hero ? URL.createObjectURL(hero) : null;
+      onCaptureProductImage({
+        heroBlob: hero,
+        cardBlob: card,
+        removeBg,
+        previewUrl,
+      });
+      handleClose();
+      return;
+    }
     if (!customUpload && !product?.id) {
       setErr("Producto no válido");
       return;
@@ -238,7 +250,7 @@ export default function ImageCropUploadModal({
     return "3/3 · Recorte tarjeta ancha";
   }, [step, isPublicidad]);
 
-  if (!open || (!product && !customUpload)) return null;
+  if (!open || (!product && !customUpload && !onCaptureProductImage)) return null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-2 sm:p-3">

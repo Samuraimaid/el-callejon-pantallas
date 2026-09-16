@@ -69,6 +69,11 @@ async def lifespan(app: FastAPI):
 
         async with AsyncSessionLocal() as db:
             await pant_svc.load_from_db(db)
+            try:
+                from app.services import auth_bootstrap
+                await auth_bootstrap.ensure_initial_users(db)
+            except Exception:
+                pass
     except Exception:
         pass
 

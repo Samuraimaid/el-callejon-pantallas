@@ -21,10 +21,14 @@ INSTALACION (una sola vez en el PC del restaurante)
 
 ACCESOS
 -------
+  Landing Page Turistica    http://IP_DEL_PC:5173/restaurante
   Pantallas (Smart TVs)     http://IP_DEL_PC:5173/
   Cada TV favorito:         http://IP_DEL_PC:5173/tv/1  ...  /tv/6
-  Centro de Control (PIN)   http://IP_DEL_PC:5173/login
-  PIN inicial               2580   (cambiar en Ambiente -> Seguridad)
+  Centro de Control         http://IP_DEL_PC:5173/login
+  Usuarios iniciales:
+    - Marlon   (Admin)    : Sazon de 25 años
+    - Fabio    (Admin)    : El peluka sapbe
+    - Invitado (Operador) : Cordon Blue 2026
 
   El lobby de TVs NO muestra el boton de control (seguridad).
 

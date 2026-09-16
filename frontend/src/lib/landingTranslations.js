@@ -10,6 +10,9 @@ export const SUPPORTED_LANGUAGES = [
   { code: "it", label: "Italiano", flag: "🇮🇹" },
   { code: "de", label: "Deutsch", flag: "🇩🇪" },
   { code: "pt", label: "Português", flag: "🇵🇹" },
+  { code: "zh", label: "简体中文", flag: "🇨🇳" },
+  { code: "ja", label: "日本語", flag: "🇯🇵" },
+  { code: "ko", label: "한국어", flag: "🇰🇷" },
 ];
 
 export function detectBrowserLanguage() {
@@ -51,7 +54,7 @@ export const TRANSLATIONS = {
       badge: "Nuestra Historia",
       title: "Más de 25 años deleitando a locales y viajeros",
       p1: "Somos pioneros de la gastronomía Leonesa estilo buffet de alto perfil. Con más de dos décadas de trayectoria, nuestro compromiso es brindarte alimentos frescos, sazón casero inconfundible y la más cordial atención.",
-      p2: "Ofrecemos servicio completo de catering para bodas, cumpleaños, bautizos, despedidas de soltero y eventos empresariales en un salón climatizado decorado con elegancia y confort.",
+      p2: "Contamos con amplios y frescos comedores familiares al aire libre y un exclusivo Salón VIP totalmente climatizado con aire acondicionado, además de servicio completo de catering y banquetes para bodas, 15 años y eventos empresariales.",
       stat_years: "Años de experiencia",
       stat_dishes: "Platillos & Variedad",
       stat_events: "Eventos realizados",
@@ -144,7 +147,7 @@ export const TRANSLATIONS = {
       badge: "Our Story",
       title: "Over 25 years delighting travelers and locals",
       p1: "We are pioneers in high-profile buffet dining in León. With over 25 years of experience, we pride ourselves on serving freshly prepared, authentic Nicaraguan meals with warmth and passion.",
-      p2: "We provide complete catering services for weddings, birthdays, baptisms, and corporate gatherings in our fully air-conditioned, stylish banquet hall.",
+      p2: "We feature airy open-air family dining areas and an exclusive fully air-conditioned VIP Room, along with full catering and banquet services for weddings, sweet sixteens, and corporate events.",
       stat_years: "Years of Experience",
       stat_dishes: "Dishes & Variety",
       stat_events: "Celebrated Events",
@@ -194,7 +197,7 @@ export const TRANSLATIONS = {
     gallery: {
       badge: "Facilities",
       title: "Experience Our Ambience",
-      subtitle: "Comfortable air-conditioned spaces, welcoming atmosphere, and genuine Nicaraguan hospitality.",
+      subtitle: "Comfortable open-air family areas and an exclusive air-conditioned VIP Room with genuine Nicaraguan hospitality.",
     },
     location: {
       badge: "Find Us",
@@ -228,7 +231,7 @@ export const TRANSLATIONS = {
       title_p1: "La saveur authentique de León",
       title_p2: "Buffet & Restaurant d'Excellence",
       subtitle:
-        "Spécialistes des buffets quotidiens, grillades au feu de bois et plats traditionnels nicaraguayens dans un cadre climatisé et chaleureux.",
+        "Spécialistes des buffets quotidiens, grillades au feu de bois, plats traditionnels et Salon VIP climatisé pour vos réceptions privées.",
       btn_menu: "Consulter le Menu",
       btn_eventos: "Devis pour Événement",
       btn_maps: "Itinéraire (GPS)",
@@ -237,7 +240,7 @@ export const TRANSLATIONS = {
       badge: "Notre Histoire",
       title: "Plus de 25 ans d'hospitalité et de saveurs",
       p1: "Pionniers du buffet haut de gamme à León, Nicaragua. Nous offrons des mets traditionnels faits maison, des ingrédients frais et un accueil généreux.",
-      p2: "Service traiteur complet pour mariages, anniversaires et séminaires dans notre salle climatisée et décorée avec goût.",
+      p2: "Nous disposons de grands espaces familiaux frais en plein air et d'un salon VIP exclusif entièrement climatisé, ainsi que d'un service traiteur complet pour vos mariages et événements d'entreprise.",
       stat_years: "Années d'expérience",
       stat_dishes: "Plats & Variété",
       stat_events: "Événements réalisés",
@@ -286,7 +289,7 @@ export const TRANSLATIONS = {
     gallery: {
       badge: "Visite Virtuelle",
       title: "Découvrez notre Ambiance",
-      subtitle: "Un cadre climatisé, spacieux et convivial au cœur de León.",
+      subtitle: "Espaces aérés en plein air, ambiance conviviale et Salon VIP climatisé au cœur de León.",
     },
     location: {
       badge: "Nous Trouver",
@@ -329,7 +332,7 @@ export const TRANSLATIONS = {
       badge: "La Nostra Storia",
       title: "Oltre 25 anni al servizio del buon gusto",
       p1: "Pionieri del buffet a León, Nicaragua. Piatti genuini, ingredienti freschi e la tradizionale accoglienza nicaraguense.",
-      p2: "Servizio catering completo per matrimoni, compleanni e incontri aziendali nel nostro salone climatizzato.",
+      p2: "Offriamo ampie e fresche sale familiari all'aperto e un'esclusiva Sala VIP completamente climatizzata con aria condizionata, oltre a un servizio catering completo per celebrazioni ed eventi aziendali.",
       stat_years: "Anni di esperienza",
       stat_dishes: "Piatti & Varietà",
       stat_events: "Eventi celebrati",
@@ -378,7 +381,7 @@ export const TRANSLATIONS = {
     gallery: {
       badge: "La Nostra Sala",
       title: "Scopri il Nostro Ambiente",
-      subtitle: "Ambiente accogliente, climatizzato e con tutto il calore di León.",
+      subtitle: "Spazi all'aperto, atmosfera accogliente ed esclusiva Sala VIP climatizzata.",
     },
     location: {
       badge: "Dove Siamo",
@@ -412,7 +415,7 @@ export const TRANSLATIONS = {
       title_p1: "Authentischer Geschmack aus León",
       title_p2: "Erstklassiges Buffet & Restaurant",
       subtitle:
-        "Bekannt für unser tägliches Mittagsbuffet, Holzfeuer-Grillspezialitäten und den perfekten klimatisierten Raum für private Feiern.",
+        "Bekannt für unser tägliches Mittagsbuffet, Holzfeuer-Grillspezialitäten und den exklusiven klimatisierten VIP-Raum für private Feiern.",
       btn_menu: "Speisekarte Ansehen",
       btn_eventos: "Event Anfragen",
       btn_maps: "Anfahrt (GPS)",
@@ -421,7 +424,7 @@ export const TRANSLATIONS = {
       badge: "Unsere Geschichte",
       title: "Über 25 Jahre Gastfreundschaft in Nicaragua",
       p1: "Pioniere der gehobenen Buffet-Gastronomie in León. Frische Zutaten, nicaraguanische Hausmannskost und herzlicher Service.",
-      p2: "Kompletter Cateringservice für Hochzeiten, Geburtstage und Firmenfeiern in unserem modernen klimatisierten Festsaal.",
+      p2: "Wir bieten luftige Familienbereiche im Freien sowie einen exklusiven, voll klimatisierten VIP-Raum und umfassenden Catering-Service für Hochzeiten und geschäftliche Events.",
       stat_years: "Jahre Erfahrung",
       stat_dishes: "Gerichte & Vielfalt",
       stat_events: "Gefeierte Events",
@@ -446,7 +449,7 @@ export const TRANSLATIONS = {
     events: {
       badge: "Private Feiern",
       title: "Feiern Sie Ihre Besonderen Anlässe",
-      subtitle: "Klimatisierter Festsaal, Soundsystem, Beleuchtung und professionelles Catering.",
+      subtitle: "Exklusiver klimatisierter VIP-Festsaal, Soundsystem, Beleuchtung und professionelles Catering.",
       form_title: "Event-Angebot Anfordern",
       form_desc: "Füllen Sie das Formular aus für ein direktes Angebot auf WhatsApp.",
       input_name: "Ihr Name",
@@ -470,7 +473,7 @@ export const TRANSLATIONS = {
     gallery: {
       badge: "Räumlichkeiten",
       title: "Unser Ambiente",
-      subtitle: "Klimatisierter Komfort und familiäre Atmosphäre mitten in León.",
+      subtitle: "Gemütliche Bereiche im Freien, familiäre Atmosphäre und klimatisierter VIP-Raum.",
     },
     location: {
       badge: "Standort",
@@ -513,7 +516,7 @@ export const TRANSLATIONS = {
       badge: "Nossa História",
       title: "Mais de 25 anos encantando viajantes e moradores",
       p1: "Pioneiros no conceito de buffet gastronômico em León, Nicarágua. Comida caseira fresca, tempero autêntico e atendimento atencioso.",
-      p2: "Serviço completo de buffet para casamentos, aniversários e confraternizações em salão climatizado com todo o conforto.",
+      p2: "Contamos com amplos e frescos comedouros familiares ao ar livre e um exclusivo Salão VIP totalmente climatizado com ar-condicionado, além de serviço completo de buffet para eventos e celebrações.",
       stat_years: "Anos de experiência",
       stat_dishes: "Pratos & Variedade",
       stat_events: "Eventos realizados",
@@ -562,7 +565,7 @@ export const TRANSLATIONS = {
     gallery: {
       badge: "Instalações",
       title: "Conheça Nosso Salão",
-      subtitle: "Espaços amplos, climatizados e com a calorosa hospitalidade de León.",
+      subtitle: "Espaços amplos ao ar livre, ambiente familiar e exclusivo Salão VIP climatizado.",
     },
     location: {
       badge: "Onde Estamos",
@@ -578,6 +581,285 @@ export const TRANSLATIONS = {
     footer: {
       rights: "Todos os direitos reservados. León, Nicarágua.",
       tagline: "Buffet e Restaurante El Callejón · Na variedade está o sabor!",
+    },
+  },
+  zh: {
+    nav: {
+      inicio: "首页",
+      sobre_nosotros: "关于我们",
+      menu: "特色菜单",
+      eventos: "活动宴会",
+      galeria: "环境图集",
+      ubicacion: "餐厅地址",
+      reservar_btn: "预订 / WhatsApp",
+      admin_link: "员工入口",
+    },
+    hero: {
+      badge: "25年传统美味传承 · 莱昂特色自助餐厅",
+      title_p1: "莱昂正宗风味",
+      title_p2: "高品质自助餐与特色餐厅",
+      subtitle:
+        "每日精选自助午餐、传统炭火烧烤与道地美食，并配有舒适空调宴会大厅，是您举办私人庆典与聚会的理想之选。",
+      btn_menu: "查看菜单",
+      btn_eventos: "预约宴会",
+      btn_maps: "地图导航 (GPS)",
+    },
+    about: {
+      badge: "餐厅历史",
+      title: "逾25年款待八方宾朋",
+      p1: "作为莱昂特色自助餐饮的开拓者，二十多年来我们始终坚持甄选新鲜食材，以纯正家常手艺烹制佳肴，传递真诚待客之道。",
+      p2: "我们拥有舒适宽敞的独立空调宴会厅与专业餐饮团队，承接婚礼婚宴、生日派对、洗礼仪式及商务企业聚会。",
+      stat_years: "年烹饪传承",
+      stat_dishes: "特色菜品",
+      stat_events: "宴会承办",
+    },
+    menu: {
+      badge: "美食精选",
+      title: "特色菜单与精选佳肴",
+      subtitle: "当日新鲜食材直采，传统烹饪配方，分量十足且滋味浓郁。",
+      all: "全部",
+      especialidades: "招牌特色",
+      fuertes: "主菜精选",
+      mariscos: "海鲜料理",
+      parrilladas: "炭火烧烤",
+      desayunos: "特色早餐",
+      bebidas: "精选饮品",
+      currency_label: "货币:",
+      show_prices: "价格: 已隐藏",
+      hide_prices: "价格: 已显示",
+      toggle_prices: "显示价格",
+      btn_order: "WhatsApp 咨询菜品",
+    },
+    events: {
+      badge: "私人宴会与餐饮外烩",
+      title: "共度人生珍贵美好时刻",
+      subtitle:
+        "配备独立空调宴会大厅、高品质音响灯光及专业大厨餐饮团队，让您的庆典活动圆满而难忘。",
+      form_title: "私人宴会在线快速报价",
+      form_desc: "填写基本信息，我们将第一时间通过 WhatsApp 为您量身定制详细方案与报价。",
+      input_name: "您的姓名",
+      input_name_ph: "例如: 张伟",
+      input_type: "庆典类型",
+      input_date: "预计举办日期",
+      input_guests: "预计宾客人数",
+      input_guests_ph: "例如: 50人",
+      input_notes: "特殊需求或备注",
+      input_notes_ph: "如自助餐、烧烤派对、饮品吧台或定制装饰等",
+      btn_submit: "通过 WhatsApp 提交预订",
+      types: {
+        boda: "婚礼与婚宴",
+        quince: "成人礼 / 15岁庆典",
+        cumple: "生日或纪念日",
+        corp: "商务会议或企业年会",
+        bautizo: "洗礼或初领圣体",
+        despedida: "聚会庆典或派对",
+      },
+    },
+    gallery: {
+      badge: "餐厅环境",
+      title: "优雅舒适的用餐氛围",
+      subtitle: "宽敞怡人的空间、温馨的家庭氛围，让您尽享宾至如归的体验。",
+    },
+    location: {
+      badge: "交通指引",
+      title: "地址与营业时间",
+      address_title: "官方地址",
+      address_text: "Supermercados La Colonia 往西 2½ 街区, 莱昂, 尼加拉瓜",
+      hours_title: "营业时间",
+      hours_text: "周二至周日: 8:00 AM – 3:00 PM (私人宴会支持特别营业时间)",
+      contact_title: "直接联系",
+      btn_open_maps: "在 Google 地图打开",
+      btn_open_waze: "在 Waze 打开",
+    },
+    footer: {
+      rights: "版权所有。尼加拉瓜莱昂。",
+      tagline: "El Callejón 自助餐厅 · 品种丰富，滋味地道！",
+    },
+  },
+  ja: {
+    nav: {
+      inicio: "ホーム",
+      sobre_nosotros: "店舗案内",
+      menu: "メニュー",
+      eventos: "宴会・ケータリング",
+      galeria: "ギャラリー",
+      ubicacion: "店舗所在地",
+      reservar_btn: "予約 / WhatsApp",
+      admin_link: "スタッフ専用",
+    },
+    hero: {
+      badge: "創業25年の伝統 · レオンの老舗ビュッフェ",
+      title_p1: "レオン伝統の郷土料理",
+      title_p2: "高級ビュッフェ＆レストラン",
+      subtitle:
+        "毎日の自家製ビュッフェランチ、炭火焼き料理、郷土の味。冷暖房完備の広々としたホールは貸切パーティーにも最適です。",
+      btn_menu: "メニューを見る",
+      btn_eventos: "宴会のお見積り",
+      btn_maps: "道案内 (GPS)",
+    },
+    about: {
+      badge: "店舗の歴史",
+      title: "25年以上にわたり愛され続ける味",
+      p1: "レオンにおける本格ビュッフェのパイオニアとして、四半世紀にわたり新鮮な食材と変わらぬ家庭の美味しさをお届けしてきました。",
+      p2: "冷暖房完備の快適なホールにて、結婚式、誕生日、洗礼式、企業イベントなどのフルケータリングを承ります。",
+      stat_years: "年の信頼と実績",
+      stat_dishes: "種類以上の料理",
+      stat_events: "件の宴会実績",
+    },
+    menu: {
+      badge: "お料理",
+      title: "メニュー＆おすすめ料理",
+      subtitle: "毎朝届く新鮮な食材、伝統のレシピ、ボリューム満点のおもてなし。",
+      all: "すべて",
+      especialidades: "名物料理",
+      fuertes: "メイン料理",
+      mariscos: "魚介・海鮮",
+      parrilladas: "炭火焼き",
+      desayunos: "朝食",
+      bebidas: "お飲み物",
+      currency_label: "通貨:",
+      show_prices: "価格: 非表示",
+      hide_prices: "価格: 表示中",
+      toggle_prices: "価格を表示",
+      btn_order: "WhatsAppで問い合わせ",
+    },
+    events: {
+      badge: "貸切宴会＆ケータリング",
+      title: "特別な記念日のお祝い",
+      subtitle:
+        "冷暖房完備の快適な空間、音響・照明設備、本格的なケータリングでお迎えします。",
+      form_title: "プライベート宴会のお見積り",
+      form_desc: "詳細をご入力いただくと、WhatsAppにて最適なプランをご提案いたします。",
+      input_name: "お名前",
+      input_name_ph: "例: 田中 太郎",
+      input_type: "イベントの種類",
+      input_date: "予定日",
+      input_guests: "ご出席人数",
+      input_guests_ph: "例: 50名様",
+      input_notes: "ご要望・備考",
+      input_notes_ph: "ビュッフェ、炭火焼き、ドリンクバー、装飾などのご希望",
+      btn_submit: "WhatsAppで見積もりを送信",
+      types: {
+        boda: "結婚式・披露宴",
+        quince: "15歳成人祝 (キンセアニェーラ)",
+        cumple: "誕生日・各種記念日",
+        corp: "企業研修・ビジネス宴会",
+        bautizo: "洗礼式・祝賀会",
+        despedida: "各種パーティー・歓送迎会",
+      },
+    },
+    gallery: {
+      badge: "施設のご案内",
+      title: "心地よい店内空間",
+      subtitle: "広々とした空間と家庭的な温かさで、くつろぎのひとときをお届けします。",
+    },
+    location: {
+      badge: "アクセス",
+      title: "所在地と営業時間",
+      address_title: "公式住所",
+      address_text: "Supermercados La Colonia 西へ2.5ブロック, レオン, ニカラグア",
+      hours_title: "営業時間",
+      hours_text: "火曜〜日曜: 午前8:00 – 午後3:00 (貸切イベントは特別時間帯に対応)",
+      contact_title: "お問い合わせ",
+      btn_open_maps: "Googleマップで開く",
+      btn_open_waze: "Wazeで開く",
+    },
+    footer: {
+      rights: "All rights reserved. ニカラグア・レオン。",
+      tagline: "ビュッフェ＆レストラン El Callejón · 多彩な美味しさをお届け！",
+    },
+  },
+  ko: {
+    nav: {
+      inicio: "홈",
+      sobre_nosotros: "소개",
+      menu: "메뉴",
+      eventos: "연회 및 케이터링",
+      galeria: "갤러리",
+      ubicacion: "오시는 길",
+      reservar_btn: "예약 / WhatsApp",
+      admin_link: "스태프 전용",
+    },
+    hero: {
+      badge: "25년 전통의 미식 · 레온의 원조 뷔페",
+      title_p1: "레온 정통 니카라과 요리",
+      title_p2: "프리미엄 뷔페 & 레스토랑",
+      subtitle:
+        "매일 정성껏 준비하는 홈메이드 뷔페, 숯불 바비큐, 정갈한 전통 요리. 쾌적한 전용 연회장에서 특별한 행사를 함께하세요.",
+      btn_menu: "메뉴 보기",
+      btn_eventos: "행사 견적 문의",
+      btn_maps: "오시는 길 (GPS)",
+    },
+    about: {
+      badge: "레스토랑 이야기",
+      title: "25년 이상 현지인과 여행객의 사랑을 받은 곳",
+      p1: "레온 뷔페 미식의 선구자로서 지난 20여 년간 엄선된 신선한 재료와 한결같은 손맛, 정성 어린 서비스로 손님을 모셔왔습니다.",
+      p2: "냉난방 완비의 넓은 연회장에서 결혼식, 생일 파티, 기업 세미나를 위한 맞춤형 풀 케이터링을 제공합니다.",
+      stat_years: "년 전통",
+      stat_dishes: "가지 이상의 요리",
+      stat_events: "회 이상의 행사 진행",
+    },
+    menu: {
+      badge: "미식",
+      title: "메뉴 및 대표 요리",
+      subtitle: "매일 공수하는 신선한 식재료, 정통 레시피, 푸짐한 양.",
+      all: "전체",
+      especialidades: "스페셜",
+      fuertes: "메인 요리",
+      mariscos: "해산물",
+      parrilladas: "숯불 바비큐",
+      desayunos: "조식",
+      bebidas: "음료",
+      currency_label: "통화:",
+      show_prices: "가격: 숨김",
+      hide_prices: "가격: 표시",
+      toggle_prices: "가격 표시",
+      btn_order: "WhatsApp으로 문의",
+    },
+    events: {
+      badge: "프라이빗 연회 & 케이터링",
+      title: "특별한 순간을 함께하세요",
+      subtitle:
+        "쾌적한 냉난방 연회장, 음향·조명 설비, 전문 셰프의 케이터링으로 잊지 못할 자리를 마련해 드립니다.",
+      form_title: "프라이빗 행사 견적 문의",
+      form_desc: "정보를 입력해 주시면 WhatsApp을 통해 맞춤형 견적을 신속히 안내해 드립니다.",
+      input_name: "성함",
+      input_name_ph: "예: 김민수",
+      input_type: "행사 종류",
+      input_date: "행사 예정일",
+      input_guests: "예상 인원",
+      input_guests_ph: "예: 50명",
+      input_notes: "요청 사항 및 비고",
+      input_notes_ph: "뷔페식, 바비큐, 음료 바 또는 특별 장식 등",
+      btn_submit: "WhatsApp으로 견적 요청",
+      types: {
+        boda: "결혼식 및 피로연",
+        quince: "15세 성인식 (킨세아녜라)",
+        cumple: "생일 및 기념일",
+        corp: "기업 행사 및 세미나",
+        bautizo: "세례식 및 가족 모임",
+        despedida: "파티 및 친목 모임",
+      },
+    },
+    gallery: {
+      badge: "시설 안내",
+      title: "아늑하고 편안한 공간",
+      subtitle: "넓고 쾌적한 실내, 편안한 패밀리 분위기로 내 집 같은 따뜻함을 전합니다.",
+    },
+    location: {
+      badge: "찾아오시는 길",
+      title: "위치 및 영업시간",
+      address_title: "공식 주소",
+      address_text: "Supermercados La Colonia 서쪽 2½ 블록, 레온, 니카라과",
+      hours_title: "영업시간",
+      hours_text: "화요일~일요일: 오전 8:00 – 오후 3:00 (행사 예약 시 맞춤 운영)",
+      contact_title: "문의",
+      btn_open_maps: "Google 지도에서 보기",
+      btn_open_waze: "Waze에서 보기",
+    },
+    footer: {
+      rights: "All rights reserved. 니카라과 레온.",
+      tagline: "El Callejón 뷔페 & 레스토랑 · 다채로운 메뉴, 깊은 손맛!",
     },
   },
 };
@@ -601,6 +883,9 @@ export function buildWhatsAppEventLink({
     it: `Ciao Buffet e Ristorante El Callejón, vorrei richiedere un preventivo per un evento privato:`,
     de: `Hallo Buffet & Restaurant El Callejón, ich möchte ein Angebot für ein privates Event anfragen:`,
     pt: `Olá Buffet e Restaurante El Callejón, gostaria de solicitar um orçamento para um evento privado:`,
+    zh: `您好，El Callejón 餐厅，我想咨询私人宴会的预订与报价：`,
+    ja: `こんにちは、El Callejón レストラン様。プライベート宴会のお見積りを希望します：`,
+    ko: `안녕하세요, El Callejón 레스토랑 담당자님. 프라이빗 행사 견적을 문의합니다:`,
   };
 
   const labels = {
@@ -610,18 +895,21 @@ export function buildWhatsAppEventLink({
     it: { name: "Nome", type: "Tipo di Evento", date: "Data", guests: "Ospiti", notes: "Note" },
     de: { name: "Name", type: "Art des Events", date: "Datum", guests: "Gäste", notes: "Hinweise" },
     pt: { name: "Nome", type: "Tipo de Evento", date: "Data", guests: "Convidados", notes: "Observações" },
+    zh: { name: "姓名", type: "活动类型", date: "预计日期", guests: "宾客人数", notes: "需求备注" },
+    ja: { name: "お名前", type: "イベント種類", date: "予定日", guests: "人数", notes: "備考" },
+    ko: { name: "성함", type: "행사 종류", date: "예정일", guests: "인원", notes: "요청 사항" },
   };
 
   const curLabels = labels[lang] || labels.es;
   const intro = introByLang[lang] || introByLang.es;
 
   let msg = `${intro}\n\n`;
-  if (name) msg += `👤 *${curLabels.name}:* ${name}\n`;
-  if (eventType) msg += `🎉 *${curLabels.type}:* ${eventType}\n`;
-  if (date) msg += `📅 *${curLabels.date}:* ${date}\n`;
-  if (guests) msg += `👥 *${curLabels.guests}:* ${guests}\n`;
-  if (notes) msg += `📝 *${curLabels.notes}:* ${notes}\n`;
-  msg += `\n📍 Enviado desde la página web oficial.`;
+  if (name) msg += `*${curLabels.name}:* ${name}\n`;
+  if (eventType) msg += `*${curLabels.type}:* ${eventType}\n`;
+  if (date) msg += `*${curLabels.date}:* ${date}\n`;
+  if (guests) msg += `*${curLabels.guests}:* ${guests}\n`;
+  if (notes) msg += `*${curLabels.notes}:* ${notes}\n`;
+  msg += `\nEnviado desde el sitio web oficial.`;
 
   return `https://wa.me/${whatsappRaw}?text=${encodeURIComponent(msg)}`;
 }

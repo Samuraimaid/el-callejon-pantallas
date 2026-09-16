@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import CurrentUser, get_current_user, require_caja
-from app.security import create_access_token
+from app.security import create_access_token, verify_password
 from app.services import pin_gate
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -162,8 +162,8 @@ async def pin_change(
     return result
 
 
-# Compat: /login redirige a mensaje de usar PIN
 class LoginRequest(BaseModel):
+    username: str | None = None
     usuario: str | None = None
     password: str | None = None
     pin: str | None = None
@@ -171,22 +171,76 @@ class LoginRequest(BaseModel):
 
 
 @router.post("/login", response_model=LoginResponse)
-async def login_compat(
+async def login(
     body: LoginRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> LoginResponse:
-    """Compatibilidad: acepta {pin} igual que POST /pin."""
-    pin = (body.pin or body.password or "").strip()
-    if not pin:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "pin_only",
-                "message": "Use solo el PIN de acceso (POST /api/auth/pin)",
+    """Autenticación principal: Soporta Usuario y Contraseña (Bcrypt) y PIN."""
+    username = (body.username or body.usuario or "").strip()
+    password = (body.password or "").strip()
+    pin = (body.pin or "").strip()
+
+    # 1. Autenticación con Usuario y Contraseña
+    if username and password:
+        res = await db.execute(
+            text(
+                """
+                SELECT id, codigo, username, nombre, rol::text AS rol, password_hash, pin_hash, activo
+                FROM usuarios
+                WHERE (LOWER(username) = LOWER(:u) OR LOWER(codigo) = LOWER(:u))
+                  AND activo = TRUE
+                LIMIT 1
+                """
+            ),
+            {"u": username},
+        )
+        row = res.mappings().first()
+        if not row:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuario o contraseña incorrectos",
+            )
+
+        valid = False
+        if row.get("password_hash") and verify_password(password, row["password_hash"]):
+            valid = True
+        elif row.get("pin_hash") and verify_password(password, row["pin_hash"]):
+            valid = True
+
+        if not valid:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Usuario o contraseña incorrectos",
+            )
+
+        token = create_access_token(
+            user_id=row["id"],
+            codigo=row["codigo"],
+            rol=row["rol"],
+            nombre=row["nombre"],
+        )
+        return LoginResponse(
+            access_token=token,
+            usuario={
+                "id": str(row["id"]),
+                "codigo": row["codigo"],
+                "username": row["username"],
+                "nombre": row["nombre"],
+                "rol": row["rol"],
+                "auth": "password",
             },
         )
-    return await pin_login(PinRequest(pin=pin), request, db)
+
+    # 2. Fallback de PIN si solo se ingresa PIN
+    effective_pin = pin or password
+    if effective_pin:
+        return await pin_login(PinRequest(pin=effective_pin), request, db)
+
+    raise HTTPException(
+        status_code=400,
+        detail="Ingrese usuario y contraseña para acceder",
+    )
 
 
 @router.get("/me")

@@ -106,6 +106,7 @@ const emptyCreateForm = () => ({
   destacado: false,
   numero_combo: "",
   dias_semana: null,
+  pendingImage: null,
 });
 
 /**
@@ -124,6 +125,7 @@ export default function GestionarMenuPanel({
   const [msg, setMsg] = useState("");
   const [err, setErr] = useState("");
   const [photoProduct, setPhotoProduct] = useState(null);
+  const [showCropForCreate, setShowCropForCreate] = useState(false);
   const [editingNameId, setEditingNameId] = useState(null);
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState(emptyCreateForm);
@@ -278,14 +280,35 @@ export default function GestionarMenuPanel({
       const dCreate = normalizeDias(createForm.dias_semana);
       if (dCreate != null) payload.dias_semana = dCreate;
       const created = await api.createProducto(payload);
+      if (createForm.pendingImage?.heroBlob) {
+        try {
+          const imgRes = await api.uploadProductoImagen(
+            created.id,
+            createForm.pendingImage.heroBlob,
+            `${created.codigo}.jpg`,
+            {
+              cardBlob: createForm.pendingImage.cardBlob,
+              removeBg: createForm.pendingImage.removeBg,
+            }
+          );
+          handleImageUploaded(imgRes);
+        } catch (imgEx) {
+          console.error("Error subiendo foto del platillo creado:", imgEx);
+        }
+      }
       setShowCreate(false);
+      const hadImg = !!createForm.pendingImage;
       setCreateForm(emptyCreateForm());
       setMsg(
-        `Creado ${created.codigo} · ${created.nombre}. Ya puedes subir su foto 📷`,
+        `Creado ${created.codigo} · ${created.nombre}${
+          hadImg ? " con foto sincronizada en pantallas 📷" : ". Ya puedes subir su foto 📷"
+        }`
       );
       await load();
       onSaved?.();
-      setPhotoProduct(toDraft(created));
+      if (!hadImg) {
+        setPhotoProduct(toDraft(created));
+      }
     } catch (ex) {
       setErr(ex.message || "No se pudo crear el producto");
     } finally {
@@ -811,11 +834,25 @@ export default function GestionarMenuPanel({
         onUploaded={handleImageUploaded}
       />
 
+      <ImageCropUploadModal
+        open={showCropForCreate}
+        product={{
+          id: "new",
+          codigo: "NUEVO",
+          nombre: createForm.nombre || "Nuevo platillo",
+        }}
+        onClose={() => setShowCropForCreate(false)}
+        onCaptureProductImage={(captured) => {
+          setCreateForm((f) => ({ ...f, pendingImage: captured }));
+          setShowCropForCreate(false);
+        }}
+      />
+
       {showCreate && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/75 p-4">
           <form
             onSubmit={handleCreate}
-            className="w-full max-w-md rounded-2xl border border-stone-600 bg-stone-950 p-5 shadow-2xl"
+            className="w-full max-w-md max-h-[92vh] overflow-y-auto rounded-2xl border border-stone-600 bg-stone-950 p-5 shadow-2xl"
           >
             <h3 className="text-lg font-bold text-amber-100">
               ➕ Nuevo · {groupMeta.icon} {groupMeta.label}
@@ -824,7 +861,67 @@ export default function GestionarMenuPanel({
               Código automático (ej. CAF-MOKA). Las TVs se actualizan al crear.
             </p>
 
-            <label className="mt-4 block">
+            {/* Selector de foto con recorte, filtros y retoque profesional */}
+            <div className="mt-3 rounded-xl border border-stone-700 bg-stone-900/80 p-3">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold uppercase text-stone-300 flex items-center gap-1.5">
+                  📷 Foto del platillo
+                </span>
+                {createForm.pendingImage ? (
+                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-950/70 border border-emerald-700/60 px-2 py-0.5 rounded-full">
+                    ✓ Lista para TVs
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-stone-500">Opcional</span>
+                )}
+              </div>
+
+              {createForm.pendingImage ? (
+                <div className="flex items-center gap-3">
+                  <img
+                    src={createForm.pendingImage.previewUrl}
+                    alt="Foto recortada"
+                    className="h-16 w-16 rounded-xl object-cover border border-amber-500/50 bg-stone-950 shadow-md"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-amber-100 truncate">
+                      {createForm.pendingImage.removeBg
+                        ? "✨ Con recorte y sin fondo (IA rembg)"
+                        : "✂️ Foto retocada (1:1 y tarjeta)"}
+                    </p>
+                    <div className="mt-2 flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowCropForCreate(true)}
+                        className="tap text-xs font-semibold text-amber-300 hover:text-amber-200 underline cursor-pointer"
+                      >
+                        Reajustar recorte
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setCreateForm((f) => ({ ...f, pendingImage: null }))
+                        }
+                        className="tap text-xs font-semibold text-rose-400 hover:text-rose-300 underline cursor-pointer"
+                      >
+                        Quitar foto
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowCropForCreate(true)}
+                  className="tap flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-600 bg-stone-950/70 py-3 text-xs font-semibold text-stone-300 hover:border-amber-400 hover:text-amber-200 transition-colors cursor-pointer"
+                >
+                  <span className="text-lg">📸</span>
+                  <span>Cargar foto con filtros, recorte 1:1 y retoques</span>
+                </button>
+              )}
+            </div>
+
+            <label className="mt-3 block">
               <span className="mb-1 block text-xs font-semibold uppercase text-stone-400">
                 Nombre
               </span>

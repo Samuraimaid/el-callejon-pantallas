@@ -40,9 +40,9 @@ DEFAULT_LANDING_CONFIG: dict[str, Any] = {
         "mostrar_precios": True,
         "descripcion_larga": (
             "Somos un negocio con más de 25 años de experiencia, siendo los pioneros en la industria "
-            "de la gastronomía Leonesa estilo Buffet de alto perfil. Ofrecemos servicio de catering para "
-            "cumpleaños, bodas, bautizos, despedidas de soltero y eventos corporativos, en un local acogedor "
-            "climatizado y decorado con estilo."
+            "de la gastronomía Leonesa estilo Buffet de alto perfil. Ofrecemos frescos comedores familiares "
+            "y un exclusivo Salón VIP totalmente climatizado con aire acondicionado para reuniones, celebraciones "
+            "y eventos privados con servicio completo de catering."
         ),
     },
     "visibilidad_secciones": {
@@ -72,13 +72,14 @@ DEFAULT_LANDING_CONFIG: dict[str, Any] = {
             "auténtica, fresca y con el toque casero que nos distingue."
         ),
         "parrafo_2": (
-            "Contamos con instalaciones climatizadas, mesas amplias para compartir en familia y un salón de eventos "
-            "equipado para celebrar momentos inolvidables con atención personalizada y banquete buffet."
+            "Contamos con amplios y frescos comedores familiares al aire libre y un exclusivo Salón VIP "
+            "totalmente climatizado con aire acondicionado, ideal para almuerzos ejecutivos, celebraciones privadas "
+            "y eventos especiales con atención personalizada y banquete buffet."
         ),
         "destacados": [
             {"icono": "🏆", "titulo": "25+ Años", "desc": "Pioneros en buffet en León"},
             {"icono": "🥩", "titulo": "Asados & Grill", "desc": "Cortes al carbón y sazón criollo"},
-            {"icono": "❄️", "titulo": "Ambiente Confortable", "desc": "Salón climatizado y música ambiental"},
+            {"icono": "❄️", "titulo": "Salón VIP Climatizado", "desc": "Área reservada con aire acondicionado"},
             {"icono": "🎉", "titulo": "Catering Completo", "desc": "Atención a bodas, 15 años y reuniones"},
         ],
         "imagen_secundaria": "/images/publicidad/buffet-platos.jpg",
@@ -306,7 +307,7 @@ DEFAULT_LANDING_CONFIG: dict[str, Any] = {
         },
     ],
     "galeria_fotos": [
-        {"url": "/images/slides/slide-ambiente-salon-1.jpg", "titulo": "Salón Climatizado"},
+        {"url": "/images/slides/slide-ambiente-salon-1.jpg", "titulo": "Salón VIP Climatizado"},
         {"url": "/images/slides/slide-ambiente-luz-1.jpg", "titulo": "Ambiente Acogedor"},
         {"url": "/images/slides/slide-mesa-1.jpg", "titulo": "Mesas para Eventos"},
         {"url": "/images/publicidad/buffet-platos.jpg", "titulo": "Barra de Buffet Fresca"},

@@ -1,74 +1,51 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Logo from "../components/Logo";
 import { api } from "../lib/api";
 import { isSmartTvBrowser, setSession } from "../lib/auth";
 
 /**
- * Acceso solo con PIN (sin usuario/contraseña).
+ * Acceso formal al Centro de Control con Usuario y Contraseña segura.
  */
 export default function LoginPage() {
   const nav = useNavigate();
   const tvBlocked = isSmartTvBrowser();
-  const [pin, setPin] = useState("");
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [pinInfo, setPinInfo] = useState(null);
-  const [lockLeft, setLockLeft] = useState(0);
-
-  const refreshPinStatus = useCallback(async () => {
-    try {
-      const s = await api.pinStatus();
-      setPinInfo(s);
-      setLockLeft(Number(s.retry_after_s) || 0);
-    } catch (e) {
-      const msg = e.message || "";
-      if (msg.includes("TV") || msg.includes("403")) {
-        setError("Este dispositivo TV no puede abrir el Centro de Control.");
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (tvBlocked) return;
-    refreshPinStatus();
-  }, [tvBlocked, refreshPinStatus]);
-
-  useEffect(() => {
-    if (lockLeft <= 0) return undefined;
-    const id = window.setInterval(() => {
-      setLockLeft((n) => {
-        if (n <= 1) {
-          window.clearInterval(id);
-          refreshPinStatus();
-          return 0;
-        }
-        return n - 1;
-      });
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [lockLeft > 0, refreshPinStatus]);
 
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
+
+    const u = username.trim();
+    const p = password.trim();
+
+    if (!u || !p) {
+      setError("Por favor ingrese su usuario y contraseña.");
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await api.pinLogin(pin.trim());
+      const res = await api.login(u, p);
       setSession(res.access_token, res.usuario);
       nav("/admin", { replace: true });
     } catch (err) {
-      let detail = err.message || "PIN incorrecto";
+      let detail = err.message || "Usuario o contraseña incorrectos";
       try {
         const j = JSON.parse(detail);
-        if (j.message) detail = j.message;
-        if (j.retry_after_s) setLockLeft(Number(j.retry_after_s));
-        if (j.attempts_left != null) setPinInfo(j);
+        if (j.detail) detail = j.detail;
+        else if (j.message) detail = j.message;
       } catch {
-        /* texto */
+        /* texto simple */
       }
-      setError(typeof detail === "string" ? detail : "PIN incorrecto");
-      refreshPinStatus();
+      setError(
+        typeof detail === "string" ? detail : "Usuario o contraseña incorrectos"
+      );
     } finally {
       setLoading(false);
     }
@@ -82,8 +59,7 @@ export default function LoginPage() {
           <h1 className="font-display mt-4 text-2xl">Acceso bloqueado</h1>
           <p className="mt-3 text-sm text-cream/70">
             Las Smart TVs no pueden abrir el Centro de Control. Use el hub{" "}
-            <code className="text-amber-200/90">/tv/1…6</code> o un PC/tablet
-            de personal.
+            <code className="text-amber-200/90">/tv/1…6</code> o un PC/tablet de personal.
           </p>
           <a
             href="/"
@@ -98,69 +74,79 @@ export default function LoginPage() {
 
   return (
     <div className="bg-oak-wood flex h-full min-h-screen items-center justify-center p-4 text-ivory">
-      <div className="panel-oak w-full max-w-md rounded-3xl p-8 shadow-2xl">
+      <div className="panel-oak w-full max-w-md rounded-3xl p-8 shadow-2xl border border-amber-600/30">
         <div className="mb-6 flex flex-col items-center text-center">
           <Logo size="xl" />
-          <h1 className="font-display mt-4 text-3xl text-ivory">
+          <h1 className="font-display mt-4 text-3xl text-ivory tracking-wide">
             Centro de Control
           </h1>
           <p className="mt-1 text-sm text-cream/70">
-            Acceso con PIN · personal autorizado
+            Acceso administrativo · Personal autorizado
           </p>
         </div>
 
         <form onSubmit={onSubmit} className="space-y-4">
-          {pinInfo && !lockLeft ? (
-            <p className="text-center text-xs text-amber-200/80">
-              Intentos restantes: {pinInfo.attempts_left ?? "—"}
-              {pinInfo.next_lock_s
-                ? ` · si falla 3 veces: bloqueo ${pinInfo.next_lock_s}s`
-                : ""}
-            </p>
-          ) : null}
+          {error && (
+            <div className="rounded-xl bg-rose-950/70 border border-rose-800/80 px-4 py-2.5 text-center text-sm font-semibold text-rose-200">
+              {error}
+            </div>
+          )}
 
           <label className="block">
-            <span className="mb-1 block text-sm text-cream/70">PIN (4–8 dígitos)</span>
+            <span className="mb-1.5 block text-xs font-bold text-amber-200/80 uppercase tracking-wider">
+              Usuario
+            </span>
             <input
-              type="password"
-              inputMode="numeric"
-              autoComplete="one-time-code"
+              type="text"
               autoFocus
-              value={pin}
-              disabled={lockLeft > 0 || loading}
-              onChange={(e) =>
-                setPin(e.target.value.replace(/\D/g, "").slice(0, 8))
-              }
-              className="tap w-full rounded-2xl border border-[rgba(232,197,106,0.25)] bg-black/35 px-4 py-4 text-center text-2xl tracking-[0.4em] text-ivory outline-none focus:border-gold"
-              placeholder="••••"
-              maxLength={8}
+              autoComplete="username"
+              value={username}
+              disabled={loading}
+              onChange={(e) => setUsername(e.target.value)}
+              className="tap w-full rounded-xl border border-[rgba(232,197,106,0.3)] bg-black/40 px-4 py-3 text-base text-ivory placeholder-stone-500 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+              placeholder="Ingrese su usuario"
             />
           </label>
 
-          {lockLeft > 0 && (
-            <p className="rounded-xl bg-amber-950/50 px-3 py-2 text-center text-sm text-amber-100">
-              Bloqueado · reintente en <strong>{lockLeft}s</strong>
-            </p>
-          )}
-
-          {error && (
-            <p className="rounded-xl bg-rose-950/60 px-3 py-2 text-sm text-rose-300">
-              {error}
-            </p>
-          )}
+          <label className="block relative">
+            <span className="mb-1.5 block text-xs font-bold text-amber-200/80 uppercase tracking-wider">
+              Contraseña
+            </span>
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                value={password}
+                disabled={loading}
+                onChange={(e) => setPassword(e.target.value)}
+                className="tap w-full rounded-xl border border-[rgba(232,197,106,0.3)] bg-black/40 px-4 py-3 pr-12 text-base text-ivory placeholder-stone-500 outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/50 transition-all"
+                placeholder="••••••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-amber-200 text-xs px-1.5 py-1 rounded transition-colors cursor-pointer select-none"
+                tabIndex={-1}
+              >
+                {showPassword ? "Ocultar" : "Ver"}
+              </button>
+            </div>
+          </label>
 
           <button
             type="submit"
-            disabled={loading || lockLeft > 0 || pin.length < 4}
-            className="tap w-full rounded-2xl bg-gradient-to-r from-[#a33a28] to-[#d4a84b] py-4 text-lg font-bold text-[#1a120c] shadow-lg disabled:opacity-60"
+            disabled={loading || !username.trim() || !password.trim()}
+            className="tap mt-2 w-full rounded-xl bg-gradient-to-r from-orange-600 via-amber-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 py-3.5 text-base font-extrabold text-stone-950 shadow-lg disabled:opacity-50 transition-all cursor-pointer"
           >
-            {loading ? "Entrando…" : "Entrar"}
+            {loading ? "Verificando…" : "Iniciar Sesión"}
           </button>
         </form>
 
-        <p className="mt-4 text-center text-xs text-cream/40">
-          PIN inicial: 2580 · cámbielo en Ambiente → Seguridad
-        </p>
+        <div className="mt-6 pt-4 border-t border-white/10 text-center">
+          <p className="text-xs text-cream/50">
+            El Callejón POS · Cartelería y Administración en Vivo
+          </p>
+        </div>
       </div>
     </div>
   );

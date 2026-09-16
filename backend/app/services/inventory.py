@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json as _json
 import re
 import unicodedata
 from decimal import Decimal
@@ -442,7 +443,7 @@ async def create_producto(
                 :stock, 0, :es_ilimitado,
                 :destacado, :numero_combo,
                 :unidad, :activo, :orden,
-                CASE WHEN :dias_json IS NULL THEN NULL ELSE CAST(:dias_json AS jsonb) END
+                CAST(:dias_json AS jsonb)
             )
             RETURNING {SELECT_COLS}
             """

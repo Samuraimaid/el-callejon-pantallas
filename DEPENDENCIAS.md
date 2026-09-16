@@ -174,13 +174,15 @@ docker compose up --build -d
 
 Primera vez: PostgreSQL ejecuta `db/init/*.sql` (schema + seed).
 
-Credenciales dev por defecto (cambiar en producción):
+Credenciales del sistema (autenticación segura con Bcrypt y roles):
 
-- Usuario: `admin`  
-- PIN/password: `1234`  
+- **Marlon** (Admin) — `Sazon de 25 años`
+- **Fabio** (Admin) — `El peluka sapbe`
+- **Invitado** (Operador) — `Cordon Blue 2026`
 
 ### URLs útiles
 
+- Landing Page: `http://IP_SERVIDOR:5173/restaurante`
 - Hub: `http://IP_SERVIDOR:5173`  
 - Admin: `http://IP_SERVIDOR:5173/admin`  
 - TV comidas: `http://IP_SERVIDOR:5173/pantalla/comidas`  

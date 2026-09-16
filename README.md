@@ -55,6 +55,7 @@ docker compose up --build -d
 
 | Uso | URL |
 |-----|-----|
+| Landing Page Turística | http://IP_DEL_SERVIDOR:5173/restaurante |
 | Hub (este PC) | http://localhost:5173 |
 | Hub (red / TVs) | http://IP_DEL_SERVIDOR:5173 |
 | Centro de Control | http://IP_DEL_SERVIDOR:5173/admin |
@@ -63,7 +64,10 @@ docker compose up --build -d
 
 **Smart TVs en la misma Wi‑Fi:** en el televisor abra `http://IP:5173` (IPv4 del PC servidor, ej. `192.168.1.129`), elija el botón de esa TV y guarde en favoritos. No use `localhost` en las TVs — eso apunta al propio televisor.
 
-**Login dev:** `admin` / `1234` (cambiar en producción).
+**Autenticación del Centro de Control (Usuario y Contraseña con Bcrypt):**
+- **Usuario 1:** `Marlon` — Contraseña: `Sazon de 25 años` (Administrador)
+- **Usuario 2:** `Fabio` — Contraseña: `El peluka sapbe` (Administrador)
+- **Usuario 3:** `Invitado` — Contraseña: `Cordon Blue 2026` (Operador)
 
 ### Smart TVs en la red local
 
@@ -94,13 +98,14 @@ Migraciones incrementales: carpeta `db/migrations/` (`001` … `007`).
 
 ---
 
-## Base de datos (3 tablas)
+## Base de datos (4 tablas principales)
 
 | Tabla | Rol |
 |-------|-----|
-| `usuarios` | Auth del Centro de Control |
+| `usuarios` | Auth del Centro de Control (username, password_hash bcrypt, nombre, rol) |
 | `productos_menu` | Menú: precios, stock, `es_ilimitado`, `destacado`, `numero_combo` |
 | `campanas_publicidad` | Slides + mensajes dinámicos por zona |
+| `config_sistema` | Configuración persistente del Sitio Web / Landing Page CMS |
 
 ---
 
@@ -108,6 +113,7 @@ Migraciones incrementales: carpeta `db/migrations/` (`001` … `007`).
 
 1. **Gestionar Menú del Día** — CRUD, ♾️ ilimitado, ⭐ destacado, Nº combo 1–12, foto 1:1 + rembg, WS a TVs.
 2. **Gestionar Campañas Publicitarias** — TV #3–#6 independientes, 10 efectos, mensajes Chef / ¿Sabías qué?
+3. **Sitio Web / CMS** — Edición en vivo de la Landing Page multilingüe `/restaurante` (historia, menú, eventos, galería, Google Maps).
 
 ### Favoritos Smart TV (URL corta)
 

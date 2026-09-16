@@ -49,16 +49,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ old_pin, new_pin }),
     }),
-  /** Compat */
-  login: (usuario, password, pin) =>
-    request("/api/auth/login", {
+  login: (usernameOrObj, password) => {
+    const payload =
+      typeof usernameOrObj === "object" && usernameOrObj !== null
+        ? usernameOrObj
+        : {
+            username: usernameOrObj,
+            usuario: usernameOrObj,
+            password,
+          };
+    return request("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({
-        pin: pin || password,
-        usuario,
-        password,
-      }),
-    }),
+      body: JSON.stringify(payload),
+    });
+  },
   me: () => request("/api/auth/me"),
 
   // —— Menú del día (TVs 50" + Centro de Control) ——
@@ -370,6 +374,38 @@ export const api = {
     request("/api/backup/run/full", { method: "POST", body: "{}" }),
   backupRunMigrate: () =>
     request("/api/backup/run/migrate", { method: "POST", body: "{}" }),
+  downloadBackupFile: async (filename) => {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/backup/download/${encodeURIComponent(filename)}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Error al descargar el archivo de respaldo");
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
+  downloadBackupNow: async () => {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/api/backup/download-now`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Error al generar y descargar el respaldo");
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `backup_callejon_${new Date().toISOString().slice(0, 19).replace(/[:-]/g, "")}.zip`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
+  },
 
   uploadVideosMulti: async (
     files,

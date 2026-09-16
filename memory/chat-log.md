@@ -52,7 +52,7 @@
 | **TV #4** | `/tv/4` | Publicidad Parrilla (asados) |
 | **TV #5** | `/tv/5` | Publicidad VIP ambiente |
 | **TV #6** | `/tv/6` | Publicidad VIP platillos |
-| **Admin Panel (CMS)** | `/admin` o `/login` | Centro de Control (PIN inicial: `2580` / `0000`) con pestaña **Sitio Web** |
+| **Admin Panel (CMS)** | `/admin` o `/login` | Centro de Control (Usuario y Contraseña Bcrypt: Marlon, Fabio, Invitado) con pestaña **Sitio Web** |
 | **API Docs** | `/docs` | Swagger UI de FastAPI |
 
 ---
@@ -122,3 +122,87 @@
     - Landing Page: `https://callejon-frontend-836176703716.us-central1.run.app/restaurante`
     - Centro de Control CMS: `https://callejon-frontend-836176703716.us-central1.run.app/admin` (Pestaña "🌐 Sitio Web")
     - API de Configuración: `https://callejon-backend-836176703716.us-central1.run.app/api/landing`
+
+### [2026-09-16 10:35:00] Seguridad y Autenticación con Usuario y Contraseña, Rediseño Visual Madera Roja y Carrusel en Landing Page
+- **Auditoría y Robustecimiento de Seguridad (Usuario y Contraseña):**
+  - Se evaluó la vulnerabilidad del sistema ante cambios de URL en el navegador:
+    - Las rutas de pantallas (`/tv/*`, `/pantalla/*`) y la landing (`/restaurante`) son de acceso público de solo lectura por diseño.
+    - El Centro de Control (`/admin`, `/login`) estaba protegido por un PIN de 4 dígitos (`2580`/`0000`) sin control granular de acceso.
+  - **Reemplazo total de autenticación PIN por Usuario y Contraseña con Bcrypt:**
+    - Se creó la migración `db/migrations/015_add_admin_users.sql` agregando columnas `password_hash`, `nombre`, `rol` (`admin` / `operador`) y eliminando la dependencia exclusiva de PIN plano.
+    - Se sembraron los 3 usuarios del sistema (también integrados en `db/init/02_seed.sql`):
+      1. **Marlon** (Rol: `admin`) — Contraseña: `Sazon de 25 años`
+      2. **Fabio** (Rol: `admin`) — Contraseña: `El peluka sapbe`
+      3. **Invitado** (Rol: `operador`) — Contraseña: `Cordon Blue 2026`
+    - `backend/app/services/auth_bootstrap.py`: Verificación automática al arranque para asegurar la existencia de los 3 usuarios en base de datos.
+    - `backend/app/routers/auth.py`: Endpoint `/api/auth/login` modificado para aceptar `LoginRequest(username, password)`. Emite token JWT con payload `{sub: usuario.username, rol: usuario.rol, nombre: usuario.nombre}`.
+    - `frontend/src/lib/api.js` y `frontend/src/pages/LoginPage.jsx`: Rediseño del formulario con inputs de usuario y contraseña, selector para ver/ocultar contraseña y almacenamiento de sesión con rol.
+- **Rediseño del Hero de la Landing Page:**
+  - Se eliminó el globo flotante de comida y los badges informales ("Pollo", "Asados", "Camarones", "Costilla") para dotar al sitio de mayor seriedad y elegancia gastronómica.
+  - Se implementó un **carrusel panorámico 16:9** idéntico a las pantallas de TV3 y TV4, con rotación automática suave cada 6 segundos, barra de progreso animada, botones de navegación anterior/siguiente, indicadores de diapositivas y textos descriptivos de cada plato/corte.
+- **Estética Visual: Madera Roja / Caoba:**
+  - Se eliminaron los contenedores y paddings de color marfil claro (`#fcf7ee`, etc.).
+  - Se generó e integró la textura de madera caoba roja `frontend/public/images/madera-roja-card.jpg` combinada con gradientes profundos (`#1a0806`, `#280c09`), bordes ámbar dorados (`border-amber-700/40`) y tipografía clara con sombras suaves para todas las tarjetas (Sobre Nosotros, Menú, Eventos, Galería y Ubicación).
+- **Ajuste Automático de Moneda según Idioma:**
+  - Se eliminó el selector manual de precios (pill switch NIO/USD).
+  - Los precios ahora se exhiben automáticamente en **Córdobas (`C$ NIO`)** cuando el idioma seleccionado es Español, y en **Dólares (`$ USD`)** para todos los demás idiomas (Inglés, Francés, Italiano, Alemán, Portugués).
+- **Traducción Integral Multilingüe (6 Idiomas):**
+  - Se corrigió el error de precedencia en `LandingPage.jsx` donde los textos estáticos del CMS en español sobrescribían el diccionario de traducciones.
+  - Se completaron las traducciones para todos los encabezados, párrafos, diapositivas del carrusel, tarjetas de eventos, categorías gastronómicas y detalles de ubicación en `frontend/src/lib/landingTranslations.js` y `LandingPage.jsx`.
+- **Aclaración Arquitectónica del Salón VIP:**
+  - Se especificó de manera explícita en todos los idiomas que el **Salón VIP es el área exclusivamente climatizada con A/C**, mientras que el salón principal y comedor familiar ofrecen un ambiente fresco y tradicional al aire libre.
+- **Validación y Estado:**
+  - Compilación exitosa en `frontend` con `npm run build` en 9.23s (cero errores).
+  - Verificación de sintaxis backend con `python -m py_compile` (código 0).
+
+### [2026-09-16 13:05:00] Reparación de Creación de Productos, Resiembra Bcrypt y Despliegue en Vivo a Producción
+- **Diagnóstico y Reparación de Creación de Productos (`backend/app/services/inventory.py`):**
+  - **Error 1 (NameError):** `_json.dumps(dias_norm)` fallaba con `NameError: name '_json' is not defined` por falta de import a nivel de módulo.
+    - *Solución:* Se agregó `import json as _json` en la cabecera de `backend/app/services/inventory.py`.
+  - **Error 2 (AmbiguousParameterError en PostgreSQL / asyncpg):** Al crear productos con o sin días de semana, asyncpg arrojaba `could not determine data type of parameter $13` debido a la expresión SQL `CASE WHEN :dias_json IS NULL THEN NULL ELSE CAST(:dias_json AS jsonb) END`, donde la rama `IS NULL` impedía a Postgres inferir el tipo de dato preparado.
+    - *Solución:* Se simplificó a `CAST(:dias_json AS jsonb)` en la sentencia `INSERT INTO productos_menu`. Si `:dias_json` es `None`, Postgres castea limpiamente a `NULL` de tipo `jsonb` sin ambigüedad.
+- **Resiembra de Credenciales de Usuarios en Neon DB:**
+  - Se detectó que la inserción previa de hashes había truncado el prefijo `$2b$12$` debido al escape en bash/psql.
+  - Se generaron hashes Bcrypt genuinos de 60 caracteres y se sembraron exitosamente en Neon PostgreSQL:
+    - **Marlon** (`admin`): `Sazon de 25 años`
+    - **Fabio** (`admin`): `El peluka sapbe`
+    - **Invitado** (`operador`): `Cordon Blue 2026`
+- **Despliegue a Producción (Google Cloud Run):**
+  - **Frontend:** Revisión `callejon-frontend-00019-f5l` (Cloud Build `fdccb985-8ddb-423d-8fe0-a6ecda58d510`).
+  - **Backend:** Revisión `callejon-backend-00011-4x7` (Cloud Build `caeab156-3fa6-4447-a16a-0320fb38395f`).
+- **Verificación en Vivo (100% Exitosa):**
+  - Autenticación vía proxy `/api/auth/login` probada para `Marlon`, `Fabio` e `Invitado`.
+  - Creación y eliminación de productos de prueba probada en vivo por API tanto con días específicos (`[1, 2, 3, 4, 5]`) como con días nulos (`None`).
+  - Landing page turística `/restaurante` respondiendo 200 OK con el carrusel 16:9, diseño de madera roja caoba y selector automático de moneda.
+
+### [2026-09-16 14:05:00] Cargador de Fotos al Crear Platillos, Respaldos en Google Cloud Storage y Login Seguro
+- **1. Cargador de Fotos con Retoque al Crear Platillos:**
+  - `frontend/src/components/ImageCropUploadModal.jsx`: Soporte para prop `onCaptureProductImage`, permitiendo recortar (Hero 1:1, Card horizontal) y aplicar retoques/remoción de fondo con IA antes de guardar el producto.
+  - `frontend/src/components/GestionarMenuPanel.jsx`:
+    - Caja de selección de fotografía integrada en el formulario modal «Nuevo Platillo».
+    - Previsualización en vivo de la foto seleccionada con botones «Reajustar recorte» y «Quitar foto».
+    - Al oprimir «Crear Platillo», primero se crea el registro en la base de datos y de inmediato se envía el blob a `/api/productos/{id}/imagen`, quedando el platillo con su foto activa al instante.
+- **2. Gestión de Respaldos en Google Cloud Storage (GCS) y Descarga Manual ZIP:**
+  - `backend/app/services/cloud_backup.py`:
+    - Servicio que genera volcado de tablas PostgreSQL (`usuarios`, `productos_menu`, `campanas_publicidad`, `config_sistema`) a JSON y SQL.
+    - Empaqueta el archivo ZIP directamente en el volumen GCSFuse `/app/static/images/backups/`, persistiendo en `gs://callejon-multimedia-pos/backups/`.
+    - Endpoints actualizados en `backend/app/routers/backup.py`:
+      - `POST /api/backup/run`: Generación manual o programada de respaldo en GCS.
+      - `GET /api/backup/status` y `GET /api/backup/history`: Listado y tamaño de respaldos en la nube.
+      - `GET /api/backup/download/{filename}` y `GET /api/backup/download-now`: Descarga directa en el navegador en formato ZIP.
+  - `frontend/src/components/BackupPanel.jsx` & `frontend/src/lib/api.js`:
+    - Rediseño con destino visible `gs://callejon-multimedia-pos/backups`.
+    - Botones «☁️ Hacer respaldo en Google Cloud» y «📥 Descargar respaldo manual (ZIP)».
+    - Historial con botón de descarga individual por archivo.
+- **3. Limpieza de Pantalla de Login:**
+  - `frontend/src/pages/LoginPage.jsx`: Se eliminó el placeholder `"Ej. Marlon, Fabio o Invitado"`, reemplazándolo por `"Ingrese su usuario"`.
+- **4. Despliegue a Producción (Google Cloud Run):**
+  - **Frontend:** Revisión `callejon-frontend-00020-bk8` (Cloud Build `8d03fa36-e949-48a0-9e8f-477a9c1f3c49`).
+  - **Backend:** Revisión `callejon-backend-00012-z8p` (Cloud Build `a6a83095-fe3e-4634-aaef-a44c5b13baa1`).
+- **5. Verificación en Vivo (100% Exitosa):**
+  - Bundle frontend verificado: `placeholder="Ingrese su usuario"` activo, no expone credenciales ni nombres.
+  - Generación de respaldo en la nube probada: `POST /api/backup/run` generó `backup_callejon_2026-09-16_200325.zip` (24 KB) con 369 archivos multimedia y tablas completas.
+  - Descarga manual ZIP probada: `GET /api/backup/download-now` devolvió 200 OK con Content-Type `application/zip`.
+  - Creación de platillo + subida de imagen probada en vivo por API y confirmada sin errores.
+
+

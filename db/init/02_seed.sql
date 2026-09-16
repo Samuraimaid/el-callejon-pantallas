@@ -3,11 +3,14 @@
 -- Precios base en Córdobas (C$)
 -- =============================================================================
 
--- Credenciales dev (password/PIN: 1234). bcrypt al primer login.
+-- Credenciales del sistema
 INSERT INTO usuarios (codigo, username, nombre, rol, pin_hash, password_hash, activo) VALUES
-    ('ADM01', 'admin',     'Administrador',        'admin',    '1234', '1234', TRUE),
-    ('OPR01', 'operador',  'Operador Pantallas',   'operador', '1234', '1234', TRUE),
-    ('TV01',  'pantallas', 'Servicio TVs menú',    'operador', '1234', '1234', TRUE);
+    ('MARLON',   'Marlon',    'Marlon',               'admin',    '2580', 'Sazon de 25 años', TRUE),
+    ('FABIO',    'Fabio',     'Fabio',                'admin',    '2580', 'El peluka sapbe',  TRUE),
+    ('INVITADO', 'Invitado',  'Invitado',             'operador', '2580', 'Cordon Blue 2026', TRUE),
+    ('ADM01',    'admin',     'Administrador',        'admin',    '1234', '1234',             TRUE),
+    ('OPR01',    'operador',  'Operador Pantallas',   'operador', '1234', '1234',             TRUE),
+    ('TV01',     'pantallas', 'Servicio TVs menú',    'operador', '1234', '1234',             TRUE);
 
 -- -----------------------------------------------------------------------------
 -- 12 PLATILLOS

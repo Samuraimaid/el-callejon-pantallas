@@ -1,14 +1,16 @@
-"""API de respaldos automáticos personalizables."""
-
 from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.db import get_db
 from app.deps import require_caja
 from app.services import backup_config as bak
+from app.services import cloud_backup
 
 router = APIRouter(prefix="/api/backup", tags=["backup"])
 
@@ -58,15 +60,15 @@ async def get_config(_user=Depends(require_caja)) -> dict[str, Any]:
         "ok": True,
         "config": cfg,
         **cfg,
+        "destination": "Google Cloud Storage (gs://callejon-multimedia-pos/backups)",
         "modes": {
             "content": "Sin software: multimedia, campañas, BD, configs de usuario",
             "full": "Con software: content + código + scripts + compose",
             "migrate": "Paquete migración: full + instalador listo para otro PC",
         },
         "notes": [
-            "El backup lo ejecuta Windows (Task Scheduler), no el contenedor Docker.",
-            "Tras cambiar horario, re-registre la tarea o reinicie INSTALLAR/Register-DailyBackup.",
-            "POST /api/backup/run encola un respaldo inmediato (worker cada pocos min).",
+            "Respaldos administrados directamente en Google Cloud Storage (gs://callejon-multimedia-pos/backups).",
+            "Descarga manual en cualquier momento en formato ZIP.",
         ],
     }
 
@@ -79,38 +81,41 @@ async def put_config(
     if "include" in patch and isinstance(patch["include"], dict):
         patch["include"] = {k: v for k, v in patch["include"].items() if v is not None}
     cfg = bak.update_config(patch)
-    # Señal para que el worker Windows re-registre el horario
-    try:
-        bak.request_run  # noqa: B018 — ensure module loaded
-        req_path = bak._config_path().parent / "backup_schedule_reload.flag"
-        req_path.write_text(str(int(__import__("time").time())), encoding="utf-8")
-    except Exception:
-        pass
     return {
         "ok": True,
         "config": cfg,
         **cfg,
-        "message": "Config de respaldo guardada. El worker aplicará el nuevo horario.",
+        "destination": "Google Cloud Storage (gs://callejon-multimedia-pos/backups)",
+        "message": "Configuración de respaldo guardada.",
     }
 
 
 @router.get("/status")
 async def status(_user=Depends(require_caja)) -> dict[str, Any]:
     cfg = bak.get_config()
-    pending = bak.peek_request()
+    cloud_list = cloud_backup.list_cloud_backups()
+    last_cloud = cloud_list[0] if cloud_list else None
+
+    last_run = last_cloud["created_at"] if last_cloud else cfg.get("last_run")
+    last_status = "success" if last_cloud else (cfg.get("last_status") or "—")
+    last_path = last_cloud["path"] if last_cloud else (cfg.get("last_path") or "gs://callejon-multimedia-pos/backups/")
+    last_size = last_cloud.get("size_human") if last_cloud else None
+
     return {
         "ok": True,
-        "enabled": cfg.get("enabled"),
-        "time": cfg.get("time"),
-        "days": cfg.get("days"),
-        "mode": cfg.get("mode"),
-        "incremental": cfg.get("incremental"),
-        "last_run": cfg.get("last_run"),
-        "last_status": cfg.get("last_status"),
-        "last_path": cfg.get("last_path"),
+        "enabled": cfg.get("enabled", True),
+        "time": cfg.get("time", "15:30"),
+        "days": cfg.get("days", [0, 1, 2, 3, 4, 5, 6]),
+        "mode": cfg.get("mode", "content"),
+        "destination": "Google Cloud Storage (gs://callejon-multimedia-pos/backups)",
+        "incremental": cfg.get("incremental", True),
+        "last_run": last_run,
+        "last_status": last_status,
+        "last_path": last_path,
+        "last_size": last_size,
         "last_error": cfg.get("last_error"),
-        "pending_request": pending,
-        "history": bak.get_history(15),
+        "pending_request": None,
+        "history": cloud_list if cloud_list else bak.get_history(15),
     }
 
 
@@ -118,57 +123,77 @@ async def status(_user=Depends(require_caja)) -> dict[str, Any]:
 async def history(
     limit: int = 20, _user=Depends(require_caja)
 ) -> dict[str, Any]:
-    return {"ok": True, "history": bak.get_history(limit)}
+    cloud_list = cloud_backup.list_cloud_backups()
+    return {"ok": True, "history": cloud_list[:limit]}
 
 
 @router.post("/run")
 async def run_now(
-    body: BackupRunIn | None = None, _user=Depends(require_caja)
+    body: BackupRunIn | None = None,
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
 ) -> dict[str, Any]:
-    """
-    Encola un respaldo inmediato.
-    El script Register-DailyBackup / worker en Windows lo ejecuta.
-    """
-    b = body or BackupRunIn()
-    include = None
-    if b.include is not None:
-        include = b.include.model_dump(exclude_none=True)
-    res = bak.request_run(
-        mode=b.mode,
-        destination=b.destination,
-        incremental=b.incremental,
-        migrate_bundle=b.migrate_bundle,
-        include=include,
-    )
+    """Genera y almacena un respaldo directamente en Google Cloud Storage."""
+    filename, path, size, stats = await cloud_backup.generate_backup_archive(db)
     return {
-        **res,
-        "message": (
-            "Respaldo encolado. El worker de Windows lo ejecutará en breve "
-            "(tarea ElCallejon-BackupWorker). "
-            "También puede lanzar: scripts\\Backup-Callejon.bat"
-        ),
+        "ok": True,
+        "filename": filename,
+        "size": size,
+        "size_human": cloud_backup._format_size(size),
+        "path": f"gs://callejon-multimedia-pos/backups/{filename}",
+        "stats": stats,
+        "message": f"Respaldo generado y guardado en Google Cloud Storage ({cloud_backup._format_size(size)}).",
     }
 
 
 @router.post("/run/content")
-async def run_content(_user=Depends(require_caja)) -> dict[str, Any]:
-    """Atajo: respaldo sin software (solo datos/multimedia)."""
-    return await run_now(
-        BackupRunIn(mode="content", incremental=True, migrate_bundle=False)
-    )
+async def run_content(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    return await run_now(BackupRunIn(mode="content"), db, _user)
 
 
 @router.post("/run/full")
-async def run_full(_user=Depends(require_caja)) -> dict[str, Any]:
-    """Atajo: respaldo con software."""
-    return await run_now(
-        BackupRunIn(mode="full", incremental=True, migrate_bundle=False)
-    )
+async def run_full(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    return await run_now(BackupRunIn(mode="full"), db, _user)
 
 
 @router.post("/run/migrate")
-async def run_migrate(_user=Depends(require_caja)) -> dict[str, Any]:
-    """Atajo: paquete migración (datos + software + instalador)."""
-    return await run_now(
-        BackupRunIn(mode="migrate", incremental=False, migrate_bundle=True)
+async def run_migrate(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+) -> dict[str, Any]:
+    return await run_now(BackupRunIn(mode="migrate"), db, _user)
+
+
+@router.get("/download/{filename}")
+async def download_backup(
+    filename: str,
+    _user=Depends(require_caja),
+):
+    """Descarga manual de un archivo de respaldo específico desde Google Cloud Storage."""
+    file_path = cloud_backup.get_backup_filepath(filename)
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/zip",
+        filename=filename,
     )
+
+
+@router.get("/download-now")
+async def download_now(
+    db: AsyncSession = Depends(get_db),
+    _user=Depends(require_caja),
+):
+    """Genera un respaldo al vuelo y lo envía directamente para descarga en el navegador."""
+    filename, file_path, _, _ = await cloud_backup.generate_backup_archive(db)
+    return FileResponse(
+        path=str(file_path),
+        media_type="application/zip",
+        filename=filename,
+    )
+
