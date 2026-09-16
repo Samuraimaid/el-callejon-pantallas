@@ -1,7 +1,9 @@
 import { API_URL } from "./constants";
 import { clearSession, getToken } from "./auth";
+import { recordApiLog } from "./diagnostics";
 
 async function request(path, options = {}) {
+  const method = options.method || "GET";
   const headers = {
     "Content-Type": "application/json",
     ...(options.headers || {}),
@@ -9,22 +11,28 @@ async function request(path, options = {}) {
   const token = getToken();
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}${path}`, { ...options, headers });
-  if (res.status === 401) {
-    clearSession();
-  }
-  if (!res.ok) {
-    let detail = `HTTP ${res.status}`;
-    try {
-      const body = await res.json();
-      detail = body.detail || JSON.stringify(body);
-    } catch {
-      detail = (await res.text()) || detail;
+  try {
+    const res = await fetch(`${API_URL}${path}`, { ...options, headers });
+    recordApiLog({ method, path, status: res.status });
+    if (res.status === 401) {
+      clearSession();
     }
-    throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        detail = body.detail || JSON.stringify(body);
+      } catch {
+        detail = (await res.text()) || detail;
+      }
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
+    if (res.status === 204) return null;
+    return res.json();
+  } catch (err) {
+    recordApiLog({ method, path, status: "ERR", error: err.message });
+    throw err;
   }
-  if (res.status === 204) return null;
-  return res.json();
 }
 
 export const api = {
@@ -90,23 +98,30 @@ export const api = {
       fd.append("file_card", cardBlob, cardName);
     }
     fd.append("remove_bg", removeBg ? "true" : "false");
-    const res = await fetch(`${API_URL}/api/productos/${id}/imagen`, {
-      method: "POST",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: fd,
-    });
-    if (res.status === 401) clearSession();
-    if (!res.ok) {
-      let detail = `HTTP ${res.status}`;
-      try {
-        const body = await res.json();
-        detail = body.detail || JSON.stringify(body);
-      } catch {
-        detail = (await res.text()) || detail;
+    const path = `/api/productos/${id}/imagen`;
+    try {
+      const res = await fetch(`${API_URL}${path}`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: fd,
+      });
+      recordApiLog({ method: "POST", path, status: res.status });
+      if (res.status === 401) clearSession();
+      if (!res.ok) {
+        let detail = `HTTP ${res.status}`;
+        try {
+          const body = await res.json();
+          detail = body.detail || JSON.stringify(body);
+        } catch {
+          detail = (await res.text()) || detail;
+        }
+        throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
       }
-      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+      return res.json();
+    } catch (err) {
+      recordApiLog({ method: "POST", path, status: "ERR", error: err.message });
+      throw err;
     }
-    return res.json();
   },
 
   // —— Config menú board (TV #1 / #2) ——

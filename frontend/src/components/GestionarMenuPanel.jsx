@@ -5,6 +5,7 @@ import {
   fallbackImageForProduct,
   formatC,
   imageForProduct,
+  imageForProductCard,
 } from "../lib/constants";
 import ImageCropUploadModal from "./ImageCropUploadModal";
 
@@ -337,13 +338,25 @@ export default function GestionarMenuPanel({
   }
 
   function handleImageUploaded(result) {
+    if (!result) return;
+    const targetCode = result.codigo;
+    const targetId = result.id || result.producto_id;
     const newV = result.v || result.version || Date.now();
-    setMsg(`Foto de ${result.nombre || result.codigo} actualizada y enviada a las TVs.`);
+    setMsg(
+      `Foto de ${result.nombre || targetCode || "producto"} actualizada y enviada a las TVs.`,
+    );
     setRows((prev) =>
       prev.map((r) => {
-        if (r.codigo === result.codigo || r.id === result.id) {
-          const heroUrl = imageForProduct(r.codigo, r.tipo, newV);
-          const cardUrl = imageForProductCard(r.codigo, r.tipo, newV);
+        if (
+          (targetCode && r.codigo === targetCode) ||
+          (targetId && r.id === targetId)
+        ) {
+          const heroUrl = result.url
+            ? `${result.url}?v=${newV}`
+            : imageForProduct(r.codigo, r.tipo, newV);
+          const cardUrl = result.url_card
+            ? `${result.url_card}?v=${newV}`
+            : imageForProductCard(r.codigo, r.tipo, newV);
           return {
             ...r,
             imgV: newV,
@@ -557,13 +570,19 @@ export default function GestionarMenuPanel({
                       type="number"
                       min={0}
                       step={1}
-                      value={row.stock}
+                      value={row.stock ?? ""}
+                      onFocus={(e) => e.target.select()}
                       onChange={(e) =>
                         updateRow(row.id, {
-                          stock:
-                            e.target.value === "" ? 0 : Number(e.target.value),
+                          stock: e.target.value,
                         })
                       }
+                      onBlur={(e) => {
+                        const raw = e.target.value;
+                        const num =
+                          raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                        updateRow(row.id, { stock: num });
+                      }}
                       className="tap w-full rounded-lg border border-stone-600 bg-stone-950 px-2 py-2 text-center text-base font-semibold text-ivory outline-none focus:border-amber-500"
                     />
                   )}
@@ -577,13 +596,19 @@ export default function GestionarMenuPanel({
                     type="number"
                     min={0}
                     step={0.01}
-                    value={row.precio}
+                    value={row.precio ?? ""}
+                    onFocus={(e) => e.target.select()}
                     onChange={(e) =>
                       updateRow(row.id, {
-                        precio:
-                          e.target.value === "" ? 0 : Number(e.target.value),
+                        precio: e.target.value,
                       })
                     }
+                    onBlur={(e) => {
+                      const raw = e.target.value;
+                      const num =
+                        raw === "" ? 0 : Math.max(0, parseFloat(raw) || 0);
+                      updateRow(row.id, { precio: num });
+                    }}
                     className="tap w-full rounded-lg border border-stone-600 bg-stone-950 px-2 py-2 text-center text-base font-semibold text-ivory outline-none focus:border-amber-500"
                   />
                   <span className="mt-0.5 block text-center text-[10px] text-stone-500">
@@ -826,14 +851,20 @@ export default function GestionarMenuPanel({
                   type="number"
                   min={0}
                   step={0.01}
-                  value={createForm.precio}
+                  value={createForm.precio ?? ""}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) =>
                     setCreateForm((f) => ({
                       ...f,
-                      precio:
-                        e.target.value === "" ? 0 : Number(e.target.value),
+                      precio: e.target.value,
                     }))
                   }
+                  onBlur={(e) => {
+                    const raw = e.target.value;
+                    const num =
+                      raw === "" ? 0 : Math.max(0, parseFloat(raw) || 0);
+                    setCreateForm((f) => ({ ...f, precio: num }));
+                  }}
                   className="tap w-full rounded-xl border border-stone-600 bg-stone-900 px-3 py-3 text-center text-base font-semibold text-ivory outline-none focus:border-amber-500"
                 />
               </label>
@@ -846,13 +877,20 @@ export default function GestionarMenuPanel({
                   min={0}
                   step={1}
                   disabled={createForm.es_ilimitado}
-                  value={createForm.stock}
+                  value={createForm.stock ?? ""}
+                  onFocus={(e) => e.target.select()}
                   onChange={(e) =>
                     setCreateForm((f) => ({
                       ...f,
-                      stock: e.target.value === "" ? 0 : Number(e.target.value),
+                      stock: e.target.value,
                     }))
                   }
+                  onBlur={(e) => {
+                    const raw = e.target.value;
+                    const num =
+                      raw === "" ? 0 : Math.max(0, parseInt(raw, 10) || 0);
+                    setCreateForm((f) => ({ ...f, stock: num }));
+                  }}
                   className="tap w-full rounded-xl border border-stone-600 bg-stone-900 px-3 py-3 text-center text-base font-semibold text-ivory outline-none focus:border-amber-500 disabled:opacity-40"
                 />
               </label>

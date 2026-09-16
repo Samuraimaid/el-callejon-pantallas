@@ -199,7 +199,6 @@ export default function TvRuntimeShell({
         key={`evt-media-${item.id || item.media_url || evtIdx}-${evtRev}`}
         item={item}
         volumen={volumen}
-        key={item.id || item.media_url}
       />
     );
   }

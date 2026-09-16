@@ -8,6 +8,9 @@ import MonitoreoPantallasPanel from "../components/MonitoreoPantallasPanel";
 import PublicidadAdminPanel from "../components/PublicidadAdminPanel";
 import AmbientMusicPanel from "../components/AmbientMusicPanel";
 import AmbientMiniPlayer from "../components/AmbientMiniPlayer";
+import AdminErrorBoundary from "../components/AdminErrorBoundary";
+import CrashDiagnosticModal from "../components/CrashDiagnosticModal";
+import { getLastCrashSnapshot, createCrashSnapshot } from "../lib/diagnostics";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { clearSession, getUser } from "../lib/auth";
 
@@ -29,6 +32,18 @@ export default function ControlCenterPage() {
   const [tab, setTab] = useState("monitor");
   const [wsStatus, setWsStatus] = useState("off");
   const [flash, setFlash] = useState("");
+  const [debugSnapshot, setDebugSnapshot] = useState(null);
+
+  const openDiagnostics = () => {
+    const snap =
+      getLastCrashSnapshot() ||
+      createCrashSnapshot(
+        new Error("Inspección de diagnóstico y telemetría del sistema"),
+        "",
+        { modo: "inspección preventiva" },
+      );
+    setDebugSnapshot(snap);
+  };
 
   useWebSocket("admin,pantallas", (ev) => {
     if (!ev?.t) return;
@@ -105,6 +120,14 @@ export default function ControlCenterPage() {
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={openDiagnostics}
+            title="Abrir panel de diagnóstico y snapshot (Ctrl+Shift+D)"
+            className="tap rounded-lg border border-amber-600/40 bg-amber-950/40 px-2 py-2 text-[11px] font-semibold text-amber-200 hover:bg-amber-900/50 sm:px-3 sm:text-xs"
+          >
+            🛠️ Diagnóstico
+          </button>
           <a
             href="/"
             className="tap rounded-lg border border-stone-600 px-2.5 py-2 text-[11px] text-cream/80 sm:px-3 sm:text-xs"
@@ -155,13 +178,23 @@ export default function ControlCenterPage() {
       </div>
 
       <main className="admin-main flex min-h-0 flex-1 flex-col overflow-hidden">
-        {tab === "monitor" && <MonitoreoPantallasPanel />}
-        {tab === "menu" && <GestionarMenuPanel embedded />}
-        {tab === "board" && <MenuBoardConfigPanel />}
-        {tab === "publicidad" && <PublicidadAdminPanel />}
-        {tab === "ambient" && <AmbientMusicPanel />}
-        {tab === "backup" && <BackupPanel />}
+        <AdminErrorBoundary key={tab}>
+          {tab === "monitor" && <MonitoreoPantallasPanel />}
+          {tab === "menu" && <GestionarMenuPanel embedded />}
+          {tab === "board" && <MenuBoardConfigPanel />}
+          {tab === "publicidad" && <PublicidadAdminPanel />}
+          {tab === "ambient" && <AmbientMusicPanel />}
+          {tab === "backup" && <BackupPanel />}
+        </AdminErrorBoundary>
       </main>
+
+      {debugSnapshot && (
+        <CrashDiagnosticModal
+          snapshot={debugSnapshot}
+          onClose={() => setDebugSnapshot(null)}
+          onRetry={() => setDebugSnapshot(null)}
+        />
+      )}
     </div>
   );
 }

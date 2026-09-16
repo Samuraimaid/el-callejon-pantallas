@@ -1,6 +1,8 @@
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import ProtectedRoute from "./components/ProtectedRoute";
 import TvErrorBoundary from "./components/TvErrorBoundary";
+import GlobalErrorBoundary from "./components/GlobalErrorBoundary";
+import SystemDiagnosticProvider from "./components/SystemDiagnosticProvider";
 import ControlCenterPage from "./pages/ControlCenterPage";
 import HomePage from "./pages/HomePage";
 import LoginPage from "./pages/LoginPage";
@@ -18,8 +20,10 @@ function TvRoute({ children }) {
  */
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
+    <GlobalErrorBoundary name="RootApp">
+      <SystemDiagnosticProvider>
+        <BrowserRouter>
+          <Routes>
         {/* Lobby público solo para Smart TVs — sin enlaces al panel de admin */}
         <Route path="/" element={<HomePage />} />
         {/* Acceso staff: URL directa (no aparece en el hub de pantallas) */}
@@ -190,5 +194,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+  </SystemDiagnosticProvider>
+</GlobalErrorBoundary>
   );
 }

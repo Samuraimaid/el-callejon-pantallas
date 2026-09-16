@@ -10,6 +10,7 @@ import OverflowMarquee from "../OverflowMarquee";
 export default function PromoMarquee({
   config = null,
   intervalMs = 5500,
+  fontSizePx = null,
 }) {
   const { cfg: amb } = useAmbientUiConfig();
   const marqueeOn = amb.banner_marquee_enabled !== false;
@@ -49,7 +50,12 @@ export default function PromoMarquee({
   const msg = mensajes[idx % mensajes.length];
 
   return (
-    <div className="promo-marquee" role="status" aria-live="polite">
+    <div
+      className="promo-marquee"
+      role="status"
+      aria-live="polite"
+      style={fontSizePx ? { fontSize: `${fontSizePx}px` } : undefined}
+    >
       <div className="promo-marquee-track">
         <div
           key={`${msg.id}-${tick}`}

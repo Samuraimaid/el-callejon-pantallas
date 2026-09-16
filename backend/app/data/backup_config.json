@@ -9,13 +9,13 @@
                  5,
                  6
              ],
-    "last_status":  "ok",
-    "updated_at":  1785738464,
+    "updated_at":  1789446766,
     "keep_full_count":  3,
     "destination":  "",
     "time":  "15:30",
     "last_error":  "",
-    "last_run":  1785738464,
+    "migrate_bundle":  false,
+    "last_run":  1789446766,
     "incremental":  true,
     "mode":  "content",
     "include":  {
@@ -31,5 +31,5 @@
                 },
     "last_path":  "c:\\EL_CALLEJON_POS\\snapshots\\daily\\mirror",
     "enabled":  true,
-    "migrate_bundle":  false
+    "last_status":  "ok"
 }

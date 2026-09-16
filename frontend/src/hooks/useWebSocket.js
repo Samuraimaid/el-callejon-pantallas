@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { subscribeWs } from "../lib/wsHub";
+import { recordWsLog } from "../lib/diagnostics";
 
 /**
  * WebSocket ligero — reutiliza una conexión compartida por canales
@@ -23,9 +24,10 @@ export function useWebSocket(channels = "all", onEvent) {
       channels,
       (data) => {
         try {
+          recordWsLog(data);
           onEventRef.current?.(data);
-        } catch {
-          /* */
+        } catch (err) {
+          console.error("[useWebSocket] Error en manejador de evento:", err);
         }
       },
       setStatus

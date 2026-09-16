@@ -173,6 +173,42 @@ export default function MenuBoardScreen({
   const logoAlign = layout.logoAlign === "center" ? "center" : "left";
   const logoFilter = logoOutlineFilter(logoOutlinePx);
 
+  // Tipografías y escala de textos en Smart TVs
+  const fontScale = Math.max(
+    0.7,
+    Math.min(1.6, (Number(layout.fontScale) || 100) / 100)
+  );
+  const cardNameSizePx = Math.round(
+    (Number(layout.cardNameSizePx) || 18) * fontScale
+  );
+  const cardPriceSizePx = Math.round(
+    (Number(layout.cardPriceSizePx) || 22) * fontScale
+  );
+  const cardNumSizePx = Math.round(
+    (Number(layout.cardNumSizePx) || 26) * fontScale
+  );
+  const heroNameSizePx = Math.round(
+    (Number(layout.heroNameSizePx) || 38) * fontScale
+  );
+  const heroPriceSizePx = Math.round(
+    (Number(layout.heroPriceSizePx) || 38) * fontScale
+  );
+  const heroNumSizePx = Math.round(
+    (Number(layout.heroNumSizePx) || 68) * fontScale
+  );
+  const heroBadgeSizePx = Math.round(
+    (Number(layout.heroBadgeSizePx) || 13) * fontScale
+  );
+  const clockSizePx = Math.round(
+    (Number(layout.clockSizePx) || 30) * fontScale
+  );
+  const marqueeSizePx = Math.round(
+    (Number(layout.marqueeSizePx) || 17) * fontScale
+  );
+  const colTitleSizePx = Math.round(
+    (Number(layout.colTitleSizePx) || 24) * fontScale
+  );
+
   const listBoxStyle = useMemo(
     () => ({
       display: "flex",
@@ -222,12 +258,16 @@ export default function MenuBoardScreen({
             <PromoMarquee
               config={fullCfg}
               intervalMs={layout.marqueeIntervalMs || 5200}
+              fontSizePx={marqueeSizePx}
             />
           ) : null}
         </div>
         <div className="menu-tv-clock-slot">
           {showClock ? (
-            <p className="menu-tv-clock">
+            <p
+              className="menu-tv-clock"
+              style={{ fontSize: `${clockSizePx}px` }}
+            >
               {clock.toLocaleTimeString("es-NI", {
                 hour: "2-digit",
                 minute: "2-digit",
@@ -243,6 +283,7 @@ export default function MenuBoardScreen({
         <MenuBoardPanel
           title={leftTitle}
           subtitle={leftSub}
+          titleSizePx={colTitleSizePx}
           className="menu-tv-col menu-tv-col-left h-full min-h-0"
         >
           <div
@@ -261,6 +302,9 @@ export default function MenuBoardScreen({
                   dense
                   maxSlots={leftSlots}
                   textOutlinePx={textOutlinePx}
+                  nameSizePx={cardNameSizePx}
+                  priceSizePx={cardPriceSizePx}
+                  numSizePx={cardNumSizePx}
                 />
               ))}
               {ready && !colLeft.length && (
@@ -278,12 +322,17 @@ export default function MenuBoardScreen({
             includeAgotados={false}
             onActiveChange={onActiveChange}
             textOutlinePx={textOutlinePx}
+            nameSizePx={heroNameSizePx}
+            priceSizePx={heroPriceSizePx}
+            numSizePx={heroNumSizePx}
+            badgeSizePx={heroBadgeSizePx}
           />
         </div>
 
         <MenuBoardPanel
           title={rightTitle}
           subtitle={rightSub}
+          titleSizePx={colTitleSizePx}
           className="menu-tv-col menu-tv-col-right h-full min-h-0"
         >
           <div
@@ -302,6 +351,9 @@ export default function MenuBoardScreen({
                   dense
                   maxSlots={rightSlots}
                   textOutlinePx={textOutlinePx}
+                  nameSizePx={cardNameSizePx}
+                  priceSizePx={cardPriceSizePx}
+                  numSizePx={cardNumSizePx}
                 />
               ))}
             </div>

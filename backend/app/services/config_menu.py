@@ -39,6 +39,18 @@ DEFAULT_LAYOUT = {
     "showFicoshaOnPublicidad": True,
     "ficoshaCorto": "Ficosha · 35% de descuento en tu cuenta · sin m\u00ednimo",
     "ficoshaTag": "Alianza Ficosha",
+    # Tipografías y escala de textos en Smart TVs
+    "fontScale": 100,  # Multiplicador global (70% - 160%)
+    "cardNameSizePx": 18,  # Nombre de platillo en tarjeta lateral
+    "cardPriceSizePx": 22,  # Precio en tarjeta lateral
+    "cardNumSizePx": 26,  # Número (#1) en tarjeta lateral
+    "heroNameSizePx": 38,  # Nombre en hero central rotativo
+    "heroPriceSizePx": 38,  # Precio en hero central
+    "heroNumSizePx": 68,  # Número (#1) gigante en hero
+    "heroBadgeSizePx": 13,  # Etiqueta Menú del día / Promoción
+    "clockSizePx": 30,  # Reloj digital superior
+    "marqueeSizePx": 17,  # Texto marquesina superior
+    "colTitleSizePx": 24,  # Título de sección/columna
 }
 
 # Promos por defecto (editables en el panel)
@@ -211,6 +223,40 @@ def _clean_layout(raw: Any) -> dict[str, Any]:
         "ficoshaTag": str(
             src.get("ficoshaTag", fb["ficoshaTag"]) or fb["ficoshaTag"]
         )[:40],
+        # Tipografías y escala de textos en Smart TVs
+        "fontScale": _clamp_int(
+            src.get("fontScale", fb.get("fontScale", 100)), 70, 160, 100
+        ),
+        "cardNameSizePx": _clamp_int(
+            src.get("cardNameSizePx", fb.get("cardNameSizePx", 18)), 12, 36, 18
+        ),
+        "cardPriceSizePx": _clamp_int(
+            src.get("cardPriceSizePx", fb.get("cardPriceSizePx", 22)), 14, 40, 22
+        ),
+        "cardNumSizePx": _clamp_int(
+            src.get("cardNumSizePx", fb.get("cardNumSizePx", 26)), 16, 48, 26
+        ),
+        "heroNameSizePx": _clamp_int(
+            src.get("heroNameSizePx", fb.get("heroNameSizePx", 38)), 24, 68, 38
+        ),
+        "heroPriceSizePx": _clamp_int(
+            src.get("heroPriceSizePx", fb.get("heroPriceSizePx", 38)), 24, 68, 38
+        ),
+        "heroNumSizePx": _clamp_int(
+            src.get("heroNumSizePx", fb.get("heroNumSizePx", 68)), 40, 100, 68
+        ),
+        "heroBadgeSizePx": _clamp_int(
+            src.get("heroBadgeSizePx", fb.get("heroBadgeSizePx", 13)), 10, 24, 13
+        ),
+        "clockSizePx": _clamp_int(
+            src.get("clockSizePx", fb.get("clockSizePx", 30)), 18, 52, 30
+        ),
+        "marqueeSizePx": _clamp_int(
+            src.get("marqueeSizePx", fb.get("marqueeSizePx", 17)), 12, 30, 17
+        ),
+        "colTitleSizePx": _clamp_int(
+            src.get("colTitleSizePx", fb.get("colTitleSizePx", 24)), 16, 40, 24
+        ),
     }
 
 

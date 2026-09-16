@@ -38,20 +38,35 @@ export function displayNumber(p, fallbackIndex) {
   return `#${num}`;
 }
 
-/** Contorno de texto legible sobre fotos claras/oscuras */
-function textStrokeStyle(px = 1.5, color = "rgba(0,0,0,0.85)") {
-  const n = Math.max(0, Math.min(8, Number(px) || 0));
+/** Contorno de texto legible sobre fotos claras/oscuras con fade-out suave (sin bordes dentados) */
+function textStrokeStyle(px = 1.5, color = "rgba(0,0,0,0.92)") {
+  const n = Math.max(0, Math.min(10, Number(px) || 0));
   if (n <= 0) return undefined;
-  const shadows = [];
-  const steps = Math.max(8, Math.round(n * 4));
-  for (let i = 0; i < steps; i++) {
-    const a = (i / steps) * Math.PI * 2;
-    const x = (Math.cos(a) * n).toFixed(2);
-    const y = (Math.sin(a) * n).toFixed(2);
-    shadows.push(`${x}px ${y}px 0 ${color}`);
-  }
-  shadows.push("0 1px 3px rgba(0,0,0,0.45)");
-  return { textShadow: shadows.join(", ") };
+  return {
+    textShadow: [
+      `0 0 1px ${color}`,
+      `0 0 ${Math.max(1, n * 0.8)}px ${color}`,
+      `0 0 ${n * 1.5}px rgba(0, 0, 0, 0.85)`,
+      `0 2px ${n * 2.2}px rgba(0, 0, 0, 0.70)`,
+    ].join(", "),
+  };
+}
+
+/**
+ * Contorno negro de 5px con fade-out progresivo para columna central (hero).
+ * Otorga definición y contraste perfecto sobre la foto a pleno brillo sin verse tosco.
+ */
+function heroTextStrokeStyle(px = 5, color = "rgba(0,0,0,0.95)") {
+  const n = Math.max(1, Math.min(12, Number(px) || 5));
+  return {
+    textShadow: [
+      `0 0 1.5px ${color}`,
+      `0 0 3px ${color}`,
+      `0 0 ${n}px rgba(0, 0, 0, 0.95)`,
+      `0 2px ${n * 1.5}px rgba(0, 0, 0, 0.85)`,
+      `0 4px ${n * 2.5}px rgba(0, 0, 0, 0.75)`,
+    ].join(", "),
+  };
 }
 
 /**
@@ -66,6 +81,9 @@ export function MenuBoardItem({
   active = false,
   maxSlots = 5,
   textOutlinePx = 1.5,
+  nameSizePx = null,
+  priceSizePx = null,
+  numSizePx = null,
 }) {
   const agotado = isAgotado(p);
   const num = displayNumber(p, index);
@@ -94,14 +112,14 @@ export function MenuBoardItem({
             : "border-[rgba(232,197,106,0.22)]"
       } ${flash ? "ring-2 ring-gold anim-in" : ""}`}
     >
-      {/* Foto de fondo (formato ancho de tarjeta) */}
-      <div className="menu-board-bg absolute inset-0">
+      {/* Fondo foto platillo */}
+      <div className="absolute inset-0 overflow-hidden">
         <img
-          key={`${p.c}-card-${p.imgV || "0"}`}
           src={imgCard}
           alt=""
-          className={`h-full w-full object-cover object-left ${
-            agotado ? "opacity-40 grayscale" : ""
+          aria-hidden="true"
+          className={`h-full w-full object-cover object-center ${
+            agotado ? "grayscale opacity-40" : "opacity-85"
           }`}
           onError={(e) => {
             e.currentTarget.src = fallbackImageForProduct(p.c, p.tp);
@@ -128,7 +146,15 @@ export function MenuBoardItem({
           className={`flex shrink-0 items-center justify-center font-display font-black leading-none text-gold ${
             dense ? "w-7 text-xl sm:w-9 sm:text-2xl" : "w-12 text-4xl"
           }`}
-          style={stroke}
+          style={{
+            ...stroke,
+            ...(numSizePx
+              ? {
+                  fontSize: `${numSizePx}px`,
+                  width: `${Math.max(28, numSizePx * 1.35)}px`,
+                }
+              : {}),
+          }}
         >
           {num}
         </div>
@@ -138,7 +164,10 @@ export function MenuBoardItem({
             className={`line-clamp-2 font-bold leading-tight ${
               dense ? "text-xs sm:text-base" : "text-xl"
             } ${agotado ? "text-cream/50" : "text-ivory"}`}
-            style={stroke}
+            style={{
+              ...stroke,
+              ...(nameSizePx ? { fontSize: `${nameSizePx}px` } : {}),
+            }}
           >
             {p.n}
           </p>
@@ -149,7 +178,10 @@ export function MenuBoardItem({
             className={`font-display font-semibold tabular-nums ${
               dense ? "text-sm sm:text-lg" : "text-2xl"
             } ${agotado ? "text-cream/40 line-through" : "text-gold"}`}
-            style={stroke}
+            style={{
+              ...stroke,
+              ...(priceSizePx ? { fontSize: `${priceSizePx}px` } : {}),
+            }}
           >
             {formatC(p.pr)}
           </p>
@@ -169,6 +201,10 @@ export function MenuBoardHero({
   includeAgotados = false,
   onActiveChange,
   textOutlinePx = 2,
+  nameSizePx = null,
+  priceSizePx = null,
+  numSizePx = null,
+  badgeSizePx = null,
 }) {
   const pool = useMemo(() => {
     const raw = products || [];
@@ -217,7 +253,7 @@ export function MenuBoardHero({
   const isPromo = p.dst === 1 || p.dst === true || p.destacado === true;
   const badge = isPromo ? "Promoción del día" : title;
   const total = pool.length;
-  const stroke = textStrokeStyle(textOutlinePx);
+  const stroke = heroTextStrokeStyle(Math.max(5, Number(textOutlinePx) || 5));
 
   return (
     <div className="panel-oak-deep relative flex h-full min-h-0 flex-col overflow-hidden rounded-2xl">
@@ -234,8 +270,6 @@ export function MenuBoardHero({
         {fx === "persiana" && (
           <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0_14px,rgba(0,0,0,0.35)_14px_18px)] opacity-40" />
         )}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-black/15" />
-        <div className="absolute inset-0 bg-gradient-to-r from-black/50 via-transparent to-black/20" />
 
         <div className="absolute left-4 top-4 flex flex-wrap items-center gap-2">
           <span
@@ -244,10 +278,14 @@ export function MenuBoardHero({
                 ? "bg-gradient-to-r from-[#a33a28] to-[#d4a84b] text-[#1a120c] ring-amber-300/50"
                 : "bg-black/45 text-amber-200/90 ring-amber-400/30"
             }`}
+            style={badgeSizePx ? { fontSize: `${badgeSizePx}px` } : undefined}
           >
             {badge}
           </span>
-          <span className="rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-cream/80 ring-1 ring-white/15">
+          <span
+            className="rounded-full bg-black/50 px-2.5 py-1 text-xs font-semibold text-cream/80 ring-1 ring-white/15"
+            style={badgeSizePx ? { fontSize: `${Math.round(badgeSizePx * 0.9)}px` } : undefined}
+          >
             {safeIdx + 1} / {total}
           </span>
         </div>
@@ -255,21 +293,30 @@ export function MenuBoardHero({
         <div className="absolute bottom-0 left-0 right-0 p-5">
           <div className="flex items-end gap-3">
             <span
-              className="font-display text-6xl font-black leading-none text-gold drop-shadow-lg md:text-7xl"
-              style={stroke}
+              className="font-display text-6xl font-black leading-none text-gold md:text-7xl"
+              style={{
+                ...stroke,
+                ...(numSizePx ? { fontSize: `${numSizePx}px` } : {}),
+              }}
             >
               {num}
             </span>
             <div className="min-w-0 flex-1 pb-1">
               <h2
-                className="font-display text-3xl font-bold leading-tight text-ivory drop-shadow md:text-4xl"
-                style={stroke}
+                className="font-display text-3xl font-bold leading-tight text-ivory md:text-4xl"
+                style={{
+                  ...stroke,
+                  ...(nameSizePx ? { fontSize: `${nameSizePx}px` } : {}),
+                }}
               >
                 {p.n}
               </h2>
               <p
                 className="font-display mt-1 text-3xl text-gold md:text-4xl"
-                style={stroke}
+                style={{
+                  ...stroke,
+                  ...(priceSizePx ? { fontSize: `${priceSizePx}px` } : {}),
+                }}
               >
                 {formatC(p.pr)}
               </p>
@@ -371,6 +418,7 @@ function heroFxClass(fx) {
 export function MenuBoardPanel({
   title = "",
   subtitle = "",
+  titleSizePx = null,
   children,
   className = "",
 }) {
@@ -384,12 +432,24 @@ export function MenuBoardPanel({
       {showHead && (
         <header className="shrink-0 border-b border-[rgba(232,197,106,0.2)] bg-black/35 px-3 py-2 sm:px-4 sm:py-2.5">
           {title && String(title).trim() && (
-            <h2 className="font-display text-xl font-bold tracking-wide text-gold sm:text-2xl md:text-3xl">
+            <h2
+              className="font-display text-xl font-bold tracking-wide text-gold sm:text-2xl md:text-3xl"
+              style={titleSizePx ? { fontSize: `${titleSizePx}px` } : undefined}
+            >
               {title}
             </h2>
           )}
           {subtitle && String(subtitle).trim() && (
-            <p className="mt-0.5 text-xs text-cream/65 sm:text-sm">{subtitle}</p>
+            <p
+              className="mt-0.5 text-xs text-cream/65 sm:text-sm"
+              style={
+                titleSizePx
+                  ? { fontSize: `${Math.max(11, Math.round(titleSizePx * 0.55))}px` }
+                  : undefined
+              }
+            >
+              {subtitle}
+            </p>
           )}
         </header>
       )}

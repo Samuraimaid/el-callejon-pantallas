@@ -48,6 +48,17 @@ const EMPTY = {
     showFicoshaOnPublicidad: true,
     ficoshaCorto: "Ficosha · 35% de descuento en tu cuenta · sin mínimo",
     ficoshaTag: "Alianza Ficosha",
+    fontScale: 100,
+    cardNameSizePx: 18,
+    cardPriceSizePx: 22,
+    cardNumSizePx: 26,
+    heroNameSizePx: 38,
+    heroPriceSizePx: 38,
+    heroNumSizePx: 68,
+    heroBadgeSizePx: 13,
+    clockSizePx: 30,
+    marqueeSizePx: 17,
+    colTitleSizePx: 24,
   },
   promos: [],
 };
@@ -107,7 +118,7 @@ function SideForm({ label, value, onChange }) {
           <input
             type="number"
             min={3}
-            max={12}
+            max={20}
             value={v.rightMaxCards ?? 5}
             onChange={(e) => set("rightMaxCards", Number(e.target.value))}
             className="mt-1 w-full rounded-xl border border-stone-600 bg-black/40 px-3 py-2 text-ivory"
@@ -133,7 +144,7 @@ function SideForm({ label, value, onChange }) {
             onChange={(e) =>
               set(
                 "heroIntervalMs",
-                Math.max(3, Number(e.target.value) || 5) * 1000
+                Math.max(3, Number(e.target.value) || 5) * 1000,
               )
             }
             className="mt-1 w-full rounded-xl border border-stone-600 bg-black/40 px-3 py-2 text-ivory"
@@ -226,7 +237,9 @@ function PromoRow({ promo, onChange, onRemove }) {
           />
         </label>
         <label className="text-xs sm:col-span-3">
-          <span className="text-cream/55">Texto corto (marquesina / banner)</span>
+          <span className="text-cream/55">
+            Texto corto (marquesina / banner)
+          </span>
           <input
             value={p.corto || ""}
             maxLength={160}
@@ -276,11 +289,11 @@ function PromoRow({ promo, onChange, onRemove }) {
         <button
           type="button"
           onClick={() => set("dias", null)}
-          className={`rounded-full px-2 py-0.5 text-[11px] ${
+          className={
             allDays
-              ? "bg-amber-500/30 text-amber-100"
-              : "bg-stone-800 text-cream/60"
-          }`}
+              ? "rounded-full px-2 py-0.5 text-[11px] bg-amber-500/30 text-amber-100"
+              : "rounded-full px-2 py-0.5 text-[11px] bg-stone-800 text-cream/60"
+          }
         >
           Todos
         </button>
@@ -289,15 +302,461 @@ function PromoRow({ promo, onChange, onRemove }) {
             key={d.v}
             type="button"
             onClick={() => toggleDay(d.v)}
-            className={`rounded-full px-2 py-0.5 text-[11px] ${
+            className={
               !allDays && dias.includes(d.v)
-                ? "bg-amber-500/30 text-amber-100"
-                : "bg-stone-800 text-cream/60"
-            }`}
+                ? "rounded-full px-2 py-0.5 text-[11px] bg-amber-500/30 text-amber-100"
+                : "rounded-full px-2 py-0.5 text-[11px] bg-stone-800 text-cream/60"
+            }
           >
             {d.l}
           </button>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function TypographySection({ layout = {}, onChange }) {
+  const [activeTab, setActiveTab] = useState("general");
+
+  const fontScale = Number(layout.fontScale) || 100;
+  const scaleMult = Math.max(0.7, Math.min(1.6, fontScale / 100));
+
+  const cardNameSizePx = Number(layout.cardNameSizePx) || 18;
+  const cardPriceSizePx = Number(layout.cardPriceSizePx) || 22;
+  const cardNumSizePx = Number(layout.cardNumSizePx) || 26;
+
+  const heroNameSizePx = Number(layout.heroNameSizePx) || 38;
+  const heroPriceSizePx = Number(layout.heroPriceSizePx) || 38;
+  const heroNumSizePx = Number(layout.heroNumSizePx) || 68;
+  const heroBadgeSizePx = Number(layout.heroBadgeSizePx) || 13;
+
+  const clockSizePx = Number(layout.clockSizePx) || 30;
+  const marqueeSizePx = Number(layout.marqueeSizePx) || 17;
+  const colTitleSizePx = Number(layout.colTitleSizePx) || 24;
+
+  const setVal = (key, val) => {
+    onChange({ ...layout, [key]: val });
+  };
+
+  const resetDefaults = () => {
+    onChange({
+      ...layout,
+      fontScale: 100,
+      cardNameSizePx: 18,
+      cardPriceSizePx: 22,
+      cardNumSizePx: 26,
+      heroNameSizePx: 38,
+      heroPriceSizePx: 38,
+      heroNumSizePx: 68,
+      heroBadgeSizePx: 13,
+      clockSizePx: 30,
+      marqueeSizePx: 17,
+      colTitleSizePx: 24,
+    });
+  };
+
+  // Tamaños efectivos calculados con el multiplicador global
+  const effCardName = Math.round(cardNameSizePx * scaleMult);
+  const effCardPrice = Math.round(cardPriceSizePx * scaleMult);
+  const effCardNum = Math.round(cardNumSizePx * scaleMult);
+  const effHeroName = Math.round(heroNameSizePx * scaleMult);
+  const effHeroPrice = Math.round(heroPriceSizePx * scaleMult);
+  const effHeroNum = Math.round(heroNumSizePx * scaleMult);
+  const effHeroBadge = Math.round(heroBadgeSizePx * scaleMult);
+  const effClock = Math.round(clockSizePx * scaleMult);
+  const effMarquee = Math.round(marqueeSizePx * scaleMult);
+
+  return (
+    <div className="panel-oak rounded-2xl p-4 border border-amber-500/25">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🔤</span>
+          <div>
+            <h3 className="font-display text-lg text-gold flex items-center gap-2">
+              Tipografía y Tamaños de Pantalla
+              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-300 border border-amber-400/30">
+                En vivo en TVs
+              </span>
+            </h3>
+            <p className="text-xs text-cream/60">
+              Ajusta cada elemento para óptima visibilidad a distancia sin depender del zoom de fábrica de la TV.
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={resetDefaults}
+          className="tap rounded-xl border border-stone-600 bg-black/40 px-2.5 py-1 text-xs text-cream/75 hover:bg-black/60 hover:text-white"
+          title="Restablecer fuentes al tamaño estándar del sistema"
+        >
+          ↺ Restablecer estándar
+        </button>
+      </div>
+
+      {/* Selector de sub-pestañas */}
+      <div className="mt-3 flex flex-wrap gap-1.5 rounded-xl bg-black/30 p-1">
+        {[
+          { id: "general", label: "Zoom Maestro", icon: "🌐" },
+          { id: "cards", label: "Tarjetas Laterales", icon: "📋" },
+          { id: "hero", label: "Platillo Hero", icon: "⭐" },
+          { id: "header", label: "Cabecera y Reloj", icon: "⏱️" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setActiveTab(t.id)}
+            className={`tap flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+              activeTab === t.id
+                ? "bg-amber-600 text-ivory shadow"
+                : "text-cream/70 hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <span>{t.icon}</span>
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Contenido de pestañas */}
+      <div className="mt-4">
+        {activeTab === "general" && (
+          <div className="space-y-4">
+            <div>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-cream/80">
+                  Multiplicador Global de Tamaño:
+                </span>
+                <span className="font-display font-bold text-amber-400 text-base">
+                  {fontScale}% {fontScale !== 100 && `(x${scaleMult.toFixed(2)})`}
+                </span>
+              </div>
+              <input
+                type="range"
+                min={70}
+                max={150}
+                step={5}
+                value={fontScale}
+                onChange={(e) => setVal("fontScale", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <p className="mt-1 text-[11px] text-cream/45">
+                Escala armónicamente todos los textos de la TV a la vez. Recomendado: 100% (normal) o 115%–125% para salas grandes.
+              </p>
+            </div>
+
+            {/* Presets rápidos */}
+            <div>
+              <span className="block text-xs font-semibold text-cream/70 mb-1.5">
+                Ajustes rápidos:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { v: 85, l: "85% Compacto" },
+                  { v: 100, l: "100% Estándar" },
+                  { v: 115, l: "115% Grande" },
+                  { v: 130, l: "130% Extra Grande" },
+                ].map((p) => (
+                  <button
+                    key={p.v}
+                    type="button"
+                    onClick={() => setVal("fontScale", p.v)}
+                    className={`rounded-lg px-2.5 py-1 text-xs border transition-colors ${
+                      fontScale === p.v
+                        ? "border-amber-400 bg-amber-500/20 text-amber-200 font-bold"
+                        : "border-stone-700 bg-black/40 text-cream/70 hover:border-stone-500"
+                    }`}
+                  >
+                    {p.l}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "cards" && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Nombre de Platillo (px):{" "}
+                <strong className="text-amber-400">{cardNameSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effCardName}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={12}
+                max={32}
+                step={1}
+                value={cardNameSizePx}
+                onChange={(e) => setVal("cardNameSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 18px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Precio en Tarjeta (px):{" "}
+                <strong className="text-amber-400">{cardPriceSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effCardPrice}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={14}
+                max={36}
+                step={1}
+                value={cardPriceSizePx}
+                onChange={(e) => setVal("cardPriceSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 22px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Número # (px):{" "}
+                <strong className="text-amber-400">{cardNumSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effCardNum}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={16}
+                max={44}
+                step={1}
+                value={cardNumSizePx}
+                onChange={(e) => setVal("cardNumSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 26px</span>
+            </label>
+          </div>
+        )}
+
+        {activeTab === "hero" && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Nombre en Platillo Central (px):{" "}
+                <strong className="text-amber-400">{heroNameSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effHeroName}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={24}
+                max={64}
+                step={2}
+                value={heroNameSizePx}
+                onChange={(e) => setVal("heroNameSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 38px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Precio en Platillo Central (px):{" "}
+                <strong className="text-amber-400">{heroPriceSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effHeroPrice}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={24}
+                max={64}
+                step={2}
+                value={heroPriceSizePx}
+                onChange={(e) => setVal("heroPriceSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 38px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Número # Gigante (px):{" "}
+                <strong className="text-amber-400">{heroNumSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effHeroNum}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={40}
+                max={96}
+                step={2}
+                value={heroNumSizePx}
+                onChange={(e) => setVal("heroNumSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 68px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Etiqueta Badge Superior (px):{" "}
+                <strong className="text-amber-400">{heroBadgeSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effHeroBadge}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={10}
+                max={22}
+                step={1}
+                value={heroBadgeSizePx}
+                onChange={(e) => setVal("heroBadgeSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 13px</span>
+            </label>
+          </div>
+        )}
+
+        {activeTab === "header" && (
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Reloj Digital (px):{" "}
+                <strong className="text-amber-400">{clockSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effClock}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={18}
+                max={50}
+                step={1}
+                value={clockSizePx}
+                onChange={(e) => setVal("clockSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 30px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Texto Marquesina (px):{" "}
+                <strong className="text-amber-400">{marqueeSizePx}px</strong>
+                {fontScale !== 100 && (
+                  <span className="text-[11px] text-stone-400"> (efectivo: {effMarquee}px)</span>
+                )}
+              </span>
+              <input
+                type="range"
+                min={12}
+                max={28}
+                step={1}
+                value={marqueeSizePx}
+                onChange={(e) => setVal("marqueeSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 17px</span>
+            </label>
+
+            <label className="block text-sm">
+              <span className="text-cream/70">
+                Título de Columnas (px):{" "}
+                <strong className="text-amber-400">{colTitleSizePx}px</strong>
+              </span>
+              <input
+                type="range"
+                min={16}
+                max={36}
+                step={1}
+                value={colTitleSizePx}
+                onChange={(e) => setVal("colTitleSizePx", Number(e.target.value))}
+                className="mt-2 w-full accent-amber-500"
+              />
+              <span className="text-[11px] text-cream/45">Estándar: 24px</span>
+            </label>
+          </div>
+        )}
+      </div>
+
+      {/* Mini-Previsualizador en Tiempo Real */}
+      <div className="mt-4 rounded-xl border border-amber-500/20 bg-black/50 p-3">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-300 flex items-center gap-1.5">
+            <span>👁️</span> Previsualización en Vivo de Fuentes
+          </span>
+          <span className="text-[11px] text-cream/50">
+            Escala: {fontScale}% (x{scaleMult.toFixed(2)})
+          </span>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Muestra Tarjeta Lateral */}
+          <div className="rounded-lg border border-[rgba(232,197,106,0.25)] bg-stone-900/90 p-2.5 flex items-center gap-2.5 overflow-hidden">
+            <div
+              className="font-display font-black text-gold shrink-0 text-center leading-none"
+              style={{
+                fontSize: `${effCardNum}px`,
+                width: `${Math.max(28, effCardNum * 1.35)}px`,
+              }}
+            >
+              #1
+            </div>
+            <div className="flex-1 min-w-0">
+              <p
+                className="font-bold text-ivory leading-tight truncate"
+                style={{ fontSize: `${effCardName}px` }}
+              >
+                Cordon Bleu de Pollo
+              </p>
+            </div>
+            <div
+              className="font-display font-semibold text-gold shrink-0 text-right leading-none"
+              style={{ fontSize: `${effCardPrice}px` }}
+            >
+              C$ 180.00
+            </div>
+          </div>
+
+          {/* Muestra Hero Central */}
+          <div className="rounded-lg border border-amber-500/30 bg-stone-900/90 p-2.5 flex flex-col justify-between overflow-hidden">
+            <div className="flex items-center gap-2 mb-1">
+              <span
+                className="rounded-full bg-amber-500/20 px-2 py-0.5 font-bold uppercase tracking-wider text-amber-200 border border-amber-400/30"
+                style={{ fontSize: `${effHeroBadge}px` }}
+              >
+                Menú del día
+              </span>
+            </div>
+            <div className="flex items-end gap-2.5">
+              <span
+                className="font-display font-black text-gold leading-none"
+                style={{ fontSize: `${effHeroNum}px` }}
+              >
+                #1
+              </span>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="font-display font-bold text-ivory leading-tight truncate"
+                  style={{ fontSize: `${effHeroName}px` }}
+                >
+                  Cordon Bleu de Pollo
+                </p>
+                <p
+                  className="font-display text-gold mt-0.5 leading-none"
+                  style={{ fontSize: `${effHeroPrice}px` }}
+                >
+                  C$ 180.00
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -506,7 +965,9 @@ export default function MenuBoardConfigPanel() {
                     type="number"
                     min={3}
                     max={20}
-                    value={Math.round((layout.marqueeIntervalMs || 5200) / 1000)}
+                    value={Math.round(
+                      (layout.marqueeIntervalMs || 5200) / 1000,
+                    )}
                     onChange={(e) =>
                       setCfg((c) => ({
                         ...c,
@@ -538,7 +999,9 @@ export default function MenuBoardConfigPanel() {
                   Mostrar banner Ficosha en pantallas de publicidad (TV #3–#6)
                 </label>
                 <label className="block text-sm sm:col-span-2">
-                  <span className="text-cream/70">Texto corto Ficosha (banner)</span>
+                  <span className="text-cream/70">
+                    Texto corto Ficosha (banner)
+                  </span>
                   <input
                     value={layout.ficoshaCorto || ""}
                     maxLength={120}
@@ -568,6 +1031,11 @@ export default function MenuBoardConfigPanel() {
               </div>
             </div>
 
+            <TypographySection
+              layout={layout}
+              onChange={(l) => setCfg((c) => ({ ...c, layout: l }))}
+            />
+
             <SideForm
               label="TV #1 · Menú Comidas"
               value={cfg.comidas}
@@ -595,8 +1063,8 @@ export default function MenuBoardConfigPanel() {
                 </button>
               </div>
               <p className="mt-1 text-xs text-cream/55">
-                Elija días (p. ej. solo martes), si va en marquesina del menú y/o
-                en publicidad. Ficosha suele marcarse en ambos.
+                Elija días (p. ej. solo martes), si va en marquesina del menú
+                y/o en publicidad. Ficosha suele marcarse en ambos.
               </p>
               <div className="mt-3 space-y-3">
                 {(cfg.promos || []).map((p, i) => (

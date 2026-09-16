@@ -99,7 +99,6 @@ export const PLATILLO_IMAGE_DEFAULT = "/images/slides/slide1-buffet.jpg";
 
 /** Extras / complementos — imagen propia por código */
 export const EXTRA_IMAGES = {
-  "EXT-AGUACATE": "/images/extras/EXT-AGUACATE.jpg",
   "EXT-ARROZ": "/images/extras/EXT-ARROZ.jpg",
   "EXT-CREMA": "/images/extras/EXT-CREMA.jpg",
   "EXT-CUAJADA": "/images/extras/EXT-CUAJADA.jpg",
@@ -107,7 +106,6 @@ export const EXTRA_IMAGES = {
   "EXT-PAPAS": "/images/extras/EXT-PAPAS.jpg",
   "EXT-POSTRE": "/images/extras/EXT-POSTRE.jpg",
   "EXT-QUESO": "/images/extras/EXT-QUESO.jpg",
-  "EXT-TAJADAS": "/images/extras/EXT-TAJADAS.jpg",
   "EXT-TORTILLA": "/images/extras/EXT-TORTILLA.jpg",
 };
 

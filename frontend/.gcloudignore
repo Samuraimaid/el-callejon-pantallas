@@ -1,0 +1,6 @@
+# Ignore git and build artifacts
+.git/
+node_modules/
+dist/
+public/images/
+public/audio/

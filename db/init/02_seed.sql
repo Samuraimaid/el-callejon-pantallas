@@ -38,11 +38,10 @@ INSERT INTO productos_menu (
 ) VALUES
     ('EXT-QUESO',     'Porción de queso',         'extra', 'Rallado o en lonjas',        25.00, 80, 10, 'porcion', TRUE, 1),
     ('EXT-AGUACATE',  'Porción de aguacate',      'extra', NULL,                          30.00, 60, 10, 'porcion', TRUE, 2),
-    ('EXT-DOBLE-PRO', 'Doble proteína',           'extra', 'Recargo proteína extra',     45.00, 100, 10, 'und', TRUE, 3),
-    ('EXT-TORTILLA',  'Tortillas extras (3)',     'extra', NULL,                          15.00, 120, 20, 'pack', TRUE, 4),
+    ('EXT-DOBLE-PRO', 'Doble proteína',           'extra', 'Recargo proteí0na extra',     45.00, 100, 10, 'und', TRUE, 3),
+    ('EXT-TORTILLA',  'Tortillas extras (3)',     'extra', NULL,                         15.00, 120, 20, 'pack', TRUE, 4),
     ('EXT-CREMA',     'Porción de crema',         'extra', NULL,                          12.00, 90, 15, 'porcion', TRUE, 5),
-    ('EXT-CUAJADA',   'Porción de cuajada',       'extra', NULL,                          20.00, 70, 10, 'porcion', TRUE, 6),
-    ('EXT-TAJADAS',   'Tajadas extras',           'extra', NULL,                          20.00, 80, 10, 'porcion', TRUE, 7),
+    ('EXT-CUAJADA',   'Porción de cuajada',       'extra', NULL,                          20.00, 70, 10, 'porcion', TRUE, 6), 
     ('EXT-PAPAS',     'Papas fritas extras',      'extra', NULL,                          35.00, 60, 10, 'porcion', TRUE, 8),
     ('EXT-ARROZ',     'Porción de arroz extra',   'extra', NULL,                          15.00, 100, 15, 'porcion', TRUE, 9),
     ('EXT-POSTRE',    'Postre del día',           'extra', NULL,                          40.00, 30, 5,  'und', TRUE, 10);
