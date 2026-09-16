@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import MensajesDinamicosBanner from "../components/MensajesDinamicosBanner";
 import FicoshaBanner from "../components/tv/FicoshaBanner";
 import NowPlayingBanner from "../components/tv/NowPlayingBanner";
@@ -34,6 +35,34 @@ const TV_BY_ZONA = {
   SALON_VIP: 5,
 };
 
+const FALLBACK_SLIDES = {
+  TV3: [
+    { id: "fb3-1", imagen_url: "/images/slides/slide8-barra.jpg", texto_principal: "Barra de licores", texto_secundario: "Cócteles, cerveza y premium" },
+    { id: "fb3-2", imagen_url: "/images/bebidas/jugos-naturales.jpg", texto_principal: "Bebidas naturales", texto_secundario: "Jugos frescos elaborados al instante" },
+    { id: "fb3-3", imagen_url: "/images/slides/slide-camarones.jpg", texto_principal: "Camarones al ajillo", texto_secundario: "Porción generosa de la casa" },
+    { id: "fb3-4", imagen_url: "/images/slides/slide5-bienvenidos.jpg", texto_principal: "¡Bienvenidos!", texto_secundario: "El sabor que forma parte de tu historia" },
+  ],
+  TV4: [
+    { id: "fb4-1", imagen_url: "/images/slides/slide-costilla-bbq.jpg", texto_principal: "Costilla BBQ", texto_secundario: "Sabor ahumado que se recuerda" },
+    { id: "fb4-2", imagen_url: "/images/slides/slide-asados-1.jpg", texto_principal: "A la parrilla", texto_secundario: "Asados con sazón de León" },
+    { id: "fb4-3", imagen_url: "/images/slides/slide-asados-2.jpg", texto_principal: "El sabor de la casa", texto_secundario: "Platillos calientes recién preparados" },
+    { id: "fb4-4", imagen_url: "/images/slides/slide-brochetas.jpg", texto_principal: "Brochetas", texto_secundario: "Parrilla y buena compañía" },
+    { id: "fb4-5", imagen_url: "/images/slides/slide-pollo-salsa.jpg", texto_principal: "Pollo en salsa", texto_secundario: "Tradición de la casa en cada bocado" },
+  ],
+  TV5: [
+    { id: "fb5-1", imagen_url: "/images/slides/slide3-salon.jpg", texto_principal: "Disfruta tu almuerzo", texto_secundario: "en nuestro ambiente climatizado VIP" },
+    { id: "fb5-2", imagen_url: "/images/slides/slide7-familia.jpg", texto_principal: "Donde cada plato se siente", texto_secundario: "como en casa" },
+    { id: "fb5-3", imagen_url: "/images/slides/slide2-ambiente.jpg", texto_principal: "Un espacio pensado", texto_secundario: "para disfrutar cada momento" },
+    { id: "fb5-4", imagen_url: "/images/slides/slide5-bienvenidos.jpg", texto_principal: "El Callejón VIP", texto_secundario: "León, Nicaragua" },
+  ],
+  TV6: [
+    { id: "fb6-1", imagen_url: "/images/slides/slide-pescado.jpg", texto_principal: "Pescado fresco", texto_secundario: "Preparado al momento, para llevar o disfrutar aquí" },
+    { id: "fb6-2", imagen_url: "/images/slides/slide-pollo-salsa.jpg", texto_principal: "Pollo en salsa", texto_secundario: "Sabor tradicional de El Callejón" },
+    { id: "fb6-3", imagen_url: "/images/slides/slide-camarones.jpg", texto_principal: "Camarones", texto_secundario: "Al ajillo o empanizados, siempre frescos" },
+    { id: "fb6-4", imagen_url: "/images/slides/slide-costilla-bbq.jpg", texto_principal: "Costilla ahumada", texto_secundario: "Suave, jugosa y con salsa especial" },
+  ],
+};
+
 /**
  * TV publicidad: cache local + video + animaciones de texto + runtime industrial.
  */
@@ -45,9 +74,15 @@ export default function PantallaPublicidadPage({
   const tvId = tvIdProp || TV_BY_ZONA[zona] || 3;
   const cacheKey = CACHE_KEYS.campana(zona);
   const cached = cacheGetData(cacheKey);
+  const [searchParams] = useSearchParams();
+  const urlLite =
+    searchParams.get("lite") === "1" ||
+    searchParams.get("basic") === "1" ||
+    searchParams.get("ram") === "low" ||
+    searchParams.get("basico") === "1";
   const { cfg: ambientCfg } = useAmbientUiConfig();
-  /** Modo lite: imagenes fijas, sin kenburns ni fades de transición */
-  const liteMode = !!ambientCfg?.publicidad_lite_mode;
+  /** Modo Smart TV básico: solo imagenes fijas por 20s, omitir videos, bajo consumo RAM */
+  const liteMode = urlLite || !!ambientCfg?.publicidad_lite_mode;
 
   const [campana, setCampana] = useState(cached || null);
   const [index, setIndex] = useState(0);
@@ -89,10 +124,11 @@ export default function PantallaPublicidadPage({
 
   useWebSocket("pantallas,all", onWs);
 
+  // Turno de video 1-a-1: en modo Smart TV básico se desactiva totalmente para ahorrar RAM
   const { turn: videoTurn, markDone: markVideoDone, hasVideoTurn } =
-    useVideoTurn(tvId, { enabled: true });
+    useVideoTurn(tvId, { enabled: !liteMode });
 
-  // Carrusel autónomo: SOLO fotografías (videos van por turno del servidor)
+  // Carrusel autónomo: SOLO fotografías (videos van por turno del servidor y en liteMode se omiten)
   const slides = useMemo(() => {
     const list = campana?.slides || [];
     const photos = list.filter(
@@ -102,13 +138,19 @@ export default function PantallaPublicidadPage({
         !s.video_url
     );
     if (photos.length) return photos;
-    // fallback: slides con texto aunque falte imagen
-    return list.filter(
+    // fallback 1: slides con texto aunque falte imagen (solo no-video)
+    const texts = list.filter(
       (s) => s.texto_principal && s.media_tipo !== "video" && !s.video_url
     );
-  }, [campana]);
+    if (texts.length) return texts;
+    // fallback 2: diapositivas de respaldo por zona (Parrilla, VIP, Barra)
+    return FALLBACK_SLIDES[zona] || FALLBACK_SLIDES.TV4 || [];
+  }, [campana, zona]);
 
-  const duration = Math.max(2000, Number(campana?.duracion_slide) || 7000);
+  // En modo Smart TV básico: rotación exactamente cada 20 segundos (ahorro crítico de memoria)
+  const duration = liteMode
+    ? 20000
+    : Math.max(2000, Number(campana?.duracion_slide) || 7000);
   const randomFx = !!campana?.efectos_aleatorios;
   const mostrarLogo = campana?.mostrar_logo !== false;
   const mostrarMensajes = campana?.mostrar_mensajes !== false;
@@ -225,8 +267,8 @@ export default function PantallaPublicidadPage({
       >
         <TvFullscreenChrome label="TV de publicidad" />
 
-        {/* Turno de video 1-a-1 (servidor elige una sola TV) */}
-        {hasVideoTurn && videoTurn?.video_url && (
+        {/* Turno de video 1-a-1: SOLO si NO está en modo Smart TV básico */}
+        {!liteMode && hasVideoTurn && videoTurn?.video_url && (
           <div className="absolute inset-0 z-30 bg-black">
             <video
               key={videoTurn.token || videoTurn.video_url}
@@ -265,29 +307,53 @@ export default function PantallaPublicidadPage({
           </div>
         )}
 
-        {slides.map((s, i) => (
+        {/* Indicador discreto para Smart TV básico */}
+        {liteMode && (
+          <div className="pointer-events-none absolute right-5 top-5 z-30 rounded-full border border-amber-500/40 bg-stone-950/80 px-3 py-1 text-[11px] font-semibold text-amber-300 shadow-md">
+            ⚡ Smart TV Básico · 20s · Solo fotos
+          </div>
+        )}
+
+        {/* Renderizado de diapositivas: En modo lite SOLO montamos el slide ACTIVO (ahorro crítico de memoria RAM) */}
+        {liteMode ? (
           <div
-            key={`${s.id || i}-${s.imagen_url}`}
-            className={`absolute inset-0 ${
-              liteMode ? "" : "transition-opacity duration-700 ease-in-out"
-            } ${i === index && !hasVideoTurn ? "opacity-100" : "opacity-0"}`}
-            aria-hidden={i !== index || hasVideoTurn}
+            key={`${slide.id || index}-${slide.imagen_url}`}
+            className="absolute inset-0"
           >
             <MediaCover
-              url={s.imagen_url}
-              active={i === index && !hasVideoTurn}
-              imgFx={liteMode ? "" : imgFx}
+              url={slide.imagen_url}
+              active={true}
+              imgFx=""
+              liteMode={true}
             />
-            {i === index && !liteMode && activeEffect === "persiana" && (
-              <div
-                className={`pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0_18px,rgba(0,0,0,0.55)_18px_22px)] transition-opacity duration-700 ${
-                  visible ? "opacity-0" : "opacity-100"
-                }`}
-              />
-            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/25" />
           </div>
-        ))}
+        ) : (
+          slides.map((s, i) => (
+            <div
+              key={`${s.id || i}-${s.imagen_url}`}
+              className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
+                i === index && !hasVideoTurn ? "opacity-100" : "opacity-0"
+              }`}
+              aria-hidden={i !== index || hasVideoTurn}
+            >
+              <MediaCover
+                url={s.imagen_url}
+                active={i === index && !hasVideoTurn}
+                imgFx={imgFx}
+                liteMode={false}
+              />
+              {i === index && activeEffect === "persiana" && (
+                <div
+                  className={`pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(90deg,transparent_0_18px,rgba(0,0,0,0.55)_18px_22px)] transition-opacity duration-700 ${
+                    visible ? "opacity-0" : "opacity-100"
+                  }`}
+                />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/25" />
+            </div>
+          ))
+        )}
 
         {mostrarLogo && (
           <div className="absolute left-8 top-8 z-20 flex items-center gap-4">
@@ -370,8 +436,8 @@ export default function PantallaPublicidadPage({
   );
 }
 
-/** Imagen con letterbox / blur; prefiere blob local de IndexedDB */
-function MediaCover({ url, active, imgFx }) {
+/** Imagen con letterbox / blur; en modo lite se desactiva blur-2xl y transformaciones pesadas */
+function MediaCover({ url, active, imgFx, liteMode = false }) {
   const [vertical, setVertical] = useState(false);
   const [src, setSrc] = useState(url || "/images/slides/slide1-buffet.jpg");
 
@@ -389,7 +455,7 @@ function MediaCover({ url, active, imgFx }) {
 
   return (
     <div className="absolute inset-0 bg-black">
-      {vertical && (
+      {!liteMode && vertical && (
         <img
           src={src}
           alt=""
@@ -400,12 +466,15 @@ function MediaCover({ url, active, imgFx }) {
       <img
         src={src}
         alt=""
+        decoding={liteMode ? "async" : "auto"}
         className={`absolute inset-0 h-full w-full ${
           vertical ? "object-contain" : "object-cover"
-        } ${active ? imgFx : ""}`}
+        } ${active && !liteMode ? imgFx : ""}`}
         onLoad={(e) => {
-          const im = e.currentTarget;
-          setVertical(im.naturalHeight > im.naturalWidth * 1.12);
+          if (!liteMode) {
+            const im = e.currentTarget;
+            setVertical(im.naturalHeight > im.naturalWidth * 1.12);
+          }
         }}
         onError={(e) => {
           e.currentTarget.src = "/images/slides/slide1-buffet.jpg";

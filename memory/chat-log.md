@@ -97,14 +97,20 @@
   - Autenticación con PIN (`0000`) confirmada: retorno de 67 productos del menú.
   - Endpoint de sincronización WebSocket (`/api/productos/sincronizar`) verificado: emite evento a TVs con éxito.
   - Menú público para Smart TVs (`/api/productos/menu`): 12 platillos, 9 extras, 5 jugos, 20 bebidas devueltos correctamente.
-### [2026-09-15 20:15:00] Control de Tipografías en Smart TVs y Corrección de Edición de Precios
-- **Corrección de Entrada de Precios (`GestionarMenuPanel.jsx`):**
-  - Se eliminó el reseteo inmediato a `0` al borrar caracteres con Backspace que provocaba que se agregaran ceros a la izquierda (ej. `045`).
-  - Se agregó `onFocus={(e) => e.target.select()}` a los campos de `precio` y `stock` para permitir sobreescribir el valor con solo teclear el nuevo monto.
-- **Ajuste Dinámico de Tipografía para Smart TVs:**
-  - `backend/app/services/config_menu.py`: Agregado `fontScale` (70%-160%) y tamaños individuales en píxeles (`cardNameSizePx`, `cardPriceSizePx`, `cardNumSizePx`, `heroNameSizePx`, `heroPriceSizePx`, `heroNumSizePx`, `heroBadgeSizePx`, `clockSizePx`, `marqueeSizePx`, `colTitleSizePx`) a `DEFAULT_LAYOUT` y `_clean_layout`.
-  - `frontend/src/components/MenuBoardConfigPanel.jsx`: Creado el panel interactivo `TypographySection` con sub-pestañas (Zoom Maestro, Tarjetas Laterales, Platillo Hero, Cabecera), presets rápidos, botón de restablecer a estándar y mini-previsualizador en tiempo real.
-  - `frontend/src/components/tv/MenuBoard.jsx`, `MenuBoardScreen.jsx` & `PromoMarquee.jsx`: Inyección dinámica de tamaños calculados vía `fontScale`.
-- **Despliegue y Validación en Cloud Run:**
-  - Backend `callejon-backend-00005-6dh` y Frontend `callejon-frontend-00009-7kf` desplegados y sirviendo el 100% del tráfico.
-  - Verificado en vivo que la API persiste los nuevos valores y el bundle `index-Bi4rODbu.js` incluye los componentes actualizados.
+### [2026-09-15 20:45:00] Modo Smart TV Básico (Anti-Crash de RAM) y Diapositivas de TV4/TV6
+- **Diagnóstico y Población de Diapositivas en TV4 (Parrilla) y TV6 (VIP Platillos):**
+  - La fila `TV4` en la tabla `campanas_publicidad` de Neon DB tenía `slides: []` vacío, provocando el cartel «Sin diapositivas configuradas».
+  - Se poblaron 7 diapositivas fotográficas de Parrilla para TV4 (*Costilla BBQ*, *A la parrilla*, *El sabor de la casa*, *Brochetas*, etc.) y 7 para TV6.
+  - Se añadió `DEFAULT_SLIDES_BY_ZONA` y fallback en `backend/app/services/publicidad.py` para garantizar que ninguna pantalla quede sin diapositivas aunque se limpien.
+- **Implementación de Modo Smart TV Básico (Bajo Consumo de RAM):**
+  - `frontend/src/pages/PantallaPublicidadPage.jsx`:
+    - Detección dual vía parámetro de URL (`?lite=1`, `?basic=1`, `?ram=low`) o interruptor global `publicidad_lite_mode`.
+    - Omisión total de videos: `useVideoTurn` desactivado (`enabled: !liteMode`), evitando decodificación por hardware de `<video>` que saturaba la RAM en webOS/Tizen.
+    - Intervalo de 20 segundos rígido (`20000ms`) para imágenes fijas, otorgando tiempo al recolector de basura de la TV para liberar memoria.
+    - Reducción del DOM: en modo básico solo se monta en el DOM el slide activo a la vez (evitando tener 7 imágenes 1080p en memoria gráfica simultáneamente).
+    - Desactivación de filtros pesados GPU como `blur-2xl` y animaciones 3D.
+  - `frontend/src/components/PublicidadAdminPanel.jsx`:
+    - Incorporada sección interactiva «⚡ Modo Smart TV Básico (Anti-reinicio por RAM)» con interruptor en tiempo real y enlaces directos para televisores.
+- **Despliegue y Verificación en Producción:**
+  - Backend `callejon-backend-00006-wzt` y Frontend `callejon-frontend-00010-979` activos en Cloud Run sirviendo 100% del tráfico.
+  - Verificado en vivo que TV4 entrega sus 7 slides y el nuevo bundle `index-Co28f7pa.js` contiene la lógica y etiquetas del modo básico.

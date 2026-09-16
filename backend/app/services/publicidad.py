@@ -44,6 +44,42 @@ EFECTOS = frozenset(
 TAMANOS = frozenset({"pequeno", "mediano", "grande"})
 CATEGORIAS_MSG = frozenset({"chef", "sabias"})
 
+DEFAULT_SLIDES_BY_ZONA = {
+    "TV3": [
+        {"id": "t3s1", "imagen_url": "/images/slides/slide8-barra.jpg", "media_tipo": "image", "texto_principal": "Barra de licores", "texto_secundario": "Cócteles, cerveza y premium", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t3s2", "imagen_url": "/images/bebidas/jugos-naturales.jpg", "media_tipo": "image", "texto_principal": "Bebidas naturales", "texto_secundario": "Jugos frescos elaborados al instante", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t3s3", "imagen_url": "/images/slides/slide-picada-fritura.jpg", "media_tipo": "image", "texto_principal": "Picada para compartir", "texto_secundario": "Frituras, salsas y el toque del Callejón", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t3s4", "imagen_url": "/images/slides/slide-camarones.jpg", "media_tipo": "image", "texto_principal": "Camarones al ajillo", "texto_secundario": "Porción generosa de la casa", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t3s5", "imagen_url": "/images/slides/slide5-bienvenidos.jpg", "media_tipo": "image", "texto_principal": "¡Bienvenidos!", "texto_secundario": "El sabor que forma parte de tu historia", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+    ],
+    "TV4": [
+        {"id": "t4s1", "imagen_url": "/images/slides/slide-costilla-bbq.jpg", "media_tipo": "image", "texto_principal": "Costilla BBQ", "texto_secundario": "Sabor ahumado que se recuerda", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t4s2", "imagen_url": "/images/slides/slide-asados-1.jpg", "media_tipo": "image", "texto_principal": "A la parrilla", "texto_secundario": "Asados con sazón de León", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t4s3", "imagen_url": "/images/slides/slide-asados-2.jpg", "media_tipo": "image", "texto_principal": "El sabor de la casa", "texto_secundario": "Platillos calientes recién preparados", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t4s4", "imagen_url": "/images/slides/slide-brochetas.jpg", "media_tipo": "image", "texto_principal": "Brochetas", "texto_secundario": "Parrilla y buena compañía", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t4s5", "imagen_url": "/images/slides/slide-platillo-casa-3.jpg", "media_tipo": "image", "texto_principal": "Platos generosos", "texto_secundario": "Hechos al momento", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t4s6", "imagen_url": "/images/slides/slide-mesa-1.jpg", "media_tipo": "image", "texto_principal": "Para compartir", "texto_secundario": "Variedad que convence", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t4s7", "imagen_url": "/images/slides/slide-pollo-salsa.jpg", "media_tipo": "image", "texto_principal": "Pollo en salsa", "texto_secundario": "Tradición de la casa en cada bocado", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+    ],
+    "TV5": [
+        {"id": "t5s1", "imagen_url": "/images/slides/slide3-salon.jpg", "media_tipo": "image", "texto_principal": "Disfruta tu almuerzo", "texto_secundario": "en nuestro ambiente climatizado VIP", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t5s2", "imagen_url": "/images/slides/slide7-familia.jpg", "media_tipo": "image", "texto_principal": "Donde cada plato se siente", "texto_secundario": "como en casa", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t5s3", "imagen_url": "/images/slides/slide2-ambiente.jpg", "media_tipo": "image", "texto_principal": "Un espacio pensado", "texto_secundario": "para disfrutar cada momento", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t5s4", "imagen_url": "/images/slides/slide9-patio.jpg", "media_tipo": "image", "texto_principal": "Tu próximo lugar favorito", "texto_secundario": "te está esperando", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t5s5", "imagen_url": "/images/slides/slide4-detalle.jpg", "media_tipo": "image", "texto_principal": "Cada detalle importa", "texto_secundario": "cada sabor permanece", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t5s6", "imagen_url": "/images/slides/slide5-bienvenidos.jpg", "media_tipo": "image", "texto_principal": "El Callejón VIP", "texto_secundario": "León, Nicaragua", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+    ],
+    "TV6": [
+        {"id": "t6s1", "imagen_url": "/images/slides/slide-pescado.jpg", "media_tipo": "image", "texto_principal": "Pescado fresco", "texto_secundario": "Preparado al momento, para llevar o disfrutar aquí", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t6s2", "imagen_url": "/images/slides/slide-pollo-salsa.jpg", "media_tipo": "image", "texto_principal": "Pollo en salsa", "texto_secundario": "Sabor tradicional de El Callejón", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t6s3", "imagen_url": "/images/slides/slide-camarones.jpg", "media_tipo": "image", "texto_principal": "Camarones", "texto_secundario": "Al ajillo o empanizados, siempre frescos", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t6s4", "imagen_url": "/images/slides/slide-costilla-bbq.jpg", "media_tipo": "image", "texto_principal": "Costilla ahumada", "texto_secundario": "Suave, jugosa y con salsa especial", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t6s5", "imagen_url": "/images/slides/slide-platos-mixtos.jpg", "media_tipo": "image", "texto_principal": "Variedad VIP", "texto_secundario": "Para todos los gustos en la mesa", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t6s6", "imagen_url": "/images/slides/slide-platillo-casa-1.jpg", "media_tipo": "image", "texto_principal": "Especial del chef", "texto_secundario": "Siempre algo nuevo que probar", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+        {"id": "t6s7", "imagen_url": "/images/slides/slide-ambiente-luz-2.jpg", "media_tipo": "image", "texto_principal": "El Callejón VIP", "texto_secundario": "León, Nicaragua", "animacion_texto": "fade-in-up", "tamano_texto": "mediano"},
+    ],
+}
+
 
 def normalize_zona(zona: str) -> str:
     z = (zona or "").strip().upper().replace("-", "_").replace(" ", "_")
@@ -107,11 +143,14 @@ def _clean_mensajes(items: list[dict] | None) -> list[dict]:
 
 
 def _map_row(row: Any) -> dict[str, Any]:
+    zona_str = row["zona"] if isinstance(row["zona"], str) else str(row["zona"])
     slides = fix_obj_strings(_parse_json_list(row["slides"]))
+    if not slides:
+        slides = DEFAULT_SLIDES_BY_ZONA.get(zona_str, [])
     mensajes = fix_obj_strings(_parse_json_list(row.get("mensajes")))
     return {
         "id": str(row["id"]),
-        "zona": row["zona"] if isinstance(row["zona"], str) else str(row["zona"]),
+        "zona": zona_str,
         "activo": bool(row["activo"]),
         "duracion_slide": int(row["duracion_slide"]),
         "efecto_visual": str(row["efecto_visual"] or "fade"),

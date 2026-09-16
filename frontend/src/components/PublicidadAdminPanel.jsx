@@ -95,7 +95,43 @@ export default function PublicidadAdminPanel({ onSaved }) {
   });
   const [batch, setBatch] = useState(null);
   const [batchPoll, setBatchPoll] = useState(null);
+  const [liteMode, setLiteMode] = useState(false);
+  const [togglingLite, setTogglingLite] = useState(false);
   const scroll = useArrowScroll(true);
+
+  const loadLite = useCallback(async () => {
+    try {
+      const res = await api.publicidadLite();
+      setLiteMode(!!res.publicidad_lite_mode);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLite();
+  }, [loadLite]);
+
+  async function handleToggleLite() {
+    setTogglingLite(true);
+    setMsg("");
+    setErr("");
+    try {
+      const next = !liteMode;
+      const res = await api.publicidadLiteSet(next);
+      setLiteMode(!!res.publicidad_lite_mode);
+      setMsg(
+        next
+          ? "Modo Smart TV Básico ACTIVADO: Las pantallas mostrarán fotos fijas cada 20s y omitirán videos."
+          : "Modo Smart TV Básico DESACTIVADO: Vuelven los videos y efectos completos."
+      );
+      onSaved?.();
+    } catch (e) {
+      setErr(e.message || "Error al cambiar modo básico");
+    } finally {
+      setTogglingLite(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -363,6 +399,73 @@ export default function PublicidadAdminPanel({ onSaved }) {
             {msg}
           </p>
         )}
+
+        {/* —— Modo Smart TV Básico (Ahorro de Memoria RAM) —— */}
+        <section className="mb-4 rounded-xl border border-sky-800/50 bg-gradient-to-r from-stone-900 via-sky-950/25 to-stone-900 p-4 shadow-lg">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-sky-500/20 text-2xl">
+                ⚡
+              </span>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-sky-100">
+                    Modo Smart TV Básico (Anti-reinicio por RAM)
+                  </h3>
+                  {liteMode ? (
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-xs font-semibold text-emerald-300 border border-emerald-500/40">
+                      ✓ ACTIVO (20s)
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-stone-700/40 px-2.5 py-0.5 text-xs font-semibold text-stone-400 border border-stone-600/40">
+                      Desactivado (Estándar)
+                    </span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs text-stone-300 max-w-2xl">
+                  Proyecta <strong className="text-amber-200">imágenes fijas durante 20 segundos</strong>, omite por completo los videos y desactiva filtros pesados de GPU. Evita que los Smart TVs básicos (webOS, Tizen, TV Box de 1GB RAM) se cuelguen o reinicien.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={togglingLite}
+              onClick={handleToggleLite}
+              className={`tap rounded-xl px-5 py-2.5 text-sm font-bold transition-all shadow-md ${
+                liteMode
+                  ? "bg-sky-500 text-stone-950 hover:bg-sky-400"
+                  : "bg-stone-800 text-stone-200 hover:bg-stone-700 border border-stone-600"
+              }`}
+            >
+              {togglingLite
+                ? "Guardando…"
+                : liteMode
+                ? "✓ Modo Básico Activo"
+                : "Activar Modo Básico"}
+            </button>
+          </div>
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4 border-t border-stone-800/80 pt-3 text-xs">
+            <div className="flex items-center gap-2 text-stone-300">
+              <span className="font-bold text-emerald-400">✓</span>
+              <span>20s por diapositiva fija</span>
+            </div>
+            <div className="flex items-center gap-2 text-stone-300">
+              <span className="font-bold text-emerald-400">✓</span>
+              <span>Videos omitidos (sin crash)</span>
+            </div>
+            <div className="flex items-center gap-2 text-stone-300">
+              <span className="font-bold text-emerald-400">✓</span>
+              <span>1 sola imagen en DOM (ahorro RAM)</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-amber-300">
+              <span className="text-stone-400">URL para TV:</span>
+              <code className="rounded bg-stone-950 px-1.5 py-0.5 text-[11px] font-mono text-amber-200 border border-stone-800">
+                /tv/{zona === "TV3" ? 3 : zona === "TV4" ? 4 : zona === "TV5" ? 5 : 6}?lite=1
+              </code>
+            </div>
+          </div>
+        </section>
 
         {/* —— Multi-video + perfiles —— */}
         <section className="mb-4 space-y-3 rounded-xl border border-amber-700/40 bg-gradient-to-br from-stone-900 to-amber-950/20 p-4">
