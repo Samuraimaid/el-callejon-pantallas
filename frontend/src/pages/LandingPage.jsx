@@ -383,7 +383,6 @@ export default function LandingPage() {
   const [lang, setLang] = useState(() => detectBrowserLanguage());
   // Moneda automática según el idioma: C$ NIO si es español, $ USD para los demás idiomas
   const currency = lang === "es" ? "NIO" : "USD";
-  const showPrices = true;
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -507,12 +506,6 @@ export default function LandingPage() {
     logo_url: "/logo-el-callejon.png",
     mostrar_precios: true,
   };
-
-  useEffect(() => {
-    if (config?.info_general?.mostrar_precios !== undefined) {
-      setShowPrices(Boolean(config.info_general.mostrar_precios));
-    }
-  }, [config]);
 
   const menuItems = useMemo(() => {
     if (config?.menu_items && config.menu_items.length > 0) {
