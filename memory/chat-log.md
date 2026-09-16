@@ -205,4 +205,15 @@
   - Descarga manual ZIP probada: `GET /api/backup/download-now` devolvió 200 OK con Content-Type `application/zip`.
   - Creación de platillo + subida de imagen probada en vivo por API y confirmada sin errores.
 
+### [2026-09-16 14:18:00] Reparación de ReferenceError: setShowPrices en LandingPage (/restaurante)
+- **Causa:** En `frontend/src/pages/LandingPage.jsx`, un `useEffect` residual ejecutaba `setShowPrices(Boolean(config.info_general.mostrar_precios))` al cargar la configuración del landing. Al removerse previamente el switch manual de precios a favor del cálculo automático de moneda (`C$` para español, `USD` para otros idiomas), la función `setShowPrices` había quedado sin declarar.
+- **Solución:**
+  - Se eliminaron la variable huérfana y el `useEffect` residual en [LandingPage.jsx](file:///c:/EL_CALLEJON_POS/frontend/src/pages/LandingPage.jsx).
+  - Se ejecutó escaneo exhaustivo de identificadores y setters no declarados en todo el frontend para descartar problemas similares.
+  - Se recompiló el frontend y se generó una nueva imagen en Google Cloud Build (`e18e5bd2-3aac-47ae-bc66-d38c691de847`).
+  - Se desplegó la revisión `callejon-frontend-00021-k26` en Google Cloud Run.
+- **Verificación en Vivo:**
+  - Se verificó el bundle activo `/assets/index-zmSuot8l.js`: `setShowPrices` eliminado al 100%.
+  - La página `/restaurante` carga limpia y correctamente en producción.
+
 

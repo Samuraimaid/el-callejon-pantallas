@@ -51,9 +51,9 @@ export default function CrashDiagnosticModal({
   const handleReloadClean = () => {
     try {
       window.sessionStorage.clear();
-      if ("caches" in window) {
-        caches.keys().then((names) => {
-          names.forEach((name) => caches.delete(name));
+      if ("caches" in window && window.caches) {
+        window.caches.keys().then((names) => {
+          names.forEach((name) => window.caches.delete(name));
         });
       }
     } catch {
