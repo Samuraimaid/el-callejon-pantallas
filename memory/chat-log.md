@@ -13,7 +13,7 @@
 
 ## 2. Arquitectura en la Nube (Google Cloud + Neon Serverless)
 - **Costo:** $0.00 a ~$0.50/mes (Escala a cero cuando las pantallas no se usan).
-- **Google Cloud Project ID:** `gen-lang-client-0971793042` (Gemini Project, Project Number: `836176703716`).
+- **Google Cloud Project ID:** `gen-lang-client-0971793042` (Project Number: `836176703716`).
 - **Región GCP:** `us-central1` (Iowa).
 
 ### Servicios Desplegados:
@@ -42,16 +42,17 @@
 ---
 
 ## 3. URLs de Pantallas y Accesos
-| Pantalla | Ruta | Descripción |
+| Pantalla / Vista | Ruta | Descripción |
 |---|---|---|
-| **Hub / Lobby** | `/` | Vista de inicio con accesos rápidos |
+| **Landing Page Turística** | `/restaurante` | Web oficial multilingüe (6 idiomas) con cotizador WhatsApp y Google Maps |
+| **Hub / Lobby** | `/` | Vista de inicio con accesos rápidos y banner a la web |
 | **TV #1** | `/tv/1` o `/pantalla/comidas` | Menú comidas 50" (platillos + extras + hero rotativo) |
 | **TV #2** | `/tv/2` o `/pantalla/complementos` | Complementos y bebidas 50" (jugos, sodas, cafés) |
 | **TV #3** | `/tv/3` | Publicidad Barra (bebidas / picadas) |
 | **TV #4** | `/tv/4` | Publicidad Parrilla (asados) |
 | **TV #5** | `/tv/5` | Publicidad VIP ambiente |
 | **TV #6** | `/tv/6` | Publicidad VIP platillos |
-| **Admin Panel** | `/admin` o `/login` | Centro de Control (PIN inicial: `2580`) |
+| **Admin Panel (CMS)** | `/admin` o `/login` | Centro de Control (PIN inicial: `2580` / `0000`) con pestaña **Sitio Web** |
 | **API Docs** | `/docs` | Swagger UI de FastAPI |
 
 ---
@@ -62,7 +63,6 @@
   - Se migró a Cloud Run + Cloud Storage + Neon PostgreSQL ($0.00 cuando no se usa).
   - Se solucionó el problema de imágenes faltantes en las pantallas: las fotos estaban archivadas en `snapshots/daily/mirror/frontend/public/images/`. Se copiaron a `frontend/public/images/` y se sincronizaron al bucket `gs://callejon-multimedia-pos`.
   - Se configuró el sistema de memoria persistente en `.agents/rules/` y `memory/chat-log.md` basado en el patrón de `MC-LARENS_ERP2`.
-
 
 ### [2026-09-15 14:45:12] Ajuste Visual: Desactivación de Overlay y Contorno Suave 5px con Fade-Out
 - **Columna Central (Hero):**
@@ -89,43 +89,36 @@
   - Instrumentación en `lib/api.js` y `hooks/useWebSocket.js` para registrar telemetría de red.
 
 ### [2026-09-15 19:00:00] Despliegue a Producción y Pruebas en Vivo (Cloud Run)
-- **Compilación Cloud Build:** `gcloud builds submit --tag gcr.io/gen-lang-client-0971793042/callejon-frontend:latest .` exitosa en 53s (Vite 6.4.3 empaquetado en 3.85s, Nginx Alpine).
-- **Despliegue Cloud Run:** Revisión `callejon-frontend-00008-xtj` activa en `us-central1`, enrutando el 100% del tráfico a `https://callejon-frontend-836176703716.us-central1.run.app`.
-- **Verificaciones en Vivo:**
-  - HTML & Assets HTTP 200 OK (`index-DCgdNu4L.js` y `index-DR40NTGR.css`).
-  - Bundle contiene los módulos de diagnóstico (`callejon:last_crash_snapshot` y botón `🛠️ Diagnóstico`).
-  - Autenticación con PIN (`0000`) confirmada: retorno de 67 productos del menú.
-  - Endpoint de sincronización WebSocket (`/api/productos/sincronizar`) verificado: emite evento a TVs con éxito.
-  - Menú público para Smart TVs (`/api/productos/menu`): 12 platillos, 9 extras, 5 jugos, 20 bebidas devueltos correctamente.
+- **Compilación Cloud Build:** `gcloud builds submit --tag gcr.io/gen-lang-client-0971793042/callejon-frontend:latest .` exitosa en 53s.
+- **Despliegue Cloud Run:** Revisión `callejon-frontend-00008-xtj` activa en `us-central1`.
+
 ### [2026-09-15 20:45:00] Modo Smart TV Básico (Anti-Crash de RAM) y Diapositivas de TV4/TV6
 - **Diagnóstico y Población de Diapositivas en TV4 (Parrilla) y TV6 (VIP Platillos):**
   - La fila `TV4` en la tabla `campanas_publicidad` de Neon DB tenía `slides: []` vacío, provocando el cartel «Sin diapositivas configuradas».
-  - Se poblaron 7 diapositivas fotográficas de Parrilla para TV4 (*Costilla BBQ*, *A la parrilla*, *El sabor de la casa*, *Brochetas*, etc.) y 7 para TV6.
-  - Se añadió `DEFAULT_SLIDES_BY_ZONA` y fallback en `backend/app/services/publicidad.py` para garantizar que ninguna pantalla quede sin diapositivas aunque se limpien.
+  - Se poblaron 7 diapositivas fotográficas de Parrilla para TV4 y 7 para TV6.
 - **Implementación de Modo Smart TV Básico (Bajo Consumo de RAM):**
-  - `frontend/src/pages/PantallaPublicidadPage.jsx`:
-    - Detección dual vía parámetro de URL (`?lite=1`, `?basic=1`, `?ram=low`) o interruptor global `publicidad_lite_mode`.
-    - Omisión total de videos: `useVideoTurn` desactivado (`enabled: !liteMode`), evitando decodificación por hardware de `<video>` que saturaba la RAM en webOS/Tizen.
-    - Intervalo de 20 segundos rígido (`20000ms`) para imágenes fijas, otorgando tiempo al recolector de basura de la TV para liberar memoria.
-    - Reducción del DOM: en modo básico solo se monta en el DOM el slide activo a la vez (evitando tener 7 imágenes 1080p en memoria gráfica simultáneamente).
-    - Desactivación de filtros pesados GPU como `blur-2xl` y animaciones 3D.
-  - `frontend/src/components/PublicidadAdminPanel.jsx`:
-    - Incorporada sección interactiva «⚡ Modo Smart TV Básico (Anti-reinicio por RAM)» con interruptor en tiempo real y enlaces directos para televisores.
-- **Despliegue y Verificación en Producción:**
-  - Backend `callejon-backend-00006-wzt` y Frontend `callejon-frontend-00010-979` activos en Cloud Run sirviendo 100% del tráfico.
-  - Verificado en vivo que TV4 entrega sus 7 slides y el nuevo bundle `index-Co28f7pa.js` contiene la lógica y etiquetas del modo básico.
+  - `frontend/src/pages/PantallaPublicidadPage.jsx`: Detección dual (`?lite=1`), omisión de video turn, 20s rígidos por imagen, reducción de DOM a un solo slide y desactivación de filtros GPU pesados.
+  - `frontend/src/components/PublicidadAdminPanel.jsx`: Sección «⚡ Modo Smart TV Básico».
 
-### [2026-09-15 22:15:00] Landing Page Turística Multilingüe (6 idiomas) y Backoffice CMS Integrado
-- **Objetivo:** Crear un sitio web oficial para turistas y visitantes de Google Maps, con cotizador de eventos a WhatsApp y backoffice integrado en el Centro de Control de Pantallas.
+### [2026-09-15 22:20:00] Landing Page Turística Multilingüe (6 idiomas), Backoffice CMS y Despliegue en Vivo
+- **Objetivo Cumplido:** Sitio web oficial para turistas y Google Maps, con cotizador de eventos a WhatsApp (`+505 8512 1494`) y backoffice CMS integrado en el Centro de Control de Pantallas.
 - **Backend Centralizado y Eficiente:**
-  - `backend/app/services/landing_page.py`: Estructura `DEFAULT_LANDING_CONFIG` basada en datos oficiales de WhatsApp Business (25 años de trayectoria, pioneros en buffet, catering, menú, precios NIO/USD). Lectura/escritura en PostgreSQL Neon en la tabla `config_sistema` (`clave='landing_page'`). Función `list_available_images()` para reusar imágenes de TV y menú.
+  - `backend/app/services/landing_page.py`: Estructura `DEFAULT_LANDING_CONFIG` basada en datos oficiales de WhatsApp Business (25 años de trayectoria, pioneros en buffet, catering, menú, precios NIO/USD). Lectura/escritura en PostgreSQL Neon en la tabla `config_sistema` (`clave='landing_page'`). Función `list_available_images()` para reusar imágenes de TV y menú sin duplicidad.
   - `backend/app/routers/landing.py`: Endpoints `GET /api/landing` (público), `PUT /api/landing` (CMS protegido), `GET /api/landing/imagenes` y `POST /api/landing/upload-image`.
   - `backend/app/main.py`: Montaje de `landing.router`.
 - **Frontend Multilingüe (6 Idiomas) e Interactivo:**
-  - `frontend/src/lib/landingTranslations.js`: Traducciones y generador de enlaces de WhatsApp en Español (`es`), Inglés (`en`), Francés (`fr`), Italiano (`it`), Alemán (`de`) y Portugués (`pt`). Detección automática por `navigator.language`.
-  - `frontend/src/pages/LandingPage.jsx`: Vista gastronómica elegante (Hero, Sobre Nosotros, Menú con filtros y toggle C$/USD, Cotizador interactivo de bodas/15 años/cumpleaños que envía WhatsApp a `+505 8512 1494`, Galería de fotos del salón y Ubicación con Google Maps / Waze).
+  - `frontend/src/lib/landingTranslations.js`: Traducciones completas en Español (`es`), Inglés (`en`), Francés (`fr`), Italiano (`it`), Alemán (`de`) y Portugués (`pt`). Detección automática de idioma y selector con banderas.
+  - `frontend/src/pages/LandingPage.jsx`: Hero gastronómico, Sobre Nosotros con 25 años de historia, Menú interactivo con selector C$/USD, Cotizador interactivo de bodas/15 años/cumpleaños que envía WhatsApp a `+505 8512 1494`, Galería de fotos del salón y Ubicación con Google Maps / Waze.
   - Rutas agregadas en `App.jsx`: `/restaurante`, `/bienvenidos`, `/web`, `/menu-web`.
   - Enlace con banner destacado en `HomePage.jsx` hacia `/restaurante`.
 - **Backoffice CMS Integrado:**
   - `frontend/src/components/LandingPageAdminPanel.jsx`: Pestaña dedicada **🌐 Sitio Web** en `ControlCenterPage.jsx` para editar textos, precios, fotos, secciones y tipos de eventos desde el mismo panel de administración.
-  - Compilación exitosa en Vite (`built in 15.73s`).
+- **Git Repository:**
+  - Commit `9632720` sincronizado y empujado a `https://github.com/Samuraimaid/el-callejon-pantallas.git`.
+- **Despliegue a Producción (Google Cloud Run):**
+  - **Frontend:** Revisión `callejon-frontend-00011-k8s` (Cloud Build ID `45db8264-c75a-49c2-adf5-64b83272428f`).
+  - **Backend:** Revisión `callejon-backend-00007-ncv` (Cloud Build ID `90729269-27f6-481e-a70c-f01e1139313d`).
+  - **URLs en Vivo:**
+    - Landing Page: `https://callejon-frontend-836176703716.us-central1.run.app/restaurante`
+    - Centro de Control CMS: `https://callejon-frontend-836176703716.us-central1.run.app/admin` (Pestaña "🌐 Sitio Web")
+    - API de Configuración: `https://callejon-backend-836176703716.us-central1.run.app/api/landing`
