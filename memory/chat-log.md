@@ -114,3 +114,18 @@
 - **Despliegue y Verificación en Producción:**
   - Backend `callejon-backend-00006-wzt` y Frontend `callejon-frontend-00010-979` activos en Cloud Run sirviendo 100% del tráfico.
   - Verificado en vivo que TV4 entrega sus 7 slides y el nuevo bundle `index-Co28f7pa.js` contiene la lógica y etiquetas del modo básico.
+
+### [2026-09-15 22:15:00] Landing Page Turística Multilingüe (6 idiomas) y Backoffice CMS Integrado
+- **Objetivo:** Crear un sitio web oficial para turistas y visitantes de Google Maps, con cotizador de eventos a WhatsApp y backoffice integrado en el Centro de Control de Pantallas.
+- **Backend Centralizado y Eficiente:**
+  - `backend/app/services/landing_page.py`: Estructura `DEFAULT_LANDING_CONFIG` basada en datos oficiales de WhatsApp Business (25 años de trayectoria, pioneros en buffet, catering, menú, precios NIO/USD). Lectura/escritura en PostgreSQL Neon en la tabla `config_sistema` (`clave='landing_page'`). Función `list_available_images()` para reusar imágenes de TV y menú.
+  - `backend/app/routers/landing.py`: Endpoints `GET /api/landing` (público), `PUT /api/landing` (CMS protegido), `GET /api/landing/imagenes` y `POST /api/landing/upload-image`.
+  - `backend/app/main.py`: Montaje de `landing.router`.
+- **Frontend Multilingüe (6 Idiomas) e Interactivo:**
+  - `frontend/src/lib/landingTranslations.js`: Traducciones y generador de enlaces de WhatsApp en Español (`es`), Inglés (`en`), Francés (`fr`), Italiano (`it`), Alemán (`de`) y Portugués (`pt`). Detección automática por `navigator.language`.
+  - `frontend/src/pages/LandingPage.jsx`: Vista gastronómica elegante (Hero, Sobre Nosotros, Menú con filtros y toggle C$/USD, Cotizador interactivo de bodas/15 años/cumpleaños que envía WhatsApp a `+505 8512 1494`, Galería de fotos del salón y Ubicación con Google Maps / Waze).
+  - Rutas agregadas en `App.jsx`: `/restaurante`, `/bienvenidos`, `/web`, `/menu-web`.
+  - Enlace con banner destacado en `HomePage.jsx` hacia `/restaurante`.
+- **Backoffice CMS Integrado:**
+  - `frontend/src/components/LandingPageAdminPanel.jsx`: Pestaña dedicada **🌐 Sitio Web** en `ControlCenterPage.jsx` para editar textos, precios, fotos, secciones y tipos de eventos desde el mismo panel de administración.
+  - Compilación exitosa en Vite (`built in 15.73s`).

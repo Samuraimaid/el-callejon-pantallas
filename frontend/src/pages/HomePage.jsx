@@ -234,8 +234,31 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Centro de Control NO se enlaza aquí (solo personal con URL /login).
-            Reduce exposición del panel en el lobby de las Smart TVs. */}
+        {/* Acceso directo al Sitio Web Oficial (Turismo / Google Maps) */}
+        <Link
+          to="/restaurante"
+          className="w-full rounded-2xl border border-[#e8c56a]/40 bg-gradient-to-r from-[#211a13] via-[#32271d] to-[#211a13] p-3.5 shadow-lg hover:border-[#e8c56a] hover:scale-[1.01] transition-all group"
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 text-left">
+              <span className="text-3xl">🌐</span>
+              <div>
+                <span className="text-[11px] font-bold text-[#e8c56a] uppercase tracking-wider block">
+                  Sitio Web Oficial & Turistas (Google Maps)
+                </span>
+                <p className="text-sm font-bold text-ivory group-hover:text-[#e8c56a] transition-colors">
+                  Visitar Página Web de Buffet y Restaurante El Callejón
+                </p>
+                <p className="text-[11px] text-cream/70">
+                  Menú en 6 idiomas, cotizador de eventos a WhatsApp y navegación GPS
+                </p>
+              </div>
+            </div>
+            <span className="hidden sm:inline-block px-3.5 py-1.5 rounded-xl bg-[#e8c56a] text-black font-extrabold text-xs shadow-md">
+              Ver Web →
+            </span>
+          </div>
+        </Link>
 
         <p className="text-center text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-300/75">
           Elija la pantalla de este televisor

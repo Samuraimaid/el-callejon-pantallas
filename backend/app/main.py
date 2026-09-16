@@ -28,6 +28,7 @@ from app.routers import (
     pantallas,
     productos,
     publicidad,
+    landing,
 )
 from app.ws_manager import (
     CHANNEL_ALL,
@@ -127,6 +128,7 @@ app.include_router(pantallas.router)
 app.include_router(content.router)
 app.include_router(ambient.router)
 app.include_router(backup.router)
+app.include_router(landing.router)
 
 
 def _detect_lan_ips() -> list[str]:

@@ -402,6 +402,35 @@ export const api = {
       }
       throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
     }
+  },
+
+  getLandingConfig: () => request("/api/landing"),
+  updateLandingConfig: (data) =>
+    request("/api/landing", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  getLandingImages: () => request("/api/landing/imagenes"),
+  uploadLandingImage: async (file) => {
+    const token = getToken();
+    const fd = new FormData();
+    fd.append("file", file, file.name);
+    const res = await fetch(`${API_URL}/api/landing/upload-image`, {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    });
+    if (res.status === 401) clearSession();
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        detail = body.detail || JSON.stringify(body);
+      } catch {
+        detail = (await res.text()) || detail;
+      }
+      throw new Error(typeof detail === "string" ? detail : JSON.stringify(detail));
+    }
     return res.json();
   },
 };

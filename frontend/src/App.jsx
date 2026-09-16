@@ -5,6 +5,7 @@ import GlobalErrorBoundary from "./components/GlobalErrorBoundary";
 import SystemDiagnosticProvider from "./components/SystemDiagnosticProvider";
 import ControlCenterPage from "./pages/ControlCenterPage";
 import HomePage from "./pages/HomePage";
+import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import PantallaComidasPage from "./pages/PantallaComidasPage";
 import PantallaComplementosPage from "./pages/PantallaComplementosPage";
@@ -24,7 +25,13 @@ export default function App() {
       <SystemDiagnosticProvider>
         <BrowserRouter>
           <Routes>
-        {/* Lobby público solo para Smart TVs — sin enlaces al panel de admin */}
+        {/* Sitio Web oficial / Landing turística multilingüe */}
+        <Route path="/restaurante" element={<LandingPage />} />
+        <Route path="/bienvenidos" element={<LandingPage />} />
+        <Route path="/web" element={<LandingPage />} />
+        <Route path="/menu-web" element={<LandingPage />} />
+
+        {/* Lobby público para Smart TVs y acceso rápido */}
         <Route path="/" element={<HomePage />} />
         {/* Acceso staff: URL directa (no aparece en el hub de pantallas) */}
         <Route path="/login" element={<LoginPage />} />

@@ -10,6 +10,7 @@ import AmbientMusicPanel from "../components/AmbientMusicPanel";
 import AmbientMiniPlayer from "../components/AmbientMiniPlayer";
 import AdminErrorBoundary from "../components/AdminErrorBoundary";
 import CrashDiagnosticModal from "../components/CrashDiagnosticModal";
+import LandingPageAdminPanel from "../components/LandingPageAdminPanel";
 import { getLastCrashSnapshot, createCrashSnapshot } from "../lib/diagnostics";
 import { useWebSocket } from "../hooks/useWebSocket";
 import { clearSession, getUser } from "../lib/auth";
@@ -20,6 +21,7 @@ const TABS = [
   { id: "board", label: "Diseño TV1–2", short: "Diseño", icon: "🖼️" },
   { id: "publicidad", label: "Campañas", short: "Ads", icon: "📺" },
   { id: "ambient", label: "Ambiente", short: "Música", icon: "♪" },
+  { id: "landing", label: "Sitio Web", short: "Web", icon: "🌐" },
   { id: "backup", label: "Respaldos", short: "Backup", icon: "💾" },
 ];
 
@@ -184,6 +186,7 @@ export default function ControlCenterPage() {
           {tab === "board" && <MenuBoardConfigPanel />}
           {tab === "publicidad" && <PublicidadAdminPanel />}
           {tab === "ambient" && <AmbientMusicPanel />}
+          {tab === "landing" && <LandingPageAdminPanel />}
           {tab === "backup" && <BackupPanel />}
         </AdminErrorBoundary>
       </main>
