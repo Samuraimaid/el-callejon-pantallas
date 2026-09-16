@@ -7,12 +7,53 @@ import {
   buildWhatsAppEventLink,
 } from "../lib/landingTranslations";
 
+// Platillos estrella para la animación flotante del Hero
+const HERO_FEATURED_DISHES = [
+  {
+    id: "pollo-salsa",
+    nombre: "Pollo en Salsa Criolla",
+    tag: "🍗 Especialidad de la Casa",
+    imagen: "/images/platillos/pollo-salsa.jpg",
+    sabor: "Receta tradicional con 25 años de sazón",
+    precioNio: 160,
+    precioUsd: 4.5,
+  },
+  {
+    id: "asados-parrilla",
+    nombre: "Asados a la Parrilla",
+    tag: "🥩 Al Carbón & Leña",
+    imagen: "/images/platillos/asados-parrilla.jpg",
+    sabor: "Cortes jugosos marinados al estilo leonés",
+    precioNio: 190,
+    precioUsd: 5.2,
+  },
+  {
+    id: "camarones-ajillo",
+    nombre: "Camarones al Ajillo",
+    tag: "🍤 Mariscos Gourmet",
+    imagen: "/images/platillos/camarones-ajillo.jpg",
+    sabor: "Frescura del Pacífico salteada en ajo y mantequilla",
+    precioNio: 240,
+    precioUsd: 6.5,
+  },
+  {
+    id: "costilla-bbq",
+    nombre: "Costilla BBQ Glaseada",
+    tag: "🔥 Tierna & Caramelizada",
+    imagen: "/images/platillos/costilla-bbq.jpg",
+    sabor: "Cocción lenta con salsa barbacoa artesanal",
+    precioNio: 210,
+    precioUsd: 5.8,
+  },
+];
+
 export default function LandingPage() {
   const [lang, setLang] = useState(() => detectBrowserLanguage());
   const [currency, setCurrency] = useState("NIO"); // NIO | USD
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
+  const [heroDishIdx, setHeroDishIdx] = useState(0);
 
   // Formulario de cotización de eventos
   const [quoteForm, setQuoteForm] = useState({
@@ -24,8 +65,15 @@ export default function LandingPage() {
   });
 
   const t = useMemo(() => TRANSLATIONS[lang] || TRANSLATIONS.es, [lang]);
-
   const [mapLoaded, setMapLoaded] = useState(false);
+
+  // Rotación automática del plato flotante cada 5.5 segundos
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setHeroDishIdx((prev) => (prev + 1) % HERO_FEATURED_DISHES.length);
+    }, 5500);
+    return () => clearInterval(timer);
+  }, []);
 
   // Título dinámico por idioma para visitantes y turistas
   useEffect(() => {
@@ -88,7 +136,7 @@ export default function LandingPage() {
     };
   }, []);
 
-  // Carga diferida del iframe de Google Maps (evita que el navegador mantenga el spinner de carga en la pestaña)
+  // Carga diferida del iframe de Google Maps
   useEffect(() => {
     const timer = setTimeout(() => {
       setMapLoaded(true);
@@ -198,83 +246,85 @@ export default function LandingPage() {
     };
   }, [info]);
 
-  return (
-    <div className="min-h-screen bg-[#110f0d] text-[#fbf8f2] font-sans antialiased selection:bg-[#e8c56a] selection:text-[#110f0d]">
+  const activeHeroDish = HERO_FEATURED_DISHES[heroDishIdx];
 
-      {/* NAVBAR */}
-      <header className="sticky top-0 z-50 backdrop-blur-md bg-[#181411]/90 border-b border-[#e8c56a]/20 transition-all">
+  return (
+    <div className="min-h-screen bg-[#faf5ed] text-[#24140b] font-sans antialiased selection:bg-[#ea580c] selection:text-white">
+
+      {/* NAVBAR: Diseño cálido y luminoso con efecto vidrio esmerilado */}
+      <header className="sticky top-0 z-50 backdrop-blur-md bg-white/95 border-b border-amber-200/70 shadow-sm transition-all">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
           <a href="#inicio" className="flex items-center gap-3 group">
             <img
               src={info.logo_url || "/images/logo_callejon_catalog.jpg"}
               alt={info.nombre}
-              className="h-12 w-12 rounded-full border border-[#e8c56a]/40 object-cover shadow-md group-hover:scale-105 transition-transform"
+              className="h-12 w-12 rounded-full border-2 border-amber-400 object-cover shadow-md group-hover:scale-105 transition-transform"
               onError={(e) => {
                 e.currentTarget.src = "/logo-el-callejon.jpg";
               }}
             />
             <div>
-              <span className="font-display font-bold text-lg sm:text-xl tracking-tight text-[#fbf8f2] block leading-tight">
+              <span className="font-display font-extrabold text-lg sm:text-xl tracking-tight text-[#24140b] block leading-tight">
                 {info.nombre_corto || "El Callejón"}
               </span>
-              <span className="text-[11px] text-[#e8c56a] font-medium tracking-wide uppercase">
+              <span className="text-[11px] text-amber-700 font-extrabold tracking-wider uppercase">
                 {info.eslogan || "Buffet & Restaurante"}
               </span>
             </div>
           </a>
 
           {/* Menú enlaces en desktop */}
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-[#e6ded3]">
-            <a href="#inicio" className="hover:text-[#e8c56a] transition-colors">
+          <nav className="hidden md:flex items-center gap-7 text-sm font-bold text-stone-700">
+            <a href="#inicio" className="hover:text-orange-600 transition-colors">
               {t.nav.inicio}
             </a>
-            <a href="#nosotros" className="hover:text-[#e8c56a] transition-colors">
+            <a href="#nosotros" className="hover:text-orange-600 transition-colors">
               {t.nav.sobre_nosotros}
             </a>
-            <a href="#menu" className="hover:text-[#e8c56a] transition-colors">
+            <a href="#menu" className="hover:text-orange-600 transition-colors">
               {t.nav.menu}
             </a>
-            <a href="#eventos" className="hover:text-[#e8c56a] transition-colors">
+            <a href="#eventos" className="hover:text-orange-600 transition-colors">
               {t.nav.eventos}
             </a>
-            <a href="#galeria" className="hover:text-[#e8c56a] transition-colors">
+            <a href="#galeria" className="hover:text-orange-600 transition-colors">
               {t.nav.galeria}
             </a>
-            <a href="#ubicacion" className="hover:text-[#e8c56a] transition-colors">
+            <a href="#ubicacion" className="hover:text-orange-600 transition-colors">
               {t.nav.ubicacion}
             </a>
           </nav>
 
           {/* Selector de idioma y botón WhatsApp */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             {/* Selector de Idioma */}
             <div className="relative group">
               <button
                 type="button"
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[#241e19] border border-[#e8c56a]/30 text-xs font-semibold hover:border-[#e8c56a] transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-300/80 text-xs font-bold text-stone-800 transition-all shadow-sm"
                 title="Cambiar idioma / Change language"
               >
                 <span className="text-base leading-none">
                   {SUPPORTED_LANGUAGES.find((l) => l.code === lang)?.flag || "🌐"}
                 </span>
-                <span className="uppercase text-[#e8c56a] font-bold">{lang}</span>
+                <span className="uppercase text-amber-800 font-extrabold">{lang}</span>
                 <svg
-                  className="w-3 h-3 text-[#e6ded3] transition-transform group-hover:rotate-180"
+                  className="w-3.5 h-3.5 text-amber-800 transition-transform group-hover:rotate-180"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
-              <div className="absolute right-0 top-full mt-2 hidden group-hover:flex flex-col bg-[#211b16] border border-[#e8c56a]/30 rounded-xl shadow-2xl py-1.5 min-w-[130px] z-50 backdrop-blur-lg">
+              <div className="absolute right-0 top-full mt-2 hidden group-hover:flex flex-col bg-white border border-amber-200 rounded-2xl shadow-xl py-1.5 min-w-[140px] z-50 overflow-hidden">
                 {SUPPORTED_LANGUAGES.map((item) => (
                   <button
                     key={item.code}
                     type="button"
                     onClick={() => setLang(item.code)}
-                    className={`flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-left transition-colors hover:bg-[#322a22] ${
-                      lang === item.code ? "text-[#e8c56a] font-bold bg-[#29221b]" : "text-[#fbf8f2]"
+                    className={`flex items-center gap-2.5 px-3.5 py-2 text-xs font-semibold text-left transition-colors hover:bg-amber-50 ${
+                      lang === item.code ? "text-orange-600 font-extrabold bg-amber-100/50" : "text-stone-800"
                     }`}
                   >
                     <span className="text-base">{item.flag}</span>
@@ -291,7 +341,7 @@ export default function LandingPage() {
               )}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="hidden sm:inline-flex items-center gap-2 bg-[#25d366] hover:bg-[#20ba59] text-black font-semibold text-xs px-4 py-2.5 rounded-full shadow-lg shadow-[#25d366]/20 transition-all hover:scale-105"
+              className="hidden sm:inline-flex items-center gap-2 bg-gradient-to-r from-[#25d366] to-[#128c7e] hover:from-[#20ba59] hover:to-[#0f776a] text-white font-black text-xs px-4 py-2.5 rounded-full shadow-md shadow-emerald-600/20 hover:scale-105 transition-all"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
@@ -302,124 +352,218 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      <section id="inicio" className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
-        {/* Imagen de fondo con overlay cinematográfico */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-transform duration-1000 scale-105"
-          style={{
-            backgroundImage: `url('${config?.hero?.imagen_fondo || "/images/slides/slide-ambiente-salon-1.jpg"}')`,
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#110f0d] via-[#110f0d]/80 to-[#110f0d]/50" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-[#110f0d]/40 to-[#110f0d]" />
+      {/* HERO SECTION: Efecto Animación Flotante Retro-Moderno con Colores Cálidos & Apetitosos */}
+      <section id="inicio" className="relative min-h-[85vh] lg:min-h-[80vh] flex items-center overflow-hidden bg-gradient-to-b from-amber-50/90 via-[#faf5ed] to-[#faf5ed] pt-8 pb-16 lg:py-16">
+        {/* Destellos y auras de luz cálida */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[650px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-200/50 via-orange-100/30 to-transparent pointer-events-none" />
+        <div className="absolute top-12 -right-20 w-96 h-96 bg-amber-300/25 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 -left-20 w-80 h-80 bg-orange-300/20 rounded-full blur-3xl pointer-events-none" />
 
-        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#e8c56a]/15 border border-[#e8c56a]/40 text-[#e8c56a] text-xs font-semibold tracking-wider uppercase mb-6 shadow-md">
-            <span>✨</span>
-            <span>{config?.hero?.badge || t.hero.badge}</span>
-            <span>✨</span>
-          </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
 
-          <h1 className="font-display font-extrabold text-3xl sm:text-5xl md:text-6xl text-[#fbf8f2] tracking-tight leading-tight mb-6">
-            {t.hero.title_p1}{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#e8c56a] via-[#f7e4a1] to-[#d99f36] block mt-1">
-              {t.hero.title_p2}
-            </span>
-          </h1>
+            {/* Columna Izquierda: Título de alto impacto, propuesta de valor y llamadas a la acción */}
+            <div className="lg:col-span-7 text-center lg:text-left">
+              {/* Badge dorado luminoso */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-100 via-orange-100 to-amber-100 border border-amber-300/90 text-amber-950 text-xs font-extrabold tracking-wide uppercase mb-6 shadow-sm">
+                <span>🔥</span>
+                <span>{config?.hero?.badge || "25 Años de Tradición Leonesa · Pioneros del Buffet"}</span>
+                <span>✨</span>
+              </div>
 
-          <p className="max-w-3xl mx-auto text-base sm:text-xl text-[#d4c8b8] leading-relaxed mb-10 font-normal">
-            {config?.hero?.subtitulo || t.hero.subtitle}
-          </p>
+              <h1 className="font-display font-black text-3xl sm:text-5xl lg:text-6xl text-[#24140b] tracking-tight leading-[1.12] mb-6">
+                {t.hero.title_p1}{" "}
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-500 to-red-600 block mt-1">
+                  {t.hero.title_p2}
+                </span>
+              </h1>
 
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            <a
-              href="#menu"
-              className="px-7 py-3.5 rounded-full bg-gradient-to-r from-[#e8c56a] to-[#d49e37] text-black font-bold text-sm tracking-wide shadow-lg shadow-[#e8c56a]/25 hover:shadow-xl hover:scale-105 transition-all"
-            >
-              🍽️ {t.hero.btn_menu}
-            </a>
-            <a
-              href="#eventos"
-              className="px-7 py-3.5 rounded-full bg-[#241e19] border border-[#e8c56a]/50 text-[#fbf8f2] font-semibold text-sm tracking-wide hover:bg-[#2e261f] hover:border-[#e8c56a] transition-all"
-            >
-              🎉 {t.hero.btn_eventos}
-            </a>
-            <a
-              href={info.google_maps_url || "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-7 py-3.5 rounded-full bg-[#1e2329] border border-blue-400/40 text-blue-300 font-semibold text-sm tracking-wide hover:bg-blue-900/30 transition-all flex items-center gap-2"
-            >
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
-              </svg>
-              <span>{t.hero.btn_maps}</span>
-            </a>
+              <p className="max-w-2xl mx-auto lg:mx-0 text-base sm:text-lg text-stone-700 leading-relaxed mb-8 font-normal">
+                {config?.hero?.subtitulo || t.hero.subtitle}
+              </p>
+
+              {/* Botones de acción principales */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-10">
+                <a
+                  href="#menu"
+                  className="px-7 py-3.5 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm tracking-wide shadow-lg shadow-orange-500/25 hover:shadow-xl hover:scale-105 transition-all"
+                >
+                  🍽️ {t.hero.btn_menu}
+                </a>
+                <a
+                  href="#eventos"
+                  className="px-7 py-3.5 rounded-full bg-white hover:bg-amber-50 border-2 border-amber-300/80 text-stone-800 font-extrabold text-sm tracking-wide shadow-sm hover:border-orange-500 hover:scale-105 transition-all"
+                >
+                  🎉 {t.hero.btn_eventos}
+                </a>
+                <a
+                  href={info.google_maps_url || "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-6 py-3.5 rounded-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold text-sm tracking-wide hover:scale-105 transition-all flex items-center gap-2 shadow-sm"
+                >
+                  <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+                  </svg>
+                  <span>{t.hero.btn_maps}</span>
+                </a>
+              </div>
+
+              {/* Fila de Confianza y Calidad */}
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-6 border-t border-amber-200/70 text-xs font-bold text-stone-700">
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-500 text-base">⭐⭐⭐⭐⭐</span>
+                  <span>4.4 en Google Maps (1,690+ reseñas)</span>
+                </div>
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-amber-300" />
+                <div className="flex items-center gap-1.5">
+                  <span>🥩</span>
+                  <span>Asados al Carbón & Buffet Diario</span>
+                </div>
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-amber-300" />
+                <div className="flex items-center gap-1.5">
+                  <span>❄️</span>
+                  <span>Salón Climatizado</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Columna Derecha: PLATILLO FLOTANTE CON EFECTO RETRO-MODERNO */}
+            <div className="lg:col-span-5 relative flex flex-col items-center justify-center">
+
+              {/* Aura cálida pulsante de fondo */}
+              <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full bg-gradient-to-tr from-orange-400/35 via-amber-400/30 to-red-400/20 blur-3xl animate-warm-glow pointer-events-none" />
+
+              {/* Plato principal con animación flotante continua */}
+              <div className="relative z-10 w-64 h-64 sm:w-80 sm:h-80 md:w-92 md:h-92 animate-float-slow">
+                <div className="w-full h-full rounded-full p-3 bg-gradient-to-br from-amber-200 via-white to-orange-300 shadow-2xl shadow-orange-950/25 border-4 border-white/95 overflow-hidden relative group">
+                  <img
+                    src={activeHeroDish.imagen}
+                    alt={activeHeroDish.nombre}
+                    className="w-full h-full object-cover rounded-full group-hover:scale-105 transition-transform duration-700"
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/platillos/pollo-salsa.jpg";
+                    }}
+                  />
+                  {/* Destello de luz suave sobre el plato */}
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent via-white/15 to-transparent pointer-events-none" />
+                </div>
+              </div>
+
+              {/* BADGES SATELITALES FLOTANTES EN ÓRBITA */}
+              {/* Badge 1: 25 Años (Superior Derecho) */}
+              <div className="absolute -top-3 right-2 sm:-right-4 z-20 animate-float-delayed bg-white/95 backdrop-blur-md border border-amber-300 shadow-warm-xl rounded-2xl px-4 py-2 flex items-center gap-2.5">
+                <span className="text-2xl">⭐</span>
+                <div>
+                  <span className="block font-display font-black text-xs text-[#24140b]">25 Años</span>
+                  <span className="block text-[10px] text-amber-700 font-bold uppercase">Sazón Auténtico</span>
+                </div>
+              </div>
+
+              {/* Badge 2: Asados al Carbón (Inferior Izquierdo) */}
+              <div className="absolute -bottom-3 left-2 sm:-left-4 z-20 animate-float-badge bg-white/95 backdrop-blur-md border border-orange-300 shadow-warm-xl rounded-2xl px-4 py-2 flex items-center gap-2.5">
+                <span className="text-2xl">🔥</span>
+                <div>
+                  <span className="block font-display font-black text-xs text-[#24140b]">Asados al Carbón</span>
+                  <span className="block text-[10px] text-orange-600 font-bold uppercase">Hechos al Momento</span>
+                </div>
+              </div>
+
+              {/* Badge 3: Buffet Fresco (Inferior Derecho) */}
+              <div className="hidden sm:flex absolute bottom-12 -right-6 z-20 animate-float-slow bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-warm-xl rounded-2xl px-3.5 py-1.5 items-center gap-2 text-xs font-black">
+                <span>🥗</span>
+                <span>Buffet 8am – 3pm</span>
+              </div>
+
+              {/* Badge 4: Pioneros en León (Superior Izquierdo) */}
+              <div className="hidden sm:flex absolute top-6 -left-6 z-20 animate-float-badge bg-white/95 backdrop-blur-md border border-emerald-300 shadow-warm rounded-xl px-3 py-1.5 items-center gap-1.5 text-xs font-bold text-emerald-800">
+                <span>🏆</span>
+                <span>Pioneros en León</span>
+              </div>
+
+              {/* Selector interactivo de platillos estrella debajo del plato flotante */}
+              <div className="relative z-20 mt-6 flex flex-wrap items-center justify-center gap-2">
+                {HERO_FEATURED_DISHES.map((dish, idx) => (
+                  <button
+                    key={dish.id}
+                    type="button"
+                    onClick={() => setHeroDishIdx(idx)}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
+                      heroDishIdx === idx
+                        ? "bg-orange-500 text-white shadow-orange-500/30 scale-105"
+                        : "bg-white/90 hover:bg-white text-stone-700 border border-amber-200"
+                    }`}
+                  >
+                    <span>{dish.tag.split(" ")[0]}</span>
+                    <span>{dish.nombre.split(" ")[0]}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
 
-      {/* SOBRE NOSOTROS */}
-      <section id="nosotros" className="py-20 bg-[#16120f] border-t border-[#e8c56a]/10 relative">
+      {/* SOBRE NOSOTROS: Presentación cálida, editorial y de orgullo gastronómico */}
+      <section id="nosotros" className="py-20 bg-[#fcf7ee] border-y border-amber-100 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Texto */}
             <div className="lg:col-span-7">
-              <span className="text-[#e8c56a] text-xs font-bold uppercase tracking-widest block mb-2">
+              <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
                 {t.about.badge}
               </span>
-              <h2 className="font-display font-bold text-2xl sm:text-4xl text-[#fbf8f2] leading-tight mb-6">
+              <h2 className="font-display font-black text-2xl sm:text-4xl text-[#24140b] leading-tight mb-6">
                 {t.about.title}
               </h2>
-              <p className="text-[#d4c8b8] text-base leading-relaxed mb-4">
+              <p className="text-stone-700 text-base leading-relaxed mb-4 font-normal">
                 {config?.sobre_nosotros?.parrafo_1 || t.about.p1}
               </p>
-              <p className="text-[#d4c8b8] text-base leading-relaxed mb-8">
+              <p className="text-stone-700 text-base leading-relaxed mb-8 font-normal">
                 {config?.sobre_nosotros?.parrafo_2 || t.about.p2}
               </p>
 
               {/* Estadísticas / Valores */}
-              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-[#e8c56a]/15">
-                <div className="p-4 rounded-xl bg-[#211a14] border border-[#e8c56a]/20 text-center">
-                  <span className="font-display font-extrabold text-2xl sm:text-3xl text-[#e8c56a] block">
+              <div className="grid grid-cols-3 gap-4 pt-6 border-t border-amber-200/80">
+                <div className="p-4 rounded-2xl bg-white border border-amber-200/90 text-center shadow-warm hover:scale-105 transition-transform">
+                  <span className="font-display font-black text-2xl sm:text-3xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent block">
                     25+
                   </span>
-                  <span className="text-[11px] sm:text-xs text-[#a89b8c] uppercase tracking-wide">
+                  <span className="text-[11px] sm:text-xs text-stone-600 font-bold uppercase tracking-wide">
                     {t.about.stat_years}
                   </span>
                 </div>
-                <div className="p-4 rounded-xl bg-[#211a14] border border-[#e8c56a]/20 text-center">
-                  <span className="font-display font-extrabold text-2xl sm:text-3xl text-[#e8c56a] block">
+                <div className="p-4 rounded-2xl bg-white border border-amber-200/90 text-center shadow-warm hover:scale-105 transition-transform">
+                  <span className="font-display font-black text-2xl sm:text-3xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent block">
                     40+
                   </span>
-                  <span className="text-[11px] sm:text-xs text-[#a89b8c] uppercase tracking-wide">
+                  <span className="text-[11px] sm:text-xs text-stone-600 font-bold uppercase tracking-wide">
                     {t.about.stat_dishes}
                   </span>
                 </div>
-                <div className="p-4 rounded-xl bg-[#211a14] border border-[#e8c56a]/20 text-center">
-                  <span className="font-display font-extrabold text-2xl sm:text-3xl text-[#e8c56a] block">
+                <div className="p-4 rounded-2xl bg-white border border-amber-200/90 text-center shadow-warm hover:scale-105 transition-transform">
+                  <span className="font-display font-black text-2xl sm:text-3xl bg-gradient-to-r from-orange-600 to-amber-600 bg-clip-text text-transparent block">
                     100%
                   </span>
-                  <span className="text-[11px] sm:text-xs text-[#a89b8c] uppercase tracking-wide">
+                  <span className="text-[11px] sm:text-xs text-stone-600 font-bold uppercase tracking-wide">
                     {t.about.stat_events}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Imagen compuesta */}
+            {/* Imagen compuesta con marco blanco y sombra cálida */}
             <div className="lg:col-span-5 relative">
-              <div className="relative rounded-2xl overflow-hidden border-2 border-[#e8c56a]/30 shadow-2xl shadow-black/60 group">
+              <div className="relative rounded-3xl overflow-hidden border-4 border-white shadow-warm-xl group">
                 <img
                   src={config?.sobre_nosotros?.imagen_secundaria || "/images/publicidad/buffet-platos.jpg"}
                   alt="Buffet y Restaurante El Callejón"
                   className="w-full h-96 object-cover group-hover:scale-105 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex items-end p-6">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#24140b]/85 via-[#24140b]/30 to-transparent flex items-end p-6">
                   <div>
-                    <span className="text-xs text-[#e8c56a] font-bold uppercase tracking-wider block">
+                    <span className="text-xs text-amber-400 font-black uppercase tracking-wider block">
                       Tradición Leonesa
                     </span>
                     <h3 className="font-display font-bold text-lg text-white">
@@ -433,28 +577,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* MENÚ & ESPECIALIDADES */}
-      <section id="menu" className="py-20 bg-[#110f0d] relative">
+      {/* MENÚ & ESPECIALIDADES: Presentación apetitosa, limpia y de alto contraste ("menu-menu-comida") */}
+      <section id="menu" className="py-20 bg-[#fffdfa] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-[#e8c56a] text-xs font-bold uppercase tracking-widest block mb-2">
+            <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
               {t.menu.badge}
             </span>
-            <h2 className="font-display font-bold text-3xl sm:text-4xl text-[#fbf8f2] mb-4">
+            <h2 className="font-display font-black text-3xl sm:text-4xl text-[#24140b] mb-4">
               {t.menu.title}
             </h2>
-            <p className="text-[#a89b8c] text-sm sm:text-base">
+            <p className="text-stone-600 text-sm sm:text-base">
               {t.menu.subtitle}
             </p>
 
             {/* Toggle de Moneda (Córdobas NIO vs Dólares USD) */}
-            <div className="inline-flex items-center gap-2 mt-6 p-1 rounded-full bg-[#1d1712] border border-[#e8c56a]/30">
-              <span className="text-xs font-semibold px-3 text-[#a89b8c]">{t.menu.currency_label}</span>
+            <div className="inline-flex items-center gap-2 mt-6 p-1 rounded-full bg-amber-100/70 border border-amber-300/80 shadow-sm">
+              <span className="text-xs font-bold px-3 text-stone-700">{t.menu.currency_label}</span>
               <button
                 type="button"
                 onClick={() => setCurrency("NIO")}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                  currency === "NIO" ? "bg-[#e8c56a] text-black shadow-md" : "text-[#d4c8b8] hover:text-white"
+                className={`px-3.5 py-1 rounded-full text-xs font-black transition-all ${
+                  currency === "NIO" ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-stone-700 hover:text-stone-900"
                 }`}
               >
                 C$ NIO
@@ -462,8 +606,8 @@ export default function LandingPage() {
               <button
                 type="button"
                 onClick={() => setCurrency("USD")}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-colors ${
-                  currency === "USD" ? "bg-[#e8c56a] text-black shadow-md" : "text-[#d4c8b8] hover:text-white"
+                className={`px-3.5 py-1 rounded-full text-xs font-black transition-all ${
+                  currency === "USD" ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-stone-700 hover:text-stone-900"
                 }`}
               >
                 $ USD
@@ -471,28 +615,28 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Filtros de categorías */}
+          {/* Filtros de categorías: Píldoras coloridas y dinámicas */}
           {categories.length > 2 && (
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
+            <div className="flex flex-wrap items-center justify-center gap-2.5 mb-12">
               {categories.map((cat) => (
                 <button
                   key={cat}
                   type="button"
                   onClick={() => setActiveCategory(cat)}
-                  className={`px-4 py-2 rounded-full text-xs font-semibold capitalize transition-all ${
+                  className={`px-5 py-2.5 rounded-full text-xs font-extrabold capitalize transition-all shadow-sm ${
                     activeCategory === cat
-                      ? "bg-[#e8c56a] text-black font-bold shadow-md shadow-[#e8c56a]/20 scale-105"
-                      : "bg-[#1d1712] border border-[#e8c56a]/20 text-[#d4c8b8] hover:border-[#e8c56a]"
+                      ? "bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 text-white shadow-md shadow-orange-500/25 scale-105"
+                      : "bg-white border border-amber-200 text-stone-700 hover:border-orange-400 hover:bg-orange-50"
                   }`}
                 >
-                  {cat === "all" ? t.menu.all : cat}
+                  {cat === "all" ? `🍽️ ${t.menu.all}` : cat}
                 </button>
               ))}
             </div>
           )}
 
-          {/* Grid de Platillos */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Grid de Platillos: Tarjetas blancas gourmet, bordes dorados suaves y elevación en hover */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
             {filteredMenuItems.map((dish) => {
               const displayPrice =
                 currency === "USD"
@@ -502,40 +646,40 @@ export default function LandingPage() {
               return (
                 <div
                   key={dish.id}
-                  className="rounded-2xl bg-[#191410] border border-[#e8c56a]/15 overflow-hidden hover:border-[#e8c56a]/50 transition-all hover:shadow-xl hover:shadow-black/50 group flex flex-col"
+                  className="rounded-3xl bg-white border border-amber-100 shadow-warm hover:shadow-warm-xl hover:-translate-y-2 transition-all duration-300 overflow-hidden flex flex-col group"
                 >
-                  <div className="relative h-48 sm:h-52 overflow-hidden bg-black/40">
+                  <div className="relative h-48 sm:h-52 overflow-hidden bg-amber-50">
                     <img
                       src={dish.imagen || "/images/logo_callejon_catalog.jpg"}
                       alt={dish.nombre}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                       onError={(e) => {
                         e.target.src = "/images/logo_callejon_catalog.jpg";
                       }}
                     />
                     {dish.destacado && (
-                      <span className="absolute top-3 left-3 bg-[#e8c56a] text-black text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full shadow-md">
+                      <span className="absolute top-3 left-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-[10px] font-black uppercase px-3 py-1 rounded-full shadow-md">
                         ⭐ Especial
                       </span>
                     )}
                     {dish.categoria && (
-                      <span className="absolute bottom-3 left-3 bg-black/75 backdrop-blur-sm text-[#e8c56a] text-[10px] font-semibold px-2.5 py-0.5 rounded-full border border-[#e8c56a]/30">
+                      <span className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md text-stone-800 text-[10px] font-bold px-3 py-1 rounded-full border border-amber-200 shadow-sm">
                         {dish.categoria}
                       </span>
                     )}
                   </div>
 
-                  <div className="p-5 flex flex-col flex-1 justify-between">
+                  <div className="p-6 flex flex-col flex-1 justify-between">
                     <div>
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h3 className="font-display font-bold text-lg text-[#fbf8f2] group-hover:text-[#e8c56a] transition-colors leading-snug">
+                      <div className="flex items-start justify-between gap-3 mb-2.5">
+                        <h3 className="font-display font-bold text-lg text-stone-900 group-hover:text-orange-600 transition-colors leading-snug">
                           {dish.nombre}
                         </h3>
-                        <span className="font-display font-black text-base text-[#e8c56a] whitespace-nowrap">
+                        <span className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-xs px-3 py-1 rounded-full shadow-sm whitespace-nowrap">
                           {displayPrice}
                         </span>
                       </div>
-                      <p className="text-xs text-[#a89b8c] leading-relaxed mb-4">
+                      <p className="text-xs text-stone-600 leading-relaxed mb-5">
                         {dish.descripcion}
                       </p>
                     </div>
@@ -543,9 +687,9 @@ export default function LandingPage() {
                     <button
                       type="button"
                       onClick={() => handleQuickOrder(dish.nombre)}
-                      className="w-full py-2.5 rounded-xl bg-[#231d17] border border-[#e8c56a]/30 hover:bg-[#25d366] hover:border-[#25d366] hover:text-black text-xs font-semibold text-[#fbf8f2] flex items-center justify-center gap-2 transition-all"
+                      className="w-full py-2.5 rounded-xl bg-amber-50 hover:bg-[#25d366] text-stone-800 hover:text-white border border-amber-200 hover:border-[#25d366] text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all"
                     >
-                      <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
                       </svg>
                       <span>{t.menu.btn_order}</span>
@@ -558,17 +702,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* COTIZADOR DE EVENTOS PRIVADOS & CATERING */}
-      <section id="eventos" className="py-20 bg-[#16120f] border-t border-[#e8c56a]/15 relative">
+      {/* COTIZADOR DE EVENTOS PRIVADOS & CATERING: Ambiente festivo y cálido */}
+      <section id="eventos" className="py-20 bg-[#fbf5eb] border-y border-amber-200/50 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="text-[#e8c56a] text-xs font-bold uppercase tracking-widest block mb-2">
+            <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
               {t.events.badge}
             </span>
-            <h2 className="font-display font-bold text-3xl sm:text-4xl text-[#fbf8f2] mb-4">
+            <h2 className="font-display font-black text-3xl sm:text-4xl text-[#24140b] mb-4">
               {t.events.title}
             </h2>
-            <p className="text-[#a89b8c] text-sm sm:text-base">
+            <p className="text-stone-600 text-sm sm:text-base">
               {t.events.subtitle}
             </p>
           </div>
@@ -578,21 +722,21 @@ export default function LandingPage() {
             {eventsList.map((evt) => (
               <div
                 key={evt.id}
-                className="rounded-2xl bg-[#1f1914] border border-[#e8c56a]/20 overflow-hidden hover:border-[#e8c56a]/60 transition-all p-6 flex flex-col justify-between"
+                className="rounded-3xl bg-white border border-amber-200/80 overflow-hidden shadow-warm hover:shadow-warm-xl hover:-translate-y-1 transition-all p-6 flex flex-col justify-between"
               >
                 <div>
                   <div className="flex items-center gap-3 mb-3">
                     <span className="text-3xl">{evt.icono || "🎉"}</span>
-                    <h3 className="font-display font-bold text-lg text-[#fbf8f2]">
+                    <h3 className="font-display font-bold text-lg text-stone-900">
                       {evt.titulo}
                     </h3>
                   </div>
-                  <p className="text-xs text-[#d4c8b8] leading-relaxed mb-4">
+                  <p className="text-xs text-stone-600 leading-relaxed mb-4">
                     {evt.descripcion}
                   </p>
                 </div>
                 {evt.imagen && (
-                  <div className="h-32 rounded-xl overflow-hidden mt-2">
+                  <div className="h-32 rounded-2xl overflow-hidden mt-2 border border-amber-100">
                     <img
                       src={evt.imagen}
                       alt={evt.titulo}
@@ -605,14 +749,14 @@ export default function LandingPage() {
           </div>
 
           {/* Formulario Interactivo de Cotización Directa a WhatsApp */}
-          <div className="max-w-3xl mx-auto bg-[#1c1611] border-2 border-[#e8c56a]/30 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 right-0 transform translate-x-8 -translate-y-8 w-40 h-40 bg-[#e8c56a]/10 rounded-full blur-2xl pointer-events-none" />
+          <div className="max-w-3xl mx-auto bg-white border-2 border-amber-300/90 rounded-3xl p-6 sm:p-10 shadow-warm-xl relative overflow-hidden">
+            <div className="absolute top-0 right-0 transform translate-x-8 -translate-y-8 w-44 h-44 bg-amber-200/40 rounded-full blur-2xl pointer-events-none" />
 
             <div className="text-center mb-8">
-              <h3 className="font-display font-bold text-2xl text-[#fbf8f2] mb-2">
+              <h3 className="font-display font-black text-2xl text-stone-900 mb-2">
                 {t.events.form_title}
               </h3>
-              <p className="text-xs sm:text-sm text-[#a89b8c]">
+              <p className="text-xs sm:text-sm text-stone-600">
                 {t.events.form_desc}
               </p>
             </div>
@@ -620,7 +764,7 @@ export default function LandingPage() {
             <form onSubmit={handleQuoteSubmit} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-xs font-semibold text-[#e6ded3] mb-1.5">
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
                     {t.events.input_name} *
                   </label>
                   <input
@@ -629,21 +773,21 @@ export default function LandingPage() {
                     value={quoteForm.name}
                     onChange={(e) => setQuoteForm({ ...quoteForm, name: e.target.value })}
                     placeholder={t.events.input_name_ph}
-                    className="w-full bg-[#120e0b] border border-[#e8c56a]/30 rounded-xl px-4 py-3 text-sm text-[#fbf8f2] placeholder-[#6b6156] focus:outline-none focus:border-[#e8c56a] transition-colors"
+                    className="w-full bg-stone-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#e6ded3] mb-1.5">
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
                     {t.events.input_type}
                   </label>
                   <select
                     value={quoteForm.type}
                     onChange={(e) => setQuoteForm({ ...quoteForm, type: e.target.value })}
-                    className="w-full bg-[#120e0b] border border-[#e8c56a]/30 rounded-xl px-4 py-3 text-sm text-[#fbf8f2] focus:outline-none focus:border-[#e8c56a] transition-colors"
+                    className="w-full bg-stone-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-stone-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   >
                     {Object.entries(t.events.types).map(([key, label]) => (
-                      <option key={key} value={key} className="bg-[#1c1611]">
+                      <option key={key} value={key}>
                         {label}
                       </option>
                     ))}
@@ -653,19 +797,19 @@ export default function LandingPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-xs font-semibold text-[#e6ded3] mb-1.5">
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
                     {t.events.input_date}
                   </label>
                   <input
                     type="date"
                     value={quoteForm.date}
                     onChange={(e) => setQuoteForm({ ...quoteForm, date: e.target.value })}
-                    className="w-full bg-[#120e0b] border border-[#e8c56a]/30 rounded-xl px-4 py-3 text-sm text-[#fbf8f2] focus:outline-none focus:border-[#e8c56a] transition-colors"
+                    className="w-full bg-stone-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-stone-900 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-[#e6ded3] mb-1.5">
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
                     {t.events.input_guests}
                   </label>
                   <input
@@ -673,13 +817,13 @@ export default function LandingPage() {
                     value={quoteForm.guests}
                     onChange={(e) => setQuoteForm({ ...quoteForm, guests: e.target.value })}
                     placeholder={t.events.input_guests_ph}
-                    className="w-full bg-[#120e0b] border border-[#e8c56a]/30 rounded-xl px-4 py-3 text-sm text-[#fbf8f2] placeholder-[#6b6156] focus:outline-none focus:border-[#e8c56a] transition-colors"
+                    className="w-full bg-stone-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-[#e6ded3] mb-1.5">
+                <label className="block text-xs font-bold text-stone-700 mb-1.5">
                   {t.events.input_notes}
                 </label>
                 <textarea
@@ -687,13 +831,13 @@ export default function LandingPage() {
                   value={quoteForm.notes}
                   onChange={(e) => setQuoteForm({ ...quoteForm, notes: e.target.value })}
                   placeholder={t.events.input_notes_ph}
-                  className="w-full bg-[#120e0b] border border-[#e8c56a]/30 rounded-xl px-4 py-3 text-sm text-[#fbf8f2] placeholder-[#6b6156] focus:outline-none focus:border-[#e8c56a] transition-colors"
+                  className="w-full bg-stone-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-stone-900 placeholder-stone-400 focus:bg-white focus:outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-200 transition-all"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#25d366] to-[#1eb854] text-black font-extrabold text-sm tracking-wide shadow-xl shadow-[#25d366]/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer"
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#25d366] to-[#128c7e] text-white font-black text-sm tracking-wide shadow-xl shadow-emerald-500/25 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer"
               >
                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
@@ -706,16 +850,16 @@ export default function LandingPage() {
       </section>
 
       {/* GALERÍA DE INSTALACIONES */}
-      <section id="galeria" className="py-20 bg-[#110f0d] relative">
+      <section id="galeria" className="py-20 bg-[#fffdfa] relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12">
-            <span className="text-[#e8c56a] text-xs font-bold uppercase tracking-widest block mb-2">
+            <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
               {t.gallery.badge}
             </span>
-            <h2 className="font-display font-bold text-3xl sm:text-4xl text-[#fbf8f2] mb-4">
+            <h2 className="font-display font-black text-3xl sm:text-4xl text-[#24140b] mb-4">
               {t.gallery.title}
             </h2>
-            <p className="text-[#a89b8c] text-sm sm:text-base">
+            <p className="text-stone-600 text-sm sm:text-base">
               {t.gallery.subtitle}
             </p>
           </div>
@@ -724,15 +868,15 @@ export default function LandingPage() {
             {gallery.map((img, idx) => (
               <div
                 key={idx}
-                className="relative rounded-2xl overflow-hidden h-52 sm:h-64 border border-[#e8c56a]/15 group cursor-pointer"
+                className="relative rounded-3xl overflow-hidden h-52 sm:h-64 border-2 border-white shadow-warm group cursor-pointer"
               >
                 <img
                   src={img.url}
                   alt={img.titulo || "Instalaciones El Callejón"}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                  <span className="font-display font-bold text-sm text-[#fbf8f2]">
+                <div className="absolute inset-0 bg-gradient-to-t from-[#24140b]/85 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                  <span className="font-display font-bold text-sm text-white">
                     {img.titulo}
                   </span>
                 </div>
@@ -743,28 +887,28 @@ export default function LandingPage() {
       </section>
 
       {/* UBICACIÓN & CONTACTO */}
-      <section id="ubicacion" className="py-20 bg-[#16120f] border-t border-[#e8c56a]/15 relative">
+      <section id="ubicacion" className="py-20 bg-[#faf5ed] border-t border-amber-100 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-5 space-y-6">
               <div>
-                <span className="text-[#e8c56a] text-xs font-bold uppercase tracking-widest block mb-2">
+                <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
                   {t.location.badge}
                 </span>
-                <h2 className="font-display font-bold text-3xl text-[#fbf8f2]">
+                <h2 className="font-display font-black text-3xl text-[#24140b]">
                   {t.location.title}
                 </h2>
               </div>
 
               {/* Dirección */}
-              <div className="p-5 rounded-2xl bg-[#1f1914] border border-[#e8c56a]/20">
+              <div className="p-5 rounded-2xl bg-white border border-amber-200/80 shadow-warm">
                 <div className="flex items-start gap-3.5">
                   <span className="text-2xl">📍</span>
                   <div>
-                    <h3 className="font-bold text-sm text-[#fbf8f2] mb-1">
+                    <h3 className="font-bold text-sm text-stone-900 mb-1">
                       {t.location.address_title}
                     </h3>
-                    <p className="text-xs text-[#d4c8b8] leading-relaxed">
+                    <p className="text-xs text-stone-600 leading-relaxed">
                       {info.direccion}
                     </p>
                   </div>
@@ -772,14 +916,14 @@ export default function LandingPage() {
               </div>
 
               {/* Horario */}
-              <div className="p-5 rounded-2xl bg-[#1f1914] border border-[#e8c56a]/20">
+              <div className="p-5 rounded-2xl bg-white border border-amber-200/80 shadow-warm">
                 <div className="flex items-start gap-3.5">
                   <span className="text-2xl">🕒</span>
                   <div>
-                    <h3 className="font-bold text-sm text-[#fbf8f2] mb-1">
+                    <h3 className="font-bold text-sm text-stone-900 mb-1">
                       {t.location.hours_title}
                     </h3>
-                    <p className="text-xs text-[#d4c8b8] leading-relaxed">
+                    <p className="text-xs text-stone-600 leading-relaxed">
                       {info.horarios_texto}
                     </p>
                   </div>
@@ -787,18 +931,18 @@ export default function LandingPage() {
               </div>
 
               {/* Contacto Directo */}
-              <div className="p-5 rounded-2xl bg-[#1f1914] border border-[#e8c56a]/20">
+              <div className="p-5 rounded-2xl bg-white border border-amber-200/80 shadow-warm">
                 <div className="flex items-start gap-3.5">
                   <span className="text-2xl">📞</span>
                   <div>
-                    <h3 className="font-bold text-sm text-[#fbf8f2] mb-1">
+                    <h3 className="font-bold text-sm text-stone-900 mb-1">
                       {t.location.contact_title}
                     </h3>
-                    <p className="text-xs text-[#d4c8b8] mb-1">
-                      WhatsApp / Tel: <strong className="text-[#e8c56a]">{info.telefono}</strong>
+                    <p className="text-xs text-stone-600 mb-1">
+                      WhatsApp / Tel: <strong className="text-orange-700">{info.telefono}</strong>
                     </p>
-                    <p className="text-xs text-[#d4c8b8]">
-                      Email: <strong className="text-[#e8c56a]">{info.email}</strong>
+                    <p className="text-xs text-stone-600">
+                      Email: <strong className="text-orange-700">{info.email}</strong>
                     </p>
                   </div>
                 </div>
@@ -810,7 +954,7 @@ export default function LandingPage() {
                   href={info.google_maps_url || "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20 transition-transform hover:scale-105"
+                  className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-blue-600/20 transition-transform hover:scale-105"
                 >
                   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
@@ -821,7 +965,7 @@ export default function LandingPage() {
                   href={info.waze_url || "https://waze.com/ul?q=Buffet+y+Restaurante+El+Callej%C3%B3n+Leon"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-3 px-4 rounded-xl bg-[#33ccff] hover:bg-[#2bb8e6] text-black font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#33ccff]/20 transition-transform hover:scale-105"
+                  className="flex-1 py-3 px-4 rounded-xl bg-[#00c6ff] hover:bg-[#00b0e6] text-stone-900 font-extrabold text-xs flex items-center justify-center gap-2 shadow-md shadow-cyan-500/20 transition-transform hover:scale-105"
                 >
                   <span>🚗</span>
                   <span>{t.location.btn_open_waze}</span>
@@ -830,29 +974,29 @@ export default function LandingPage() {
             </div>
 
             {/* Mapa Interactivo con carga diferida anti-bloqueo */}
-            <div className="lg:col-span-7 h-96 rounded-3xl overflow-hidden border-2 border-[#e8c56a]/30 shadow-2xl shadow-black/80 relative">
+            <div className="lg:col-span-7 h-96 rounded-3xl overflow-hidden border-4 border-white shadow-warm-xl relative">
               {mapLoaded ? (
                 <iframe
                   title="Mapa de Ubicación El Callejón"
                   src={info.google_maps_embed_url || "https://maps.google.com/maps?cid=9352514101869817184&output=embed"}
                   width="100%"
                   height="100%"
-                  style={{ border: 0, filter: "brightness(0.9) contrast(1.1)" }}
+                  style={{ border: 0 }}
                   allowFullScreen=""
                   loading="lazy"
                   referrerPolicy="no-referrer-when-downgrade"
                 />
               ) : (
-                <div className="w-full h-full bg-[#18130f] flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-full h-full bg-amber-50/70 flex flex-col items-center justify-center p-6 text-center">
                   <span className="text-4xl mb-3 animate-bounce">📍</span>
-                  <p className="font-bold text-base text-[#fbf8f2] mb-1">{info.nombre}</p>
-                  <p className="text-xs text-[#a89b8c] max-w-sm mb-4">
+                  <p className="font-bold text-base text-stone-900 mb-1">{info.nombre}</p>
+                  <p className="text-xs text-stone-600 max-w-sm mb-4">
                     {info.direccion}
                   </p>
                   <button
                     type="button"
                     onClick={() => setMapLoaded(true)}
-                    className="px-6 py-2.5 rounded-full bg-[#e8c56a] text-black font-bold text-xs hover:bg-[#f3d996] transition-all shadow-lg shadow-[#e8c56a]/20"
+                    className="px-6 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs transition-all shadow-md shadow-orange-500/20"
                   >
                     🗺️ Ver Mapa Interactivo
                   </button>
@@ -864,31 +1008,31 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="py-10 bg-[#0c0a08] border-t border-[#e8c56a]/15 text-[#8f8273] text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="flex items-center gap-3">
+      <footer className="py-12 bg-[#24140b] text-[#fbf5ed] border-t-4 border-amber-400 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+          <div className="flex items-center gap-3.5">
             <img
               src={info.logo_url || "/images/logo_callejon_catalog.jpg"}
               alt={info.nombre}
-              className="h-8 w-8 rounded-full border border-[#e8c56a]/30 object-cover"
+              className="h-10 w-10 rounded-full border-2 border-amber-400 object-cover shadow-sm"
               onError={(e) => {
                 e.currentTarget.src = "/logo-el-callejon.jpg";
               }}
             />
             <div>
-              <p className="font-bold text-[#fbf8f2]">{info.nombre}</p>
-              <p className="text-[11px] text-[#e8c56a]">{info.eslogan}</p>
+              <p className="font-display font-extrabold text-sm text-white">{info.nombre}</p>
+              <p className="text-[11px] text-amber-400 font-bold">{info.eslogan}</p>
             </div>
           </div>
 
-          <p>{t.footer.rights}</p>
+          <p className="text-stone-300 font-medium">{t.footer.rights}</p>
 
-          <div className="flex items-center gap-4 text-[11px]">
-            <Link to="/login" className="hover:text-[#e8c56a] transition-colors underline">
+          <div className="flex items-center gap-4 text-xs font-bold text-amber-400">
+            <Link to="/login" className="hover:text-amber-300 transition-colors underline">
               {t.nav.admin_link}
             </Link>
-            <span>·</span>
-            <Link to="/" className="hover:text-[#e8c56a] transition-colors">
+            <span className="text-stone-500">·</span>
+            <Link to="/" className="hover:text-amber-300 transition-colors">
               Pantallas TV
             </Link>
           </div>

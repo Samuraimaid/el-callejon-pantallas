@@ -57,6 +57,76 @@ body {
   touch-action: none;
 }
 
+/* ==========================================================================
+   Animaciones Flotantes para Landing Page (Efecto Retro-Moderno de Comida)
+   ========================================================================== */
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-16px) rotate(1.5deg);
+  }
+}
+
+@keyframes floatDelayed {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(-1.5deg);
+  }
+}
+
+@keyframes floatBadge {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-9px);
+  }
+}
+
+@keyframes pulseWarmGlow {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.06);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 4.5s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: floatDelayed 5.2s ease-in-out infinite 1s;
+}
+
+.animate-float-badge {
+  animation: floatBadge 3.6s ease-in-out infinite;
+}
+
+.animate-warm-glow {
+  animation: pulseWarmGlow 3.5s ease-in-out infinite;
+}
+
+.shadow-warm-sm {
+  box-shadow: 0 4px 18px -2px rgba(234, 88, 12, 0.08);
+}
+
+.shadow-warm {
+  box-shadow: 0 10px 30px -4px rgba(234, 88, 12, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+}
+
+.shadow-warm-xl {
+  box-shadow: 0 20px 45px -10px rgba(234, 88, 12, 0.22), 0 8px 18px -4px rgba(0, 0, 0, 0.06);
+}
+
 .font-display {
   font-family: var(--font-display);
 }
