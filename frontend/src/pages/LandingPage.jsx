@@ -256,7 +256,17 @@ export default function LandingPage() {
   const activeHeroDish = HERO_FEATURED_DISHES[heroDishIdx];
 
   return (
-    <div className="min-h-screen bg-[#faf5ed] text-[#24140b] font-sans antialiased selection:bg-[#ea580c] selection:text-white">
+    <div
+      className="min-h-screen text-[#24140b] font-sans antialiased selection:bg-[#ea580c] selection:text-white"
+      style={{
+        backgroundColor: "#2a0808",
+        backgroundImage: "url('/images/madera-roja.jpg')",
+        backgroundRepeat: "repeat-y",
+        backgroundPosition: "center top",
+        backgroundSize: "100% auto",
+        backgroundAttachment: "scroll",
+      }}
+    >
 
       {/* NAVBAR: Diseño cálido y luminoso con efecto vidrio esmerilado */}
       <header className="sticky top-0 z-50 backdrop-blur-md bg-white/95 border-b border-amber-200/70 shadow-sm transition-all">
@@ -265,7 +275,7 @@ export default function LandingPage() {
             <img
               src={info.logo_url || "/logo-el-callejon.png"}
               alt={info.nombre}
-              className="h-12 w-12 rounded-full border-2 border-amber-400 object-cover shadow-md group-hover:scale-105 transition-transform"
+              className="h-14 sm:h-16 w-auto object-contain drop-shadow-sm group-hover:scale-105 transition-transform"
               onError={(e) => {
                 e.currentTarget.src = "/logo-el-callejon.png";
               }}
@@ -359,12 +369,12 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* HERO SECTION: Efecto Animación Flotante Retro-Moderno con Colores Cálidos & Apetitosos */}
-      <section id="inicio" className="relative min-h-[85vh] lg:min-h-[80vh] flex items-center overflow-hidden bg-gradient-to-b from-amber-50/90 via-[#faf5ed] to-[#faf5ed] pt-8 pb-16 lg:py-16">
+      {/* HERO SECTION: Efecto Animación Flotante Retro-Moderno sobre Fondo de Madera Roja */}
+      <section id="inicio" className="relative min-h-[85vh] lg:min-h-[80vh] flex items-center overflow-hidden bg-gradient-to-b from-black/55 via-black/35 to-black/60 pt-8 pb-16 lg:py-16">
         {/* Destellos y auras de luz cálida */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[650px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-200/50 via-orange-100/30 to-transparent pointer-events-none" />
-        <div className="absolute top-12 -right-20 w-96 h-96 bg-amber-300/25 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-10 -left-20 w-80 h-80 bg-orange-300/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[650px] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-400/20 via-orange-500/10 to-transparent pointer-events-none" />
+        <div className="absolute top-12 -right-20 w-96 h-96 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-10 -left-20 w-80 h-80 bg-orange-600/20 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
@@ -372,20 +382,20 @@ export default function LandingPage() {
             {/* Columna Izquierda: Título de alto impacto, propuesta de valor y llamadas a la acción */}
             <div className="lg:col-span-7 text-center lg:text-left">
               {/* Badge dorado luminoso */}
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-100 via-orange-100 to-amber-100 border border-amber-300/90 text-amber-950 text-xs font-extrabold tracking-wide uppercase mb-6 shadow-sm">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/30 to-amber-500/20 border border-amber-400/80 text-amber-200 text-xs font-extrabold tracking-wide uppercase mb-6 shadow-md backdrop-blur-sm">
                 <span>🔥</span>
                 <span>{config?.hero?.badge || "25 Años de Tradición Leonesa · Pioneros del Buffet"}</span>
                 <span>✨</span>
               </div>
 
-              <h1 className="font-display font-black text-3xl sm:text-5xl lg:text-6xl text-[#24140b] tracking-tight leading-[1.12] mb-6">
+              <h1 className="font-display font-black text-3xl sm:text-5xl lg:text-6xl text-white tracking-tight leading-[1.12] mb-6 drop-shadow-md">
                 {t.hero.title_p1}{" "}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-600 via-amber-500 to-red-600 block mt-1">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-orange-400 to-amber-200 block mt-1">
                   {t.hero.title_p2}
                 </span>
               </h1>
 
-              <p className="max-w-2xl mx-auto lg:mx-0 text-base sm:text-lg text-stone-700 leading-relaxed mb-8 font-normal">
+              <p className="max-w-2xl mx-auto lg:mx-0 text-base sm:text-lg text-amber-100/90 leading-relaxed mb-8 font-medium drop-shadow-sm">
                 {config?.hero?.subtitulo || t.hero.subtitle}
               </p>
 
@@ -393,13 +403,13 @@ export default function LandingPage() {
               <div className="flex flex-wrap items-center justify-center lg:justify-start gap-4 mb-10">
                 <a
                   href="#menu"
-                  className="px-7 py-3.5 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm tracking-wide shadow-lg shadow-orange-500/25 hover:shadow-xl hover:scale-105 transition-all"
+                  className="px-7 py-3.5 rounded-full bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-extrabold text-sm tracking-wide shadow-xl shadow-orange-950/60 hover:scale-105 transition-all"
                 >
                   🍽️ {t.hero.btn_menu}
                 </a>
                 <a
                   href="#eventos"
-                  className="px-7 py-3.5 rounded-full bg-white hover:bg-amber-50 border-2 border-amber-300/80 text-stone-800 font-extrabold text-sm tracking-wide shadow-sm hover:border-orange-500 hover:scale-105 transition-all"
+                  className="px-7 py-3.5 rounded-full bg-white/95 hover:bg-white text-stone-900 font-extrabold text-sm tracking-wide shadow-md hover:border-orange-500 hover:scale-105 transition-all"
                 >
                   🎉 {t.hero.btn_eventos}
                 </a>
@@ -407,9 +417,9 @@ export default function LandingPage() {
                   href={info.google_maps_url || "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99"}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="px-6 py-3.5 rounded-full bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-800 font-bold text-sm tracking-wide hover:scale-105 transition-all flex items-center gap-2 shadow-sm"
+                  className="px-6 py-3.5 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-300/60 text-amber-200 font-bold text-sm tracking-wide hover:scale-105 transition-all flex items-center gap-2 shadow-sm backdrop-blur-sm"
                 >
-                  <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 text-amber-300" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
                   </svg>
                   <span>{t.hero.btn_maps}</span>
@@ -417,17 +427,17 @@ export default function LandingPage() {
               </div>
 
               {/* Fila de Confianza y Calidad */}
-              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-6 border-t border-amber-200/70 text-xs font-bold text-stone-700">
+              <div className="flex flex-wrap items-center justify-center lg:justify-start gap-5 pt-6 border-t border-amber-400/30 text-xs font-bold text-amber-100/90">
                 <div className="flex items-center gap-2">
-                  <span className="text-amber-500 text-base">⭐⭐⭐⭐⭐</span>
+                  <span className="text-amber-400 text-base">⭐⭐⭐⭐⭐</span>
                   <span>4.4 en Google Maps (1,690+ reseñas)</span>
                 </div>
-                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-amber-300" />
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-amber-400/60" />
                 <div className="flex items-center gap-1.5">
                   <span>🥩</span>
                   <span>Asados al Carbón & Buffet Diario</span>
                 </div>
-                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-amber-300" />
+                <div className="hidden sm:block w-1.5 h-1.5 rounded-full bg-amber-400/60" />
                 <div className="flex items-center gap-1.5">
                   <span>❄️</span>
                   <span>Salón Climatizado</span>
@@ -497,8 +507,8 @@ export default function LandingPage() {
                     onClick={() => setHeroDishIdx(idx)}
                     className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm ${
                       heroDishIdx === idx
-                        ? "bg-orange-500 text-white shadow-orange-500/30 scale-105"
-                        : "bg-white/90 hover:bg-white text-stone-700 border border-amber-200"
+                        ? "bg-orange-500 text-white shadow-orange-500/40 scale-105"
+                        : "bg-black/60 hover:bg-black/80 text-amber-100 border border-amber-400/40 backdrop-blur-sm"
                     }`}
                   >
                     <span>{dish.tag.split(" ")[0]}</span>
@@ -513,8 +523,8 @@ export default function LandingPage() {
       </section>
 
       {/* SOBRE NOSOTROS: Presentación cálida, editorial y de orgullo gastronómico */}
-      <section id="nosotros" className="py-20 bg-[#fcf7ee] border-y border-amber-100 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="nosotros" className="py-8 sm:py-12 px-3 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto rounded-[2.5rem] bg-[#fcf7ee]/95 backdrop-blur-md shadow-2xl border-2 border-amber-200/90 p-6 sm:p-10 lg:p-14">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Texto */}
             <div className="lg:col-span-7">
@@ -585,8 +595,8 @@ export default function LandingPage() {
       </section>
 
       {/* MENÚ & ESPECIALIDADES: Presentación apetitosa, limpia y de alto contraste ("menu-menu-comida") */}
-      <section id="menu" className="py-20 bg-[#fffdfa] relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="menu" className="py-8 sm:py-12 px-3 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto rounded-[2.5rem] bg-[#fffdfa]/95 backdrop-blur-md shadow-2xl border-2 border-amber-200/90 p-6 sm:p-10 lg:p-14">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
               {t.menu.badge}
@@ -744,8 +754,8 @@ export default function LandingPage() {
       </section>
 
       {/* COTIZADOR DE EVENTOS PRIVADOS & CATERING: Ambiente festivo y cálido */}
-      <section id="eventos" className="py-20 bg-[#fbf5eb] border-y border-amber-200/50 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="eventos" className="py-8 sm:py-12 px-3 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto rounded-[2.5rem] bg-[#fbf5eb]/95 backdrop-blur-md shadow-2xl border-2 border-amber-200/90 p-6 sm:p-10 lg:p-14">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
               {t.events.badge}
@@ -891,8 +901,8 @@ export default function LandingPage() {
       </section>
 
       {/* GALERÍA DE INSTALACIONES */}
-      <section id="galeria" className="py-20 bg-[#fffdfa] relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="galeria" className="py-8 sm:py-12 px-3 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto rounded-[2.5rem] bg-[#fffdfa]/95 backdrop-blur-md shadow-2xl border-2 border-amber-200/90 p-6 sm:p-10 lg:p-14">
           <div className="text-center max-w-3xl mx-auto mb-12">
             <span className="text-orange-700 text-xs font-extrabold uppercase tracking-widest block mb-2">
               {t.gallery.badge}
@@ -928,8 +938,8 @@ export default function LandingPage() {
       </section>
 
       {/* UBICACIÓN & CONTACTO */}
-      <section id="ubicacion" className="py-20 bg-[#faf5ed] border-t border-amber-100 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="ubicacion" className="py-8 sm:py-12 px-3 sm:px-6 lg:px-8 relative">
+        <div className="max-w-7xl mx-auto rounded-[2.5rem] bg-[#faf5ed]/95 backdrop-blur-md shadow-2xl border-2 border-amber-200/90 p-6 sm:p-10 lg:p-14">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
             <div className="lg:col-span-5 space-y-6">
               <div>
@@ -1049,13 +1059,13 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="py-12 bg-[#24140b] text-[#fbf5ed] border-t-4 border-amber-400 text-xs">
+      <footer className="py-12 bg-[#140505]/95 text-[#fbf5ed] border-t-4 border-amber-500 backdrop-blur-md text-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
           <div className="flex items-center gap-3.5">
             <img
               src={info.logo_url || "/logo-el-callejon.png"}
               alt={info.nombre}
-              className="h-10 w-10 rounded-full border-2 border-amber-400 object-cover shadow-sm"
+              className="h-12 sm:h-14 w-auto object-contain drop-shadow-md"
               onError={(e) => {
                 e.currentTarget.src = "/logo-el-callejon.png";
               }}
