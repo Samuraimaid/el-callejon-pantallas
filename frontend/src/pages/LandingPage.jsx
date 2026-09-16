@@ -49,6 +49,7 @@ const HERO_FEATURED_DISHES = [
 export default function LandingPage() {
   const [lang, setLang] = useState(() => detectBrowserLanguage());
   const [currency, setCurrency] = useState("NIO"); // NIO | USD
+  const [showPrices, setShowPrices] = useState(true);
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState("all");
@@ -154,10 +155,17 @@ export default function LandingPage() {
     direccion: "Supermercado La Colonia, 2 ½ C abajo, León 21000, Nicaragua",
     horarios_texto: "Martes a Domingo: 8:00 a. m. – 3:00 p. m.",
     google_maps_url: "https://maps.app.goo.gl/iaCtEbyPNmgrgpt99",
-    google_maps_embed_url: "https://maps.google.com/maps?cid=9352514101869817184&output=embed",
+    google_maps_embed_url: "https://maps.google.com/maps?q=12.4361505,-86.8858488+(Buffet+y+Restaurante+El+Callej%C3%B3n)&t=&z=17&ie=UTF8&iwloc=&output=embed",
     waze_url: "https://waze.com/ul?q=Buffet+y+Restaurante+El+Callej%C3%B3n+Leon",
-    logo_url: "/images/logo_callejon_catalog.jpg",
+    logo_url: "/logo-el-callejon.png",
+    mostrar_precios: true,
   };
+
+  useEffect(() => {
+    if (config?.info_general?.mostrar_precios !== undefined) {
+      setShowPrices(Boolean(config.info_general.mostrar_precios));
+    }
+  }, [config]);
 
   const menuItems = useMemo(() => {
     if (config?.menu_items && config.menu_items.length > 0) {
@@ -222,7 +230,7 @@ export default function LandingPage() {
       "@context": "https://schema.org",
       "@type": "Restaurant",
       name: info.nombre,
-      image: window.location.origin + (info.logo_url || "/images/logo_callejon_catalog.jpg"),
+      image: window.location.origin + (info.logo_url || "/logo-el-callejon.png"),
       telephone: info.telefono,
       email: info.email,
       address: {
@@ -255,11 +263,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
           <a href="#inicio" className="flex items-center gap-3 group">
             <img
-              src={info.logo_url || "/images/logo_callejon_catalog.jpg"}
+              src={info.logo_url || "/logo-el-callejon.png"}
               alt={info.nombre}
               className="h-12 w-12 rounded-full border-2 border-amber-400 object-cover shadow-md group-hover:scale-105 transition-transform"
               onError={(e) => {
-                e.currentTarget.src = "/logo-el-callejon.jpg";
+                e.currentTarget.src = "/logo-el-callejon.png";
               }}
             />
             <div>
@@ -590,27 +598,59 @@ export default function LandingPage() {
               {t.menu.subtitle}
             </p>
 
-            {/* Toggle de Moneda (Córdobas NIO vs Dólares USD) */}
-            <div className="inline-flex items-center gap-2 mt-6 p-1 rounded-full bg-amber-100/70 border border-amber-300/80 shadow-sm">
-              <span className="text-xs font-bold px-3 text-stone-700">{t.menu.currency_label}</span>
+            {/* Controles del Menú: Switch Mostrar/Ocultar Precios + Selector de Moneda */}
+            <div className="flex flex-wrap items-center justify-center gap-3.5 mt-6">
+              {/* Botón Switch de Visibilidad de Precios */}
               <button
                 type="button"
-                onClick={() => setCurrency("NIO")}
-                className={`px-3.5 py-1 rounded-full text-xs font-black transition-all ${
-                  currency === "NIO" ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-stone-700 hover:text-stone-900"
+                onClick={() => setShowPrices((prev) => !prev)}
+                className={`inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full text-xs font-extrabold border shadow-sm transition-all cursor-pointer select-none ${
+                  showPrices
+                    ? "bg-amber-100/90 border-amber-300 text-stone-900 hover:bg-amber-200"
+                    : "bg-white border-stone-300 text-stone-500 hover:bg-stone-50"
                 }`}
+                title={showPrices ? "Ocultar precios" : "Mostrar precios"}
               >
-                C$ NIO
+                <span className="text-sm leading-none">{showPrices ? "👁️" : "🙈"}</span>
+                <span>{showPrices ? t.menu.hide_prices : t.menu.show_prices}</span>
+                {/* Visual toggle switch */}
+                <div
+                  className={`w-8 h-4.5 flex items-center rounded-full p-0.5 transition-colors duration-200 ${
+                    showPrices ? "bg-orange-500 justify-end" : "bg-stone-300 justify-start"
+                  }`}
+                >
+                  <div className="bg-white w-3.5 h-3.5 rounded-full shadow-sm" />
+                </div>
               </button>
-              <button
-                type="button"
-                onClick={() => setCurrency("USD")}
-                className={`px-3.5 py-1 rounded-full text-xs font-black transition-all ${
-                  currency === "USD" ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm" : "text-stone-700 hover:text-stone-900"
-                }`}
-              >
-                $ USD
-              </button>
+
+              {/* Toggle de Moneda (Córdobas NIO vs Dólares USD) si los precios están visibles */}
+              {showPrices && (
+                <div className="inline-flex items-center gap-1.5 p-1 rounded-full bg-amber-100/70 border border-amber-300/80 shadow-sm transition-all">
+                  <span className="text-xs font-bold px-2.5 text-stone-700">{t.menu.currency_label}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrency("NIO")}
+                    className={`px-3 py-0.5 rounded-full text-xs font-black transition-all ${
+                      currency === "NIO"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm"
+                        : "text-stone-700 hover:text-stone-900"
+                    }`}
+                  >
+                    C$ NIO
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCurrency("USD")}
+                    className={`px-3 py-0.5 rounded-full text-xs font-black transition-all ${
+                      currency === "USD"
+                        ? "bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-sm"
+                        : "text-stone-700 hover:text-stone-900"
+                    }`}
+                  >
+                    $ USD
+                  </button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -674,9 +714,11 @@ export default function LandingPage() {
                         <h3 className="font-display font-bold text-lg text-stone-900 group-hover:text-orange-600 transition-colors leading-snug">
                           {dish.nombre}
                         </h3>
-                        <span className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-xs px-3 py-1 rounded-full shadow-sm whitespace-nowrap">
-                          {displayPrice}
-                        </span>
+                        {showPrices && (
+                          <span className="bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black text-xs px-3 py-1 rounded-full shadow-sm whitespace-nowrap">
+                            {displayPrice}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-stone-600 leading-relaxed mb-5">
                         {dish.descripcion}
@@ -977,7 +1019,7 @@ export default function LandingPage() {
               {mapLoaded ? (
                 <iframe
                   title="Mapa de Ubicación El Callejón"
-                  src={info.google_maps_embed_url || "https://maps.google.com/maps?cid=9352514101869817184&output=embed"}
+                  src={info.google_maps_embed_url || "https://maps.google.com/maps?q=12.4361505,-86.8858488+(Buffet+y+Restaurante+El+Callej%C3%B3n)&t=&z=17&ie=UTF8&iwloc=&output=embed"}
                   width="100%"
                   height="100%"
                   style={{ border: 0 }}
@@ -1011,11 +1053,11 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
           <div className="flex items-center gap-3.5">
             <img
-              src={info.logo_url || "/images/logo_callejon_catalog.jpg"}
+              src={info.logo_url || "/logo-el-callejon.png"}
               alt={info.nombre}
               className="h-10 w-10 rounded-full border-2 border-amber-400 object-cover shadow-sm"
               onError={(e) => {
-                e.currentTarget.src = "/logo-el-callejon.jpg";
+                e.currentTarget.src = "/logo-el-callejon.png";
               }}
             />
             <div>

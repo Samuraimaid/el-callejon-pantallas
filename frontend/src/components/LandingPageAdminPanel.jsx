@@ -347,6 +347,77 @@ export default function LandingPageAdminPanel() {
                 className="w-full rounded-lg border border-[rgba(232,197,106,0.25)] bg-black/40 px-3 py-2 text-xs text-ivory focus:border-[#e8c56a] focus:outline-none"
               />
             </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-semibold text-cream/80 mb-1">
+                  URL de Inserción del Mapa (Google Maps Embed)
+                </label>
+                <input
+                  type="text"
+                  value={config.info_general?.google_maps_embed_url || ""}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      info_general: { ...config.info_general, google_maps_embed_url: e.target.value },
+                    })
+                  }
+                  className="w-full rounded-lg border border-[rgba(232,197,106,0.25)] bg-black/40 px-3 py-2 text-xs text-ivory focus:border-[#e8c56a] focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-cream/80 mb-1">
+                  Logotipo Oficial del Restaurante (URL)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={config.info_general?.logo_url || ""}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        info_general: { ...config.info_general, logo_url: e.target.value },
+                      })
+                    }
+                    className="flex-1 rounded-lg border border-[rgba(232,197,106,0.25)] bg-black/40 px-3 py-2 text-xs text-ivory focus:border-[#e8c56a] focus:outline-none"
+                  />
+                  {config.info_general?.logo_url && (
+                    <img
+                      src={config.info_general.logo_url}
+                      alt="Logo Preview"
+                      className="h-8 w-8 rounded-full border border-[#e8c56a] object-cover bg-white"
+                    />
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Switch de Mostrar Precios en la Web */}
+            <div className="p-4 rounded-xl bg-black/30 border border-[rgba(232,197,106,0.2)] flex items-center justify-between gap-4">
+              <div>
+                <span className="block text-xs font-bold text-cream">
+                  Mostrar Precios de los Platillos en la Página Web
+                </span>
+                <span className="text-[11px] text-cream/60">
+                  Si se desactiva, los platillos se mostrarán sin precios en la página pública por defecto.
+                </span>
+              </div>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.info_general?.mostrar_precios !== false}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      info_general: { ...config.info_general, mostrar_precios: e.target.checked },
+                    })
+                  }
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-stone-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#e8c56a]" />
+              </label>
+            </div>
           </div>
         )}
 

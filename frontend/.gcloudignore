@@ -2,5 +2,6 @@
 .git/
 node_modules/
 dist/
-public/images/
+public/images/videos/
+public/images/_raw_convert/
 public/audio/

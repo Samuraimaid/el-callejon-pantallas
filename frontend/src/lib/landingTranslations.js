@@ -68,6 +68,9 @@ export const TRANSLATIONS = {
       desayunos: "Desayunos",
       bebidas: "Bebidas",
       currency_label: "Moneda:",
+      show_prices: "Precios: Ocultos",
+      hide_prices: "Precios: Visibles",
+      toggle_prices: "Mostrar precios",
       btn_order: "Consultar por WhatsApp",
     },
     events: {
@@ -158,6 +161,9 @@ export const TRANSLATIONS = {
       desayunos: "Breakfasts",
       bebidas: "Drinks",
       currency_label: "Currency:",
+      show_prices: "Prices: Hidden",
+      hide_prices: "Prices: Visible",
+      toggle_prices: "Show prices",
       btn_order: "Order via WhatsApp",
     },
     events: {
@@ -248,6 +254,9 @@ export const TRANSLATIONS = {
       desayunos: "Petits-déjeuners",
       bebidas: "Boissons",
       currency_label: "Devise :",
+      show_prices: "Prix : Masqués",
+      hide_prices: "Prix : Visibles",
+      toggle_prices: "Afficher les prix",
       btn_order: "Commander par WhatsApp",
     },
     events: {
@@ -337,6 +346,9 @@ export const TRANSLATIONS = {
       desayunos: "Colazioni",
       bebidas: "Bevande",
       currency_label: "Valuta:",
+      show_prices: "Prezzi: Nascosti",
+      hide_prices: "Prezzi: Visibili",
+      toggle_prices: "Mostra prezzi",
       btn_order: "Ordina su WhatsApp",
     },
     events: {
@@ -426,6 +438,9 @@ export const TRANSLATIONS = {
       desayunos: "Frühstück",
       bebidas: "Getränke",
       currency_label: "Währung:",
+      show_prices: "Preise: Ausgeblendet",
+      hide_prices: "Preise: Sichtbar",
+      toggle_prices: "Preise anzeigen",
       btn_order: "Über WhatsApp Bestellen",
     },
     events: {
@@ -515,6 +530,9 @@ export const TRANSLATIONS = {
       desayunos: "Café da Manhã",
       bebidas: "Bebidas",
       currency_label: "Moeda:",
+      show_prices: "Preços: Ocultos",
+      hide_prices: "Preços: Visíveis",
+      toggle_prices: "Mostrar preços",
       btn_order: "Pedir pelo WhatsApp",
     },
     events: {
