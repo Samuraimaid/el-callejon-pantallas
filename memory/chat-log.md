@@ -226,5 +226,22 @@
   - Respaldos: Almacenados en `gs://callejon-multimedia-pos/backups/`.
 - **Regla Incorporada:** Protocolo permanente documentado en `.agents/rules/bye_command_closed_loop_verification.md`.
 
+---
 
-
+### [2026-10-16 09:50:00] Auditoría de Facturación, Reducción de Costos Cloud Run y Regla Canónica Anti-Spike
+- **Problema Inicial:** Facturación inesperada de Google Cloud ($42.90 USD neto, proyectado $65.22 USD).
+  - Costo recurrente: `callejon-backend` consumía ~$0.75 a $1.00 USD diario ($22.63 en 30 días) por estar sobredimensionado a 2 vCPUs y 2 GiB RAM.
+  - Pico anómalo del 7 de octubre (~$20+ USD en 24h): Generado por compilaciones consecutivas en Cloud Build y ejecuciones en bucle del servicio `mclarens-erp` (proyecto compartido `gen-lang-client-0971793042`), NO por fugas de tokens de IA.
+- **Acciones Ejecutadas:**
+  1. **Redimensión en Caliente de Cloud Run:**
+     - `callejon-backend` actualizado a **1 vCPU y 1 GiB de RAM**.
+     - Desplegada y activa la revisión **`callejon-backend-00013-qw6`** (100% tráfico).
+     - URLs de frontend y backend 100% idénticas e inalteradas.
+     - Pruebas en vivo en `/api/pantallas/estado/public`: 200 OK en milisegundos.
+     - Para el horario de operación de las pantallas (11:30 AM a 3:00 PM = 3.5h/día = 105h/mes), 100 horas quedan cubiertas por el Free Tier de Google Cloud, reduciendo el costo mensual de este servicio a < $0.50 USD.
+  2. **Reclamo de Crédito de Cortesía Radicado:**
+     - Creado exitosamente el **Caso #76560766** con Google Cloud Billing Support solicitando un *One-Time Courtesy Credit* para cubrir el pico accidental del 7 de octubre.
+     - Tarea de monitoreo y recordatorio recurrente configurada cada 4 horas (`task-171`).
+  3. **Regla Canónica Anti-Picos Creada:**
+     - Archivo: `.agents/rules/cloud_cost_control_and_anti_spike_governance.md`.
+     - Fija como regla inviolable para cualquier agente: máximo 1 vCPU, 1 GiB RAM, `min-instances=0`, `--cpu-throttling=true`, prohibición de pings en bucles rápidos (<15s) y prohibición de llamadas desatendidas a APIs de IA generativa sin cuotas prefijadas.
