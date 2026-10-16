@@ -245,3 +245,10 @@
   3. **Regla Canónica Anti-Picos Creada:**
      - Archivo: `.agents/rules/cloud_cost_control_and_anti_spike_governance.md`.
      - Fija como regla inviolable para cualquier agente: máximo 1 vCPU, 1 GiB RAM, `min-instances=0`, `--cpu-throttling=true`, prohibición de pings en bucles rápidos (<15s) y prohibición de llamadas desatendidas a APIs de IA generativa sin cuotas prefijadas.
+  4. **Redimensión de `mclarens-erp` en Cloud Run:**
+     - `mclarens-erp` actualizado de 2 vCPUs / 2 GiB a **1 vCPU y 1 GiB de RAM** (Revisión `mclarens-erp-00254-9cj` activa).
+     - Probado en vivo: respondiendo en milisegundos con 200 OK.
+  5. **Alerta de Presupuesto Mensual Creada en Google Cloud:**
+     - Alerta ID `7f180509-7ac1-4264-b846-e181ab8dba76` ("Alerta Mensual Maxima 15 USD") creada en cuenta `01AD2D-A4E831-1E795B`.
+     - Notificaciones automáticas por correo al 50% ($7.50), 80% ($12.00), 100% ($15.00) de gasto real y 100% de gasto proyectado.
+
